@@ -35,4 +35,16 @@ enum EtapaAssinatura: string
             self::BAIXA => 'Baixa por',
         };
     }
+
+    /**
+     * Etapas assinadas no caminho normal de cada tipo, na ordem (reprovações ficam fora).
+     *
+     * @return list<self>
+     */
+    public static function fluxo(TipoRequisicao $tipo): array
+    {
+        return $tipo === TipoRequisicao::TESTE
+            ? [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::ENTREGA, self::RETIRADA, self::RECEBIMENTO, self::DEVOLUCAO]
+            : [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::LIBERACAO_ESTOQUE, self::ENTREGA, self::RETIRADA, self::RECEBIMENTO, self::BAIXA];
+    }
 }

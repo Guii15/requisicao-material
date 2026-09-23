@@ -15,5 +15,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(FeriadosNacionaisSeeder::class);
+
+        if (app()->isLocal()) {
+            $this->call(DemonstracaoSeeder::class);
+        }
     }
 }

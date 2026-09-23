@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\ExigirTrocaDeSenha;
+use App\Http\Middleware\GarantirUsuarioAtivo;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -11,7 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'ativo' => GarantirUsuarioAtivo::class,
+            'senha.trocada' => ExigirTrocaDeSenha::class,
+        ]);
+        $middleware->redirectUsersTo('/');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Senhas nunca voltam para a sessão como "old input" depois de um erro de validação.

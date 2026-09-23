@@ -120,4 +120,20 @@ class StatusRequisicaoTest extends TestCase
         }
         $this->assertSame('Aguardando liberação do estoque', S::AGUARDANDO_LIBERACAO_ESTOQUE->rotulo());
     }
+
+    public function test_grupo_visual_de_cada_status(): void
+    {
+        $this->assertSame('aguardando', S::AGUARDANDO_APROVACAO->grupo());
+        $this->assertSame('aguardando', S::AGUARDANDO_BAIXA->grupo());
+        $this->assertSame('andamento', S::EM_SEPARACAO->grupo());
+        $this->assertSame('concluida', S::DEVOLVIDA->grupo());
+        $this->assertSame('concluida', S::BAIXADA->grupo());
+        $this->assertSame('encerrada', S::REPROVADA->grupo());
+        $this->assertSame('encerrada', S::CANCELADA->grupo());
+        $this->assertSame('alerta', S::DEVOLUCAO_COM_PENDENCIA->grupo());
+
+        foreach (S::cases() as $status) {
+            $this->assertContains($status->grupo(), ['aguardando', 'andamento', 'concluida', 'encerrada', 'alerta']);
+        }
+    }
 }

@@ -48,6 +48,20 @@ enum StatusRequisicao: string
     }
 
     /**
+     * Agrupamento usado no selo de status: ícone e cor só onde há significado.
+     */
+    public function grupo(): string
+    {
+        return match ($this) {
+            self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA => 'aguardando',
+            self::DEVOLVIDA, self::BAIXADA => 'concluida',
+            self::REPROVADA, self::REPROVADA_ESTOQUE, self::CANCELADA => 'encerrada',
+            self::DEVOLUCAO_COM_PENDENCIA => 'alerta',
+            default => 'andamento',
+        };
+    }
+
+    /**
      * @return list<self>
      */
     public function destinos(TipoRequisicao $tipo): array

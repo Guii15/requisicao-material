@@ -21,4 +21,14 @@ final class Duracao
             default => intdiv($segundos, 86400).' d',
         };
     }
+
+    /**
+     * Mesma coisa em frase: "agora" ou "há 3 h".
+     */
+    public static function ha(CarbonInterface $desde, ?CarbonInterface $agora = null): string
+    {
+        $curta = self::curta($desde, $agora);
+
+        return $curta === 'agora' ? $curta : "há {$curta}";
+    }
 }
