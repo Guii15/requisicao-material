@@ -13,18 +13,20 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->unsignedInteger('matricula')->nullable()->unique();
+            $table->string('nome');
+            $table->string('login', 60)->unique();
+            $table->string('cargo', 100)->nullable();
+            $table->foreignId('setor_id')->constrained('setores');
             $table->string('password');
+            $table->boolean('ativo')->default(true);
+            $table->boolean('deve_trocar_senha')->default(true);
+            $table->boolean('is_estoque')->default(false);
+            $table->boolean('is_lider_estoque')->default(false);
+            $table->boolean('is_responsavel_baixa')->default(false);
+            $table->boolean('is_admin')->default(false);
             $table->rememberToken();
             $table->timestamps();
-        });
-
-        Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -43,7 +45,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
 };

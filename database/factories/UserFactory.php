@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\PapelSetor;
+use App\Models\Setor;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -25,21 +27,49 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
+            'matricula' => fake()->unique()->numberBetween(1, 999999),
+            'nome' => fake()->name(),
+            'login' => fake()->unique()->userName(),
+            'cargo' => 'Auxiliar Administrativo',
+            'setor_id' => Setor::factory(),
             'password' => static::$password ??= Hash::make('password'),
+            'ativo' => true,
+            'deve_trocar_senha' => false,
+            'is_estoque' => false,
+            'is_lider_estoque' => false,
+            'is_responsavel_baixa' => false,
+            'is_admin' => false,
             'remember_token' => Str::random(10),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function estoque(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
-        ]);
+        return $this->state(fn () => ['is_estoque' => true]);
+    }
+
+    public function liderEstoque(): static
+    {
+        return $this->state(fn () => ['is_estoque' => true, 'is_lider_estoque' => true]);
+    }
+
+    public function responsavelBaixa(): static
+    {
+        return $this->state(fn () => ['is_responsavel_baixa' => true]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn () => ['is_admin' => true]);
+    }
+
+    public function inativo(): static
+    {
+        return $this->state(fn () => ['ativo' => false]);
+    }
+
+    public function aprovadorDe(Setor $setor, PapelSetor $papel = PapelSetor::LIDER): static
+    {
+        return $this->afterCreating(fn (User $user) => $user->setoresAprovados()->attach($setor->id, ['papel' => $papel]));
     }
 }
