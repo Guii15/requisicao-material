@@ -22,6 +22,7 @@ class RequisicaoFactory extends Factory
             'numero' => fn () => sprintf('REQ-%d-%06d', now()->year, fake()->unique()->numberBetween(1, 999999)),
             'tipo' => TipoRequisicao::TESTE,
             'status' => StatusRequisicao::AGUARDANDO_APROVACAO,
+            'status_alterado_em' => now(),
             'solicitante_id' => User::factory(),
             'setor_id' => fn (array $atributos) => User::query()->whereKey($atributos['solicitante_id'])->value('setor_id'),
             'justificativa' => fake()->sentence(),

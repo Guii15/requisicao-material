@@ -57,7 +57,7 @@ class RegistrosImutaveisTest extends TestCase
 
         $this->expectException(RegistroProtegidoException::class);
 
-        $evento->forceFill(['acao' => 'OUTRA'])->save();
+        $evento->forceFill(['ip' => '10.0.0.99'])->save();
     }
 
     public function test_evento_nao_pode_ser_apagado(): void
@@ -75,7 +75,7 @@ class RegistrosImutaveisTest extends TestCase
 
         $this->expectException(RegistroProtegidoException::class);
 
-        Requisicao::viaWorkflow(fn () => $evento->forceFill(['acao' => 'OUTRA'])->save());
+        Requisicao::viaWorkflow(fn () => $evento->forceFill(['ip' => '10.0.0.99'])->save());
     }
 
     public function test_assinatura_nao_pode_ser_editada(): void

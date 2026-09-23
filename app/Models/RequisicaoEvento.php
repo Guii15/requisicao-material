@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AcaoEvento;
 use App\Enums\StatusRequisicao;
 use App\Exceptions\RegistroProtegidoException;
 use Illuminate\Database\Eloquent\Model;
@@ -31,6 +32,7 @@ class RequisicaoEvento extends Model
     protected function casts(): array
     {
         return [
+            'acao' => AcaoEvento::class,
             'status_de' => StatusRequisicao::class,
             'status_para' => StatusRequisicao::class,
             'dados' => 'array',

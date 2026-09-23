@@ -29,9 +29,10 @@ class RequisicaoTest extends TestCase
         $requisicao = new Requisicao;
 
         foreach ([
-            'numero', 'status', 'solicitante_id', 'setor_id', 'setor_destino_id', 'finalidade_complemento_estoque',
-            'aprovado_por_id', 'aprovado_em', 'motivo_reprovacao', 'separado_por_id', 'separado_em',
-            'liberado_por_id', 'liberado_em', 'motivo_reprovacao_estoque', 'entregue_por_id', 'entregue_em',
+            'numero', 'status', 'status_alterado_em', 'solicitante_id', 'setor_id', 'setor_destino_id', 'finalidade_complemento_estoque',
+            'aprovado_por_id', 'aprovado_em', 'reprovado_por_id', 'reprovado_em', 'motivo_reprovacao',
+            'separado_por_id', 'separado_em', 'liberado_por_id', 'liberado_em', 'reprovado_estoque_por_id',
+            'reprovado_estoque_em', 'motivo_reprovacao_estoque', 'entregue_por_id', 'entregue_em',
             'retirado_por_user_id', 'retirado_por_nome', 'recebido_em', 'devolucao_conferida_por_id',
             'devolucao_conferida_em', 'baixa_documento_winthor', 'baixa_por_id', 'baixa_em', 'baixa_observacao',
             'cancelado_por_id', 'cancelado_em', 'motivo_cancelamento',

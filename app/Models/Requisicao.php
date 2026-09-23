@@ -34,15 +34,23 @@ class Requisicao extends Model
 
     private static int $alteracoesAutorizadas = 0;
 
+    public function getRouteKeyName(): string
+    {
+        return 'numero';
+    }
+
     protected function casts(): array
     {
         return [
             'tipo' => TipoRequisicao::class,
             'status' => StatusRequisicao::class,
+            'status_alterado_em' => 'datetime',
             'data_prevista_devolucao' => 'date',
             'aprovado_em' => 'datetime',
+            'reprovado_em' => 'datetime',
             'separado_em' => 'datetime',
             'liberado_em' => 'datetime',
+            'reprovado_estoque_em' => 'datetime',
             'entregue_em' => 'datetime',
             'recebido_em' => 'datetime',
             'devolucao_conferida_em' => 'datetime',
@@ -125,6 +133,12 @@ class Requisicao extends Model
     }
 
     /** @return BelongsTo<User, $this> */
+    public function reprovadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reprovado_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
     public function separadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'separado_por_id');
@@ -134,6 +148,12 @@ class Requisicao extends Model
     public function liberadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'liberado_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function reprovadoEstoquePor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reprovado_estoque_por_id');
     }
 
     /** @return BelongsTo<User, $this> */

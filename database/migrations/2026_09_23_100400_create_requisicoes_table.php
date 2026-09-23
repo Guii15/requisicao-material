@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('numero', 20)->unique();
             $table->string('tipo', 20);
             $table->string('status', 40);
+            $table->timestamp('status_alterado_em');
 
             $table->foreignId('solicitante_id')->constrained('users');
             // Setor no MOMENTO da abertura: não muda se o usuário trocar de setor depois.
@@ -26,6 +27,8 @@ return new class extends Migration
 
             $table->foreignId('aprovado_por_id')->nullable()->constrained('users');
             $table->timestamp('aprovado_em')->nullable();
+            $table->foreignId('reprovado_por_id')->nullable()->constrained('users');
+            $table->timestamp('reprovado_em')->nullable();
             $table->text('motivo_reprovacao')->nullable();
 
             $table->foreignId('separado_por_id')->nullable()->constrained('users');
@@ -33,6 +36,8 @@ return new class extends Migration
 
             $table->foreignId('liberado_por_id')->nullable()->constrained('users');
             $table->timestamp('liberado_em')->nullable();
+            $table->foreignId('reprovado_estoque_por_id')->nullable()->constrained('users');
+            $table->timestamp('reprovado_estoque_em')->nullable();
             $table->text('motivo_reprovacao_estoque')->nullable();
 
             $table->foreignId('entregue_por_id')->nullable()->constrained('users');
@@ -58,6 +63,7 @@ return new class extends Migration
             $table->index('status');
             $table->index(['setor_id', 'status']);
             $table->index(['tipo', 'status']);
+            $table->index(['solicitante_id', 'id']);
         });
     }
 

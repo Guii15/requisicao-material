@@ -14,5 +14,6 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Senhas nunca voltam para a sessão como "old input" depois de um erro de validação.
+        $exceptions->dontFlash(['senha', 'senha_atual', 'nova_senha', 'nova_senha_confirmation']);
     })->create();
