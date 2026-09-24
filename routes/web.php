@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/requisicoes/nova', [RequisicaoController::class, 'create'])->name('requisicoes.create');
             Route::post('/requisicoes', [RequisicaoController::class, 'store'])->name('requisicoes.store');
             Route::get('/requisicoes/{requisicao}', [RequisicaoController::class, 'show'])->name('requisicoes.show');
+            Route::get('/requisicoes/{requisicao}/pdf', [RequisicaoController::class, 'pdf'])->name('requisicoes.pdf');
             Route::post('/requisicoes/{requisicao}/cancelar', [RequisicaoController::class, 'cancelar'])->name('requisicoes.cancelar');
 
             Route::get('/aprovacoes', [AprovacaoController::class, 'index'])->name('aprovacoes.index');

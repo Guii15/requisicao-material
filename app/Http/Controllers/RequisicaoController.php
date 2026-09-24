@@ -6,12 +6,12 @@ use App\Models\Parametro;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
 use App\Models\User;
-use App\Services\AssinaturaService;
-use App\Services\FilaDeAprovacao;
+use App\Services\FichaDaRequisicao;
 use App\Services\RequisicaoWorkflow;
 use App\Support\DiasUteis;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -59,18 +59,24 @@ class RequisicaoController extends Controller
             ->with('sucesso', "Requisição {$requisicao->numero} assinada e enviada para aprovação.");
     }
 
-    public function show(Request $request, Requisicao $requisicao, AssinaturaService $assinaturas, FilaDeAprovacao $fila): View
+    public function show(Request $request, Requisicao $requisicao, FichaDaRequisicao $ficha): View
     {
         Gate::authorize('view', $requisicao);
 
-        $requisicao->load(['itens', 'assinaturas', 'eventos.usuario', 'solicitante', 'setor', 'reprovadoPor', 'canceladoPor']);
-
-        return view('requisicoes.show', [
-            'requisicao' => $requisicao,
-            'verificacao' => $assinaturas->verificar($requisicao),
-            'motivoSemAprovador' => $fila->motivoSemAprovador($requisicao),
+        return view('requisicoes.show', $ficha->dados($requisicao) + [
             'voltar' => $this->voltarPara($request->user(), $requisicao),
         ]);
+    }
+
+    /**
+     * Cópia em PDF para imprimir ou mostrar no estoque. Abre no navegador (inline);
+     * o próprio leitor de PDF oferece imprimir e salvar.
+     */
+    public function pdf(Request $request, Requisicao $requisicao, FichaDaRequisicao $ficha): Response
+    {
+        Gate::authorize('view', $requisicao);
+
+        return $ficha->pdf($requisicao, $request->user())->stream("{$requisicao->numero}.pdf");
     }
 
     public function cancelar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse

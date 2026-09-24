@@ -22,6 +22,7 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
+            <a href="{{ route('requisicoes.pdf', $requisicao) }}" target="_blank" class="botao botao-secundario">Imprimir / PDF</a>
             @can('cancelar', $requisicao)
                 <button type="button" class="botao botao-secundario" x-data x-on:click="$dispatch('abrir-modal', 'cancelar')">
                     Cancelar requisição
