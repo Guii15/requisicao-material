@@ -1,6 +1,6 @@
 @if ($paginator->hasPages())
     <nav class="flex items-center justify-between gap-3 text-sm" aria-label="Paginação">
-        <p class="text-slate-600">
+        <p class="text-mid-gray">
             {{ $paginator->firstItem() }} a {{ $paginator->lastItem() }} de {{ $paginator->total() }}
         </p>
         <div class="flex gap-2">

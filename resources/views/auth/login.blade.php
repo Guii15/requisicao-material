@@ -3,7 +3,7 @@
         @csrf
         <div class="px-6 pt-6">
             <h1 class="text-xl font-semibold tracking-tight">Entrar</h1>
-            <p class="mt-1 text-sm text-slate-500">Requisição de material do estoque.</p>
+            <p class="mt-1 text-sm text-mid-gray">Requisição de material do estoque.</p>
         </div>
 
         <div class="space-y-4 px-6 py-5">
@@ -34,5 +34,5 @@
         </div>
     </form>
 
-    <p class="mt-4 text-center text-sm text-slate-500">Primeiro acesso ou esqueceu a senha: procure a TI.</p>
+    <p class="mt-4 text-center text-sm text-mid-gray">Primeiro acesso ou esqueceu a senha: procure a TI.</p>
 </x-layouts.acesso>

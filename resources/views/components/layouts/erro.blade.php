@@ -17,9 +17,9 @@
     </header>
     <main class="flex flex-1 items-start justify-center px-4 py-10 sm:items-center sm:pb-24">
         <div class="quadro w-full max-w-md p-6">
-            <p class="text-sm font-medium text-slate-500 tabular-nums">Erro {{ $codigo }}</p>
+            <p class="text-sm font-medium text-mid-gray tabular-nums">Erro {{ $codigo }}</p>
             <h1 class="mt-1 text-xl font-semibold tracking-tight">{{ $titulo }}</h1>
-            <div class="mt-2 text-sm text-slate-600">{{ $slot }}</div>
+            <div class="mt-2 text-sm text-mid-gray">{{ $slot }}</div>
             <a href="{{ url('/') }}" class="botao botao-secundario mt-6">
                 <x-phosphor-arrow-left class="size-4" aria-hidden="true" />Voltar ao início
             </a>

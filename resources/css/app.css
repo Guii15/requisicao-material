@@ -10,7 +10,8 @@
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    /* Azul-marinho da Binário: a única cor de destaque do sistema. */
+    /* EXPERIMENTO (branch experimento/visual-shadcn): paleta monocromática estilo shadcn/ui.
+       Azul-marinho da Binário fica só na logo/cabeçalho; o resto do sistema vira preto e branco. */
     --color-marinho-950: #00004d;
     --color-marinho-900: #000069;
     --color-marinho-800: #05018d;
@@ -18,13 +19,22 @@
     --color-marinho-100: #e3e3f7;
     --color-marinho-50: #f3f3fb;
 
-    --color-fundo: #f5f6f8;
+    --color-fundo: #f5f5f5;
+    --color-paper: #ffffff;
+    --color-surface-alt: #fafafa;
+    --color-ink: #0a0a0a;
+    --color-ink-soft: #171717;
+    --color-mid-gray: #737373;
+    --color-hairline: #e5e5e5;
+    --color-ember: #e7000b;
 }
 
 /*
- * Linguagem visual: sistema de uso diário, limpo e legível.
- * Cantos: cartões 12px, botões e campos 8px, selos em pílula. Sombra só de leve, para separar do fundo.
- * Cor de destaque única (marinho). Outras cores só onde têm significado: situação e tipo.
+ * EXPERIMENTO: sistema quase todo preto-e-branco (achromatic), tipografia Geist com
+ * tracking apertado nos títulos, cantos moderados (12px em cartões, 8px em botões/campos,
+ * selos continuam em pílula), sombra quase imperceptível (hairline + leve elevação).
+ * Vermelho só em ação destrutiva. Cores de situação e tipo (âmbar/esmeralda/céu/vermelho)
+ * continuam, por terem significado.
  */
 @layer base {
     html {
@@ -38,92 +48,117 @@
     }
 
     body {
-        @apply bg-fundo text-[15px] text-slate-900 antialiased;
+        @apply bg-fundo text-[14px] text-ink antialiased;
+    }
+
+    h1, h2, h3 {
+        letter-spacing: -0.025em;
     }
 
     [x-cloak] {
         display: none !important;
     }
+
+    /* Rede de segurança: qualquer animação/transição encolhe quase a zero para quem pediu menos movimento. */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+@keyframes pulso-suave {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
 }
 
 @layer components {
-    /* Cartão: superfície branca sobre o fundo cinza. */
+    /* Cartão: superfície branca sobre o fundo cinza, raio pequeno (6px, nunca xl/2xl), sombra quase imperceptível.
+       Não usar em tabela de dados — tabela fica direto no fundo da página (ver .tabela). */
     .quadro {
-        @apply rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgb(15_23_42/0.05)];
+        @apply rounded-md border border-hairline bg-paper shadow-[0_0_0_1px_rgb(23_23_23/0.05),0_1px_3px_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)];
     }
 
     /* Título de uma seção dentro do cartão. */
     .quadro-titulo {
-        @apply border-b border-slate-100 px-5 pt-4 pb-3 text-base font-semibold text-slate-900;
+        @apply border-b border-hairline px-4 py-3 text-sm font-semibold text-ink;
+    }
+
+    /* Título de seção fora de cartão: mesma ideia da tabela, uma linha fina embaixo, sem caixa. */
+    .titulo-secao {
+        @apply mb-3 border-b border-hairline pb-2 text-sm font-semibold text-ink;
+    }
+
+    /* Título de página: peso de manchete, mas sem exagerar no espaço (é painel de gestão, não landing). */
+    .titulo-pagina {
+        @apply text-2xl font-semibold text-ink;
+        letter-spacing: -0.02em;
     }
 
     /* Rótulo pequeno de um dado exibido (não de campo de formulário). */
     .legenda {
-        @apply block text-[13px] leading-5 text-slate-500;
+        @apply block text-xs tracking-wide text-mid-gray uppercase;
     }
 
     .rotulo {
-        @apply block text-sm font-medium text-slate-800;
+        @apply block text-sm font-medium text-ink-soft;
     }
 
     .ajuda {
-        @apply mt-0.5 text-[13px] text-slate-500;
+        @apply mt-0.5 text-[13px] text-mid-gray;
     }
 
     .erro-campo {
-        @apply mt-1 text-[13px] font-medium text-red-700;
+        @apply mt-1 text-[13px] font-medium text-ember;
     }
 
+    /* Campo com borda visível: precisa se destacar sozinho, sem depender de um cartão atrás. */
     .campo {
-        @apply block w-full rounded-lg border-slate-300 bg-white px-3 py-2 text-[15px] text-slate-900 shadow-xs placeholder:text-slate-400 focus:border-marinho-700 focus:ring-3 focus:ring-marinho-700/15 disabled:bg-slate-50 disabled:text-slate-500;
+        @apply block w-full rounded-lg border border-hairline bg-paper px-3.5 py-2 text-sm text-ink shadow-none placeholder:text-mid-gray focus:border-ink focus:ring-2 focus:ring-ink/10 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray;
     }
 
     .campo-erro {
-        @apply border-red-600 focus:border-red-600 focus:ring-red-600/15;
+        @apply ring-1 ring-ember focus:ring-ember;
     }
 
     .botao {
-        @apply inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
     }
 
     .botao-primario {
-        @apply border-marinho-900 bg-marinho-900 text-white shadow-sm hover:border-marinho-800 hover:bg-marinho-800;
+        @apply bg-ink text-surface-alt shadow-none hover:bg-ink-soft;
     }
 
     .botao-secundario {
-        @apply border-slate-300 bg-white text-slate-800 shadow-xs hover:bg-slate-50;
+        @apply bg-fundo text-ink shadow-none hover:bg-hairline/60;
     }
 
     .botao-perigo {
-        @apply border-red-700 bg-red-700 text-white shadow-sm hover:border-red-800 hover:bg-red-800;
+        @apply bg-ember text-white shadow-none hover:opacity-90;
     }
 
     .botao-perigo-contorno {
-        @apply border-red-200 bg-white text-red-700 shadow-xs hover:border-red-300 hover:bg-red-50;
+        @apply border border-hairline bg-transparent text-ember shadow-none hover:bg-ember/5;
     }
 
     .link {
-        @apply font-medium text-marinho-800 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marinho-700;
+        @apply font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
     }
 
+    /* Tabela de dados: sem cartão, sem sombra — fica direto no fundo da página.
+       Só a borda inferior de cada linha separa uma da outra. */
     .tabela {
         @apply w-full border-collapse text-sm;
     }
 
     .tabela th {
-        @apply border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-left text-[13px] font-medium whitespace-nowrap text-slate-500;
-    }
-
-    .tabela thead tr:first-child th:first-child {
-        @apply rounded-tl-xl;
-    }
-
-    .tabela thead tr:first-child th:last-child {
-        @apply rounded-tr-xl;
+        @apply border-b border-hairline px-3 py-1.5 text-left text-xs font-medium tracking-wide whitespace-nowrap text-mid-gray uppercase;
     }
 
     .tabela td {
-        @apply border-b border-slate-100 px-4 py-3.5 align-top;
+        @apply border-b border-hairline px-3 py-1.5 align-top;
     }
 
     .tabela tbody tr:last-child td {
@@ -132,10 +167,15 @@
 
     /* Linha que abre a requisição com um clique em qualquer parte (ver app.js). */
     .tabela tbody tr[data-href] {
-        @apply cursor-pointer transition-colors hover:bg-slate-50;
+        @apply cursor-pointer transition-colors hover:bg-surface-alt;
     }
 
     .num {
         @apply text-right tabular-nums;
+    }
+
+    /* Pulso discreto: só no que está de fato esperando algo acontecer agora (ex.: aprovação). */
+    .pulso-suave {
+        animation: pulso-suave 2s ease-in-out infinite;
     }
 }

@@ -1,9 +1,9 @@
 <x-layouts.app titulo="Minhas requisições">
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold tracking-tight">Minhas requisições</h1>
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-baseline gap-3">
+            <h1 class="titulo-pagina">Minhas requisições</h1>
             @if ($requisicoes->total() > 0)
-                <p class="mt-1 text-sm text-slate-500">{{ $requisicoes->total() }} {{ $requisicoes->total() === 1 ? 'requisição' : 'requisições' }}</p>
+                <span class="text-sm text-mid-gray tabular-nums">{{ $requisicoes->total() }} {{ $requisicoes->total() === 1 ? 'requisição' : 'requisições' }}</span>
             @endif
         </div>
         <a href="{{ route('requisicoes.create') }}" class="botao botao-primario"><x-phosphor-plus class="size-4" aria-hidden="true" />Nova requisição</a>
@@ -15,22 +15,22 @@
         </x-vazio>
     @else
         {{-- Celular e tablet: blocos. Computador: tabela de colunas fixas, sem rolagem lateral. --}}
-        <ul class="quadro divide-y divide-slate-100 overflow-hidden lg:hidden">
+        <ul class="quadro divide-y divide-hairline overflow-hidden lg:hidden">
             @foreach ($requisicoes as $requisicao)
                 <li>
-                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3.5 transition-colors hover:bg-slate-50">
+                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 transition-colors hover:bg-surface-alt">
                         <span class="flex items-center justify-between gap-2">
-                            <span class="font-mono text-sm font-medium text-marinho-800">{{ $requisicao->numero }}</span>
-                            <span class="text-xs text-slate-500 tabular-nums">{{ $requisicao->created_at->format('d/m/Y') }}</span>
+                            <span class="font-mono text-sm font-medium text-ink">{{ $requisicao->numero }}</span>
+                            <span class="text-xs text-mid-gray tabular-nums">{{ $requisicao->created_at->format('d/m/Y') }}</span>
                         </span>
-                        <span class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <span class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                             <x-selo-tipo :tipo="$requisicao->tipo" />
                             <x-selo-status :status="$requisicao->status" />
                         </span>
-                        <span class="mt-1.5 block truncate text-sm text-slate-700">
+                        <span class="mt-1 block truncate text-sm text-ink-soft">
                             {{ $requisicao->primeiro_item }}
                             @if ($requisicao->itens_count > 1)
-                                <span class="text-slate-500">e mais {{ $requisicao->itens_count - 1 }}</span>
+                                <span class="text-mid-gray">e mais {{ $requisicao->itens_count - 1 }}</span>
                             @endif
                         </span>
                     </a>
@@ -38,7 +38,7 @@
             @endforeach
         </ul>
 
-        <div class="quadro hidden lg:block">
+        <div class="hidden lg:block">
             <table class="tabela table-fixed">
                 <colgroup>
                     <col class="w-44">
@@ -68,12 +68,12 @@
                                 <span class="block truncate">
                                     {{ $requisicao->primeiro_item }}
                                     @if ($requisicao->itens_count > 1)
-                                        <span class="text-slate-500">e mais {{ $requisicao->itens_count - 1 }}</span>
+                                        <span class="text-mid-gray">e mais {{ $requisicao->itens_count - 1 }}</span>
                                     @endif
                                 </span>
                             </td>
-                            <td class="text-slate-600 tabular-nums">{{ $requisicao->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="num text-slate-500" title="Tempo na situação atual">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
+                            <td class="text-mid-gray tabular-nums">{{ $requisicao->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="num text-mid-gray" title="Tempo na situação atual">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

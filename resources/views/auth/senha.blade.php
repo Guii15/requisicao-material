@@ -4,7 +4,7 @@
         @method('PUT')
         <div class="space-y-4 px-6 py-6">
             <h1 class="text-xl font-semibold tracking-tight">{{ $obrigatoria ? 'Defina sua senha' : 'Trocar senha' }}</h1>
-            <p class="-mt-3 text-sm text-slate-500">
+            <p class="-mt-3 text-sm text-mid-gray">
                 @if ($obrigatoria)
                     Você entrou com uma senha provisória. Crie a sua para continuar. Ela também assina as suas requisições.
                 @else

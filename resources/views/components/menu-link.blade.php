@@ -9,6 +9,6 @@
    ])>
     {{ $slot }}
     @if ($contador > 0)
-        <span class="min-w-5 rounded-full bg-white px-1.5 text-center text-xs leading-5 font-semibold text-marinho-900 tabular-nums">{{ $contador }}</span>
+        <span class="min-w-5 rounded-md bg-white px-1.5 text-center text-xs leading-5 font-semibold text-marinho-900 tabular-nums">{{ $contador }}</span>
     @endif
 </a>
