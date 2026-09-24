@@ -23,8 +23,13 @@ use Illuminate\Validation\ValidationException;
  * Único lugar que muda o status de uma requisição.
  *
  * Toda ação segue a mesma sequência: transição permitida na tabela -> Policy -> dados da
- * ação -> senha (quando a etapa assina) -> transação com lockForUpdate, onde transição e
- * Policy são conferidas de novo com o dado atualizado -> altera -> assina -> registra evento.
+ * ação -> transação com lockForUpdate, onde transição e Policy são conferidas de novo com o
+ * dado atualizado -> altera -> assina -> registra evento.
+ *
+ * A senha de login já identifica quem está agindo — decisão de 24/09/2026: nenhuma etapa
+ * pede senha de novo (só a assinatura por desenho da retirada, que é de quem não loga).
+ * Os parâmetros $senha que ainda aparecem nas assinaturas dos métodos ficam por enquanto,
+ * sem uso, pela compatibilidade de quem já chama passando — dá pra tirar numa limpeza depois.
  */
 class RequisicaoWorkflow
 {
@@ -37,11 +42,14 @@ class RequisicaoWorkflow
     /**
      * @param  array<string, mixed>  $dados  tipo, itens (descricao, unidade, quantidade), justificativa, finalidade, data_prevista_devolucao
      */
-    public function criar(User $solicitante, array $dados, ?string $senha): Requisicao
+    /**
+     * $senha não é mais conferida (decisão de 24/09/2026: só a senha do login, sem repetir
+     * a cada ação) — o parâmetro fica pela compatibilidade de quem ainda chama passando ela.
+     */
+    public function criar(User $solicitante, array $dados, ?string $senha = null): Requisicao
     {
         Gate::forUser($solicitante)->authorize('create', Requisicao::class);
         $validado = $this->validarAbertura($dados);
-        $this->senhas->confirmar($solicitante, $senha, null, EtapaAssinatura::SOLICITACAO);
 
         return DB::transaction(function () use ($solicitante, $validado) {
             $tipo = TipoRequisicao::from($validado['tipo']);
@@ -101,6 +109,220 @@ class RequisicaoWorkflow
         );
     }
 
+    /**
+     * @param  array<int, mixed>  $itens  quantidade separada por id de item
+     */
+    public function separar(Requisicao $requisicao, User $por, array $itens, ?string $senha): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::EM_SEPARACAO, 'separar', AcaoEvento::SEPARACAO,
+            EtapaAssinatura::SEPARACAO, $senha,
+            alterar: fn (Requisicao $r, array $dados) => $this->gravarSeparacao($r, $por, $dados['itens']),
+            validar: fn () => ['itens' => $this->validarSeparacao($requisicao, $itens)],
+        );
+    }
+
+    /**
+     * @param  array<int, mixed>  $itens
+     * @return array<int, string>
+     */
+    private function validarSeparacao(Requisicao $requisicao, array $itens): array
+    {
+        $regras = [];
+        $nomes = [];
+        $normalizado = [];
+
+        foreach ($requisicao->itens as $item) {
+            $bruto = $itens[$item->id] ?? null;
+            $normalizado[$item->id] = is_string($bruto) ? str_replace(',', '.', trim($bruto)) : $bruto;
+            // Não separa mais do que foi pedido: quem digitar mais que qtd_solicitada está com o número errado.
+            $regras["itens.{$item->id}"] = ['required', 'numeric', 'min:0', 'max:'.$item->qtd_solicitada];
+            $nomes["itens.{$item->id}"] = "quantidade separada de \"{$item->descricao}\"";
+        }
+
+        return Validator::make(['itens' => $normalizado], $regras, [], $nomes)->validate()['itens'];
+    }
+
+    /**
+     * @param  array<int, string>  $quantidades
+     */
+    private function gravarSeparacao(Requisicao $requisicao, User $por, array $quantidades): void
+    {
+        foreach ($requisicao->itens as $item) {
+            $item->forceFill(['qtd_separada' => $quantidades[$item->id]])->save();
+        }
+
+        $requisicao->forceFill(['separado_por_id' => $por->id, 'separado_em' => now()]);
+    }
+
+    /**
+     * Liberação do estoque: só existe para Uso e Consumo. Avança sozinho pra pronta pra
+     * retirada, igual a separação avança pra liberação.
+     */
+    public function liberar(Requisicao $requisicao, User $por, ?string $senha): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::LIBERADA, 'liberar', AcaoEvento::LIBERACAO,
+            EtapaAssinatura::LIBERACAO_ESTOQUE, $senha,
+            alterar: fn (Requisicao $r) => $r->forceFill(['liberado_por_id' => $por->id, 'liberado_em' => now()]),
+        );
+    }
+
+    public function reprovarEstoque(Requisicao $requisicao, User $por, ?string $motivo, ?string $senha): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::REPROVADA_ESTOQUE, 'reprovarEstoque', AcaoEvento::REPROVACAO_ESTOQUE,
+            EtapaAssinatura::REPROVACAO_ESTOQUE, $senha,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'reprovado_estoque_por_id' => $por->id,
+                'reprovado_estoque_em' => now(),
+                'motivo_reprovacao_estoque' => $dados['motivo'],
+            ]),
+            validar: fn () => ['motivo' => $this->exigirMotivo($motivo, 'Informe o motivo da reprovação do estoque')],
+        );
+    }
+
+    /**
+     * Entrega + retirada num passo só: o estoquista assina a entrega por senha, e quem retira
+     * assina por desenho (não precisa de login — pode ser qualquer pessoa buscando o material).
+     * As duas assinaturas ficam encadeadas, na ordem: entrega, depois retirada.
+     */
+    public function entregar(Requisicao $requisicao, User $por, string $retiradoPorNome, string $assinaturaDesenho, ?string $senha = null): Requisicao
+    {
+        $nome = $this->exigirMotivo($retiradoPorNome, 'Informe quem está retirando', minimo: 2, campo: 'retirado_por_nome');
+
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::ENTREGUE, 'entregar', AcaoEvento::ENTREGA, null, null,
+            alterar: function (Requisicao $r) use ($por, $nome, $assinaturaDesenho) {
+                $r->forceFill(['entregue_por_id' => $por->id, 'entregue_em' => now(), 'retirado_por_nome' => $nome]);
+                $this->assinaturas->assinarComSenha($r, EtapaAssinatura::ENTREGA, $por);
+                $this->assinaturas->assinarComDesenho($r, EtapaAssinatura::RETIRADA, $nome, $assinaturaDesenho);
+            },
+        );
+    }
+
+    /**
+     * Só existe no Teste: registro de que o material chegou às mãos de quem pediu. Não muda
+     * o status (a requisição já está Em posse desde a entrega) — só grava a assinatura.
+     */
+    public function confirmarRecebimento(Requisicao $requisicao, User $por, ?string $senha = null): Requisicao
+    {
+        Gate::forUser($por)->authorize('confirmarRecebimento', $requisicao);
+
+        return DB::transaction(function () use ($requisicao, $por) {
+            $atual = Requisicao::query()->whereKey($requisicao->getKey())->lockForUpdate()->firstOrFail();
+            Gate::forUser($por)->authorize('confirmarRecebimento', $atual);
+
+            Requisicao::viaWorkflow(fn () => $atual->forceFill(['recebido_em' => now()])->save());
+            $this->assinaturas->assinarComSenha($atual, EtapaAssinatura::RECEBIMENTO, $por);
+            $this->registrarEvento($atual, $por, AcaoEvento::RECEBIMENTO, $atual->status, $atual->status);
+
+            return $atual;
+        });
+    }
+
+    /**
+     * Devolução (Teste): confere o que voltou item a item. Fecha "Devolvida" se tudo voltou
+     * bom; qualquer defeito ou falta vira "Devolução com pendência".
+     *
+     * @param  array<int, array{ok?: mixed, defeito?: mixed, nao_devolvida?: mixed, observacao?: mixed}>  $itens
+     */
+    public function devolver(Requisicao $requisicao, User $por, array $itens, ?string $senha): Requisicao
+    {
+        $validado = $this->validarDevolucao($requisicao, $itens);
+        $comPendencia = collect($validado)->contains(fn (array $linha) => bccomp($linha['defeito'], '0', 3) > 0 || bccomp($linha['nao_devolvida'], '0', 3) > 0);
+        $para = $comPendencia ? StatusRequisicao::DEVOLUCAO_COM_PENDENCIA : StatusRequisicao::DEVOLVIDA;
+
+        return $this->executar(
+            $requisicao, $por, $para, 'devolver', AcaoEvento::DEVOLUCAO,
+            EtapaAssinatura::DEVOLUCAO, $senha,
+            alterar: fn (Requisicao $r, array $dados) => $this->gravarDevolucao($r, $por, $dados['itens']),
+            validar: fn () => ['itens' => $validado],
+        );
+    }
+
+    /**
+     * @param  array<int, mixed>  $itens
+     * @return array<int, array{ok: string, defeito: string, nao_devolvida: string, observacao: ?string}>
+     */
+    private function validarDevolucao(Requisicao $requisicao, array $itens): array
+    {
+        $norm = fn (mixed $v) => is_string($v) ? str_replace(',', '.', trim($v)) : ($v ?? '0');
+        $regras = [];
+        $nomes = [];
+        $normalizado = [];
+
+        foreach ($requisicao->itens as $item) {
+            $linha = $itens[$item->id] ?? [];
+            $normalizado[$item->id] = [
+                'ok' => $norm($linha['ok'] ?? null),
+                'defeito' => $norm($linha['defeito'] ?? null),
+                'nao_devolvida' => $norm($linha['nao_devolvida'] ?? null),
+                'observacao' => is_string($linha['observacao'] ?? null) && trim($linha['observacao']) !== '' ? trim($linha['observacao']) : null,
+            ];
+
+            foreach (['ok', 'defeito', 'nao_devolvida'] as $campo) {
+                $regras["itens.{$item->id}.{$campo}"] = ['required', 'numeric', 'min:0'];
+                $nomes["itens.{$item->id}.{$campo}"] = "quantidade \"{$campo}\" de \"{$item->descricao}\"";
+            }
+            $regras["itens.{$item->id}.observacao"] = ['nullable', 'string', 'max:1000'];
+        }
+
+        $validado = Validator::make(['itens' => $normalizado], $regras, [], $nomes)->validate()['itens'];
+
+        foreach ($requisicao->itens as $item) {
+            $linha = $validado[$item->id];
+            $soma = bcadd(bcadd($linha['ok'], $linha['defeito'], 3), $linha['nao_devolvida'], 3);
+
+            if (bccomp($soma, (string) $item->qtd_solicitada, 3) !== 0) {
+                throw ValidationException::withMessages([
+                    "itens.{$item->id}.ok" => "\"{$item->descricao}\": boa + defeito + não devolvida tem que somar {$item->qtd_solicitada}, e deu {$soma}.",
+                ]);
+            }
+        }
+
+        return $validado;
+    }
+
+    /**
+     * @param  array<int, array{ok: string, defeito: string, nao_devolvida: string, observacao: ?string}>  $itens
+     */
+    private function gravarDevolucao(Requisicao $requisicao, User $por, array $itens): void
+    {
+        foreach ($requisicao->itens as $item) {
+            $linha = $itens[$item->id];
+            $item->forceFill([
+                'qtd_devolvida_ok' => $linha['ok'],
+                'qtd_devolvida_defeito' => $linha['defeito'],
+                'qtd_nao_devolvida' => $linha['nao_devolvida'],
+                'observacao_devolucao' => $linha['observacao'],
+            ])->save();
+        }
+
+        $requisicao->forceFill(['devolucao_conferida_por_id' => $por->id, 'devolucao_conferida_em' => now()]);
+    }
+
+    /**
+     * Baixa (Uso e Consumo): fecha a requisição com o documento do WinThor.
+     */
+    public function darBaixa(Requisicao $requisicao, User $por, string $documentoWinthor, ?string $observacao, ?string $senha): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::BAIXADA, 'darBaixa', AcaoEvento::BAIXA,
+            EtapaAssinatura::BAIXA, $senha,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'baixa_por_id' => $por->id,
+                'baixa_em' => now(),
+                'baixa_documento_winthor' => $dados['documento'],
+                'baixa_observacao' => $dados['observacao'],
+            ]),
+            validar: fn () => [
+                'documento' => $this->exigirMotivo($documentoWinthor, 'Informe o documento de baixa do WinThor', minimo: 2, campo: 'documento'),
+                'observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null,
+            ],
+        );
+    }
+
     public function cancelar(Requisicao $requisicao, User $por, ?string $motivo): Requisicao
     {
         return $this->executar(
@@ -134,10 +356,6 @@ class RequisicaoWorkflow
         Gate::forUser($por)->authorize($habilidade, $requisicao);
         $dados = $validar !== null ? $validar() : [];
 
-        if ($etapa !== null) {
-            $this->senhas->confirmar($por, $senha, $requisicao, $etapa);
-        }
-
         $atual = DB::transaction(function () use ($requisicao, $por, $para, $habilidade, $acao, $etapa, $alterar, $dados) {
             // Dois aprovadores ao mesmo tempo: o segundo espera o lock e cai na conferência abaixo.
             $atual = Requisicao::query()->whereKey($requisicao->getKey())->lockForUpdate()->firstOrFail();
@@ -156,7 +374,7 @@ class RequisicaoWorkflow
 
             $this->registrarEvento($atual, $por, $acao, $de, $para, $dados);
 
-            // Status de passagem (LIBERADA, ENTREGUE) ficam no histórico e seguem na hora.
+            // Status de passagem (EM_SEPARACAO, LIBERADA, ENTREGUE) ficam no histórico e seguem na hora.
             $proximo = $para->proximoAutomatico($atual->tipo);
 
             if ($proximo !== null) {
@@ -179,16 +397,16 @@ class RequisicaoWorkflow
         }
     }
 
-    private function exigirMotivo(?string $motivo, string $mensagem): string
+    private function exigirMotivo(?string $motivo, string $mensagem, int $minimo = 5, string $campo = 'motivo'): string
     {
         $motivo = trim((string) $motivo);
 
-        if (mb_strlen($motivo) < 5) {
-            throw ValidationException::withMessages(['motivo' => "{$mensagem} (pelo menos 5 caracteres)."]);
+        if (mb_strlen($motivo) < $minimo) {
+            throw ValidationException::withMessages([$campo => "{$mensagem} (pelo menos {$minimo} caracteres)."]);
         }
 
         if (mb_strlen($motivo) > 1000) {
-            throw ValidationException::withMessages(['motivo' => 'O motivo pode ter no máximo 1000 caracteres.']);
+            throw ValidationException::withMessages([$campo => "{$mensagem} (no máximo 1000 caracteres)."]);
         }
 
         return $motivo;

@@ -4,11 +4,12 @@ namespace Tests\Feature\Services;
 
 use App\Enums\AcaoEvento;
 use App\Enums\EtapaAssinatura;
+use App\Enums\MetodoAssinatura;
 use App\Enums\StatusRequisicao;
+use App\Enums\TipoRequisicao;
 use App\Exceptions\RegraDeNegocioException;
 use App\Models\Requisicao;
 use App\Models\Setor;
-use App\Models\TentativaAssinatura;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -59,17 +60,6 @@ class RequisicaoWorkflowTest extends TestCase
         $this->assertSame('2.000', $requisicao->itens[1]->qtd_solicitada);
         $this->assertSame([EtapaAssinatura::SOLICITACAO], $requisicao->assinaturas->pluck('etapa')->all());
         $this->assertSame([AcaoEvento::CRIACAO], $requisicao->eventos->pluck('acao')->all());
-    }
-
-    public function test_abertura_com_senha_errada_nao_grava_nada_e_registra_a_tentativa(): void
-    {
-        $solicitante = User::factory()->create();
-
-        $erros = $this->erroDeValidacao(fn () => $this->workflow->criar($solicitante, $this->dadosRequisicao(), 'senha-errada'));
-
-        $this->assertArrayHasKey('senha', $erros);
-        $this->assertSame(0, Requisicao::count());
-        $this->assertSame(1, TentativaAssinatura::where('user_id', $solicitante->id)->count());
     }
 
     public function test_teste_sem_data_de_devolucao_e_recusado(): void
@@ -204,20 +194,6 @@ class RequisicaoWorkflowTest extends TestCase
         }
 
         $this->assertSame(2, $requisicao->assinaturas()->count());
-    }
-
-    public function test_aprovacao_com_senha_errada_nao_muda_nada(): void
-    {
-        [$ti, $lider] = $this->setorComAprovadores();
-        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
-
-        $this->erroDeValidacao(fn () => $this->workflow->aprovar($requisicao, $lider, 'errada'));
-
-        $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::AGUARDANDO_APROVACAO, $requisicao->status);
-        $this->assertNull($requisicao->aprovado_por_id);
-        $this->assertSame(1, $requisicao->assinaturas()->count());
-        $this->assertSame(1, TentativaAssinatura::where('requisicao_id', $requisicao->id)->count());
     }
 
     public function test_reprovacao_sem_motivo_e_recusada(): void
@@ -355,5 +331,419 @@ class RequisicaoWorkflowTest extends TestCase
         $this->expectException(RegraDeNegocioException::class);
 
         $this->workflow->aprovar($requisicao->fresh(), $sublider, 'password');
+    }
+
+    // ---- Separação -------------------------------------------------------------------------
+
+    /**
+     * Requisição aprovada, pronta pra separar: 2 itens (qtd 1 e qtd 2), como em dadosRequisicao().
+     */
+    private function requisicaoAprovada(?TipoRequisicao $tipo = null): Requisicao
+    {
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao(
+            User::factory()->for($ti)->create(),
+            $tipo === TipoRequisicao::USO_CONSUMO ? ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null] : [],
+        );
+        $this->workflow->aprovar($requisicao, $lider, 'password');
+
+        return $requisicao->fresh();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function quantidadesSeparadas(Requisicao $requisicao, array $sobrescrever = []): array
+    {
+        // Collection::merge() renumera chave inteira (igual array_merge); usa "+" pra manter o id do item como chave.
+        return $sobrescrever + $requisicao->itens->pluck('qtd_solicitada', 'id')->map(fn ($qtd) => (string) $qtd)->all();
+    }
+
+    public function test_estoque_separa_teste_e_avanca_direto_pra_pronta_para_retirada(): void
+    {
+        $requisicao = $this->requisicaoAprovada();
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->workflow->separar($requisicao, $estoquista, $this->quantidadesSeparadas($requisicao), 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->status);
+        $this->assertSame($estoquista->id, $requisicao->separado_por_id);
+        $this->assertNotNull($requisicao->separado_em);
+        $this->assertSame(
+            [EtapaAssinatura::SOLICITACAO, EtapaAssinatura::APROVACAO_SETOR, EtapaAssinatura::SEPARACAO],
+            $requisicao->assinaturas->pluck('etapa')->all(),
+        );
+        $this->assertSame(
+            [AcaoEvento::CRIACAO, AcaoEvento::APROVACAO, AcaoEvento::SEPARACAO, AcaoEvento::AVANCO_AUTOMATICO],
+            $requisicao->eventos->pluck('acao')->all(),
+        );
+    }
+
+    public function test_estoque_separa_uso_e_consumo_e_avanca_pra_aguardando_liberacao(): void
+    {
+        $requisicao = $this->requisicaoAprovada(TipoRequisicao::USO_CONSUMO);
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->workflow->separar($requisicao, $estoquista, $this->quantidadesSeparadas($requisicao), 'password');
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
+    }
+
+    public function test_separar_grava_a_quantidade_separada_de_cada_item(): void
+    {
+        $requisicao = $this->requisicaoAprovada();
+        $estoquista = User::factory()->estoque()->create();
+        $itens = $requisicao->itens;
+
+        $this->workflow->separar($requisicao, $estoquista, $this->quantidadesSeparadas($requisicao, [
+            $itens[1]->id => '1', // só achou 1 dos 2 pedidos
+        ]), 'password');
+
+        $this->assertSame('1.000', $itens[0]->fresh()->qtd_separada);
+        $this->assertSame('1.000', $itens[1]->fresh()->qtd_separada);
+    }
+
+    public function test_separar_com_quantidade_maior_que_a_solicitada_e_recusado(): void
+    {
+        $requisicao = $this->requisicaoAprovada();
+        $estoquista = User::factory()->estoque()->create();
+        $item = $requisicao->itens->first();
+
+        $erros = $this->erroDeValidacao(fn () => $this->workflow->separar(
+            $requisicao, $estoquista, $this->quantidadesSeparadas($requisicao, [$item->id => '999']), 'password',
+        ));
+
+        $this->assertArrayHasKey("itens.{$item->id}", $erros);
+        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+    }
+
+    public function test_separar_com_quantidade_negativa_e_recusado(): void
+    {
+        $requisicao = $this->requisicaoAprovada();
+        $estoquista = User::factory()->estoque()->create();
+        $item = $requisicao->itens->first();
+
+        $erros = $this->erroDeValidacao(fn () => $this->workflow->separar(
+            $requisicao, $estoquista, $this->quantidadesSeparadas($requisicao, [$item->id => '-1']), 'password',
+        ));
+
+        $this->assertArrayHasKey("itens.{$item->id}", $erros);
+    }
+
+    public function test_quem_nao_e_do_estoque_nao_separa(): void
+    {
+        $requisicao = $this->requisicaoAprovada();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->separar($requisicao, User::factory()->create(), $this->quantidadesSeparadas($requisicao), 'password');
+    }
+
+    public function test_requisicao_aguardando_aprovacao_nao_pode_ser_separada(): void
+    {
+        $solicitante = User::factory()->create();
+        $requisicao = $this->abrirRequisicao($solicitante);
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->expectException(RegraDeNegocioException::class);
+
+        $this->workflow->separar($requisicao, $estoquista, $this->quantidadesSeparadas($requisicao), 'password');
+    }
+
+
+    // ---- Cenários prontos pra liberação / entrega / recebimento / devolução / baixa --------
+
+    private function requisicaoSeparada(?TipoRequisicao $tipo = null, ?User $estoquista = null): Requisicao
+    {
+        $requisicao = $this->requisicaoAprovada($tipo);
+        $this->workflow->separar($requisicao, $estoquista ?? User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao), 'password');
+
+        return $requisicao->fresh();
+    }
+
+    /** Uso e Consumo, pronta pra alguém do estoque liberar. */
+    private function requisicaoAguardandoLiberacao(): Requisicao
+    {
+        return $this->requisicaoSeparada(TipoRequisicao::USO_CONSUMO);
+    }
+
+    /** Teste, pula liberação (só existe pra Uso e Consumo) e já cai pronta pra retirada. */
+    private function requisicaoProntaParaRetirada(): Requisicao
+    {
+        return $this->requisicaoSeparada(TipoRequisicao::TESTE);
+    }
+
+    private function liderEstoqueDiferenteDe(User ...$excluidos): User
+    {
+        do {
+            $lider = User::factory()->liderEstoque()->create();
+        } while (in_array($lider->id, array_map(fn (User $u) => $u->id, $excluidos), true));
+
+        return $lider;
+    }
+
+    private const ASSINATURA_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+    private function requisicaoEmPosse(): Requisicao
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano de Tal', self::ASSINATURA_PNG, 'password');
+
+        return $requisicao->fresh();
+    }
+
+    private function requisicaoAguardandoBaixa(): Requisicao
+    {
+        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $lider = $this->liderEstoqueDiferenteDe(
+            User::find($requisicao->aprovado_por_id),
+            User::find($requisicao->separado_por_id),
+        );
+        $this->workflow->liberar($requisicao, $lider, 'password');
+        $requisicao->refresh();
+        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano de Tal', self::ASSINATURA_PNG, 'password');
+
+        return $requisicao->fresh();
+    }
+
+    // ---- Liberação (só Uso e Consumo) ----------------------------------------------------
+
+    public function test_lider_do_estoque_libera_e_avanca_pra_pronta_para_retirada(): void
+    {
+        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $lider = $this->liderEstoqueDiferenteDe(
+            User::find($requisicao->aprovado_por_id),
+            User::find($requisicao->separado_por_id),
+        );
+
+        $this->workflow->liberar($requisicao, $lider, 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->status);
+        $this->assertSame($lider->id, $requisicao->liberado_por_id);
+        $this->assertNotNull($requisicao->liberado_em);
+    }
+
+    public function test_quem_aprovou_nao_libera_a_mesma_requisicao(): void
+    {
+        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $quemAprovou = User::find($requisicao->aprovado_por_id);
+        $quemAprovou->forceFill(['is_lider_estoque' => true, 'is_estoque' => true])->save();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->liberar($requisicao, $quemAprovou, 'password');
+    }
+
+    public function test_quem_separou_nao_libera_a_mesma_requisicao(): void
+    {
+        $estoquista = User::factory()->liderEstoque()->create();
+        $requisicao = $this->requisicaoSeparada(TipoRequisicao::USO_CONSUMO, $estoquista);
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->liberar($requisicao, $estoquista, 'password');
+    }
+
+    public function test_teste_nao_passa_por_liberacao(): void
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+
+        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->status);
+        $this->assertNull($requisicao->liberado_por_id);
+    }
+
+    public function test_lider_do_estoque_reprova_no_estoque_com_motivo(): void
+    {
+        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $lider = $this->liderEstoqueDiferenteDe(
+            User::find($requisicao->aprovado_por_id),
+            User::find($requisicao->separado_por_id),
+        );
+
+        $this->workflow->reprovarEstoque($requisicao, $lider, 'Divergência na conferência: sobrou material no pedido anterior.', 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::REPROVADA_ESTOQUE, $requisicao->status);
+        $this->assertSame($lider->id, $requisicao->reprovado_estoque_por_id);
+        $this->assertNotNull($requisicao->motivo_reprovacao_estoque);
+    }
+
+    // ---- Entrega + Retirada (as duas assinaturas encadeadas) ------------------------------
+
+    public function test_entregar_assina_entrega_e_retirada_e_avanca_pra_em_posse_no_teste(): void
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->workflow->entregar($requisicao, $estoquista, 'Maria da Silva (RH, retirando para o setor)', self::ASSINATURA_PNG, 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->status);
+        $this->assertSame($estoquista->id, $requisicao->entregue_por_id);
+        $this->assertSame('Maria da Silva (RH, retirando para o setor)', $requisicao->retirado_por_nome);
+        $this->assertNull($requisicao->retirado_por_user_id, 'Quem retira não loga no sistema.');
+        $assinaturas = $requisicao->assinaturas->pluck('etapa')->all();
+        $this->assertContains(EtapaAssinatura::ENTREGA, $assinaturas);
+        $this->assertContains(EtapaAssinatura::RETIRADA, $assinaturas);
+
+        $retirada = $requisicao->assinaturas->firstWhere('etapa', EtapaAssinatura::RETIRADA);
+        $this->assertSame(MetodoAssinatura::DESENHO, $retirada->metodo);
+        $this->assertNotNull($retirada->imagem_path);
+    }
+
+    public function test_entregar_no_uso_e_consumo_avanca_pra_aguardando_baixa(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
+    }
+
+    public function test_entregar_sem_nome_de_quem_retira_e_recusado(): void
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+
+        $erros = $this->erroDeValidacao(fn () => $this->workflow->entregar(
+            $requisicao, User::factory()->estoque()->create(), '', self::ASSINATURA_PNG, 'password',
+        ));
+
+        $this->assertArrayHasKey('retirado_por_nome', $erros);
+    }
+
+    public function test_entregar_com_desenho_invalido_e_recusado(): void
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+
+        $this->expectException(ValidationException::class);
+
+        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano', 'isso não é uma imagem', 'password');
+    }
+
+    public function test_quem_nao_e_do_estoque_nao_entrega(): void
+    {
+        $requisicao = $this->requisicaoProntaParaRetirada();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->entregar($requisicao, User::factory()->create(), 'Fulano', self::ASSINATURA_PNG, 'password');
+    }
+
+    // ---- Confirmação de recebimento (Teste, só registro) -----------------------------------
+
+    public function test_solicitante_confirma_recebimento_sem_mudar_status(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+
+        $this->workflow->confirmarRecebimento($requisicao, $requisicao->solicitante, 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->status, 'Recebimento não muda status, só assina.');
+        $this->assertNotNull($requisicao->recebido_em);
+        $this->assertContains(EtapaAssinatura::RECEBIMENTO, $requisicao->assinaturas->pluck('etapa')->all());
+    }
+
+    public function test_quem_nao_e_o_solicitante_nao_confirma_recebimento(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->confirmarRecebimento($requisicao, User::factory()->create(), 'password');
+    }
+
+    // ---- Devolução (Teste) -----------------------------------------------------------------
+
+    /**
+     * @return array<int, array{ok: string, defeito: string, nao_devolvida: string}>
+     */
+    private function devolucaoCompleta(Requisicao $requisicao, array $sobrescrever = []): array
+    {
+        return $sobrescrever + $requisicao->itens->mapWithKeys(fn ($item) => [
+            $item->id => ['ok' => (string) $item->qtd_solicitada, 'defeito' => '0', 'nao_devolvida' => '0'],
+        ])->all();
+    }
+
+    public function test_devolucao_completa_e_boa_fecha_como_devolvida(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->workflow->devolver($requisicao, $estoquista, $this->devolucaoCompleta($requisicao), 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::DEVOLVIDA, $requisicao->status);
+        $this->assertSame($estoquista->id, $requisicao->devolucao_conferida_por_id);
+    }
+
+    public function test_devolucao_com_item_com_defeito_fica_com_pendencia(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+        $item = $requisicao->itens->first();
+
+        $this->workflow->devolver($requisicao, User::factory()->estoque()->create(), $this->devolucaoCompleta($requisicao, [
+            $item->id => ['ok' => '0', 'defeito' => (string) $item->qtd_solicitada, 'nao_devolvida' => '0'],
+        ]), 'password');
+
+        $this->assertSame(StatusRequisicao::DEVOLUCAO_COM_PENDENCIA, $requisicao->fresh()->status);
+    }
+
+    public function test_devolucao_que_nao_fecha_a_soma_e_recusada(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+        $item = $requisicao->itens->first();
+
+        $erros = $this->erroDeValidacao(fn () => $this->workflow->devolver($requisicao, User::factory()->estoque()->create(), $this->devolucaoCompleta($requisicao, [
+            $item->id => ['ok' => '0', 'defeito' => '0', 'nao_devolvida' => '0'],
+        ]), 'password'));
+
+        $this->assertNotEmpty($erros);
+        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->fresh()->status);
+    }
+
+    // ---- Baixa (Uso e Consumo) --------------------------------------------------------------
+
+    public function test_responsavel_pela_baixa_da_baixa(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+        $erica = User::factory()->responsavelBaixa()->create();
+
+        $this->workflow->darBaixa($requisicao, $erica, 'NF-88412', 'Conferido com o WinThor.', 'password');
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->status);
+        $this->assertSame($erica->id, $requisicao->baixa_por_id);
+        $this->assertSame('NF-88412', $requisicao->baixa_documento_winthor);
+    }
+
+    public function test_responsavel_pela_baixa_nao_da_baixa_no_proprio_pedido(): void
+    {
+        $rh = Setor::factory()->create(['nome' => 'RH-BAIXA']);
+        $erica = User::factory()->for($rh)->responsavelBaixa()->create();
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao($erica, ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
+        // Erica não tem aprovador no próprio setor: cai pro líder do estoque, igual RH de verdade.
+        $liderEstoque = User::factory()->liderEstoque()->create();
+        $this->workflow->aprovar($requisicao, $liderEstoque, 'password');
+        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
+        $requisicao->refresh();
+        $outroLider = $this->liderEstoqueDiferenteDe(User::find($requisicao->separado_por_id));
+        $this->workflow->liberar($requisicao, $outroLider, 'password');
+        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Erica', self::ASSINATURA_PNG, 'password');
+        $requisicao->refresh();
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->darBaixa($requisicao, $erica, 'NF-1', null, 'password');
+    }
+
+    public function test_baixa_sem_documento_winthor_e_recusada(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+        $erica = User::factory()->responsavelBaixa()->create();
+
+        $erros = $this->erroDeValidacao(fn () => $this->workflow->darBaixa($requisicao, $erica, '', null, 'password'));
+
+        $this->assertArrayHasKey('documento', $erros);
     }
 }

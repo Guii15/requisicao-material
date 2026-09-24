@@ -117,4 +117,112 @@ class RequisicaoPolicyTest extends TestCase
         $this->assertTrue(User::factory()->create()->can('create', Requisicao::class));
         $this->assertFalse(User::factory()->inativo()->create()->can('create', Requisicao::class));
     }
+
+    public function test_estoque_separa_somente_o_que_esta_aprovado(): void
+    {
+        $estoquista = User::factory()->estoque()->create();
+
+        foreach (S::cases() as $status) {
+            $requisicao = Requisicao::factory()->status($status)->create();
+
+            $this->assertSame($status === S::APROVADA, $estoquista->can('separar', $requisicao), $status->value);
+        }
+    }
+
+    public function test_lider_do_estoque_tambem_separa(): void
+    {
+        $liderEstoque = User::factory()->liderEstoque()->create();
+        $requisicao = Requisicao::factory()->status(S::APROVADA)->create();
+
+        $this->assertTrue($liderEstoque->can('separar', $requisicao));
+    }
+
+    public function test_quem_nao_e_do_estoque_nao_separa(): void
+    {
+        $requisicao = Requisicao::factory()->status(S::APROVADA)->create();
+
+        $this->assertFalse(User::factory()->create()->can('separar', $requisicao));
+        $this->assertFalse($requisicao->solicitante->can('separar', $requisicao));
+    }
+
+    public function test_estoquista_inativo_nao_separa(): void
+    {
+        $estoquista = User::factory()->estoque()->inativo()->create();
+        $requisicao = Requisicao::factory()->status(S::APROVADA)->create();
+
+        $this->assertFalse($estoquista->can('separar', $requisicao));
+    }
+
+    public function test_liberar_e_so_lider_estoque_uso_e_consumo_e_nunca_quem_ja_agiu(): void
+    {
+        $aprovador = User::factory()->create();
+        $separador = User::factory()->create();
+        $requisicao = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_LIBERACAO_ESTOQUE)->create([
+            'aprovado_por_id' => $aprovador->id,
+            'separado_por_id' => $separador->id,
+        ]);
+
+        $this->assertTrue(User::factory()->liderEstoque()->create()->can('liberar', $requisicao));
+        $this->assertFalse(User::factory()->estoque()->create()->can('liberar', $requisicao), 'estoque comum não é líder');
+
+        $aprovador->forceFill(['is_lider_estoque' => true, 'is_estoque' => true])->save();
+        $separador->forceFill(['is_lider_estoque' => true, 'is_estoque' => true])->save();
+        $this->assertFalse($aprovador->fresh()->can('liberar', $requisicao), 'quem aprovou não libera');
+        $this->assertFalse($separador->fresh()->can('liberar', $requisicao), 'quem separou não libera');
+    }
+
+    public function test_teste_nao_tem_liberacao(): void
+    {
+        $requisicao = Requisicao::factory()->status(S::AGUARDANDO_LIBERACAO_ESTOQUE)->create();
+
+        $this->assertFalse(User::factory()->liderEstoque()->create()->can('liberar', $requisicao));
+    }
+
+    public function test_entregar_e_qualquer_um_do_estoque_com_status_certo(): void
+    {
+        $pronta = Requisicao::factory()->status(S::PRONTA_PARA_RETIRADA)->create();
+        $aprovada = Requisicao::factory()->status(S::APROVADA)->create();
+
+        $this->assertTrue(User::factory()->estoque()->create()->can('entregar', $pronta));
+        $this->assertFalse(User::factory()->estoque()->create()->can('entregar', $aprovada));
+        $this->assertFalse(User::factory()->create()->can('entregar', $pronta));
+    }
+
+    public function test_confirmar_recebimento_e_so_o_solicitante_no_teste_em_posse(): void
+    {
+        $requisicao = Requisicao::factory()->status(S::EM_POSSE)->create();
+        $usoConsumo = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create();
+
+        $this->assertTrue($requisicao->solicitante->can('confirmarRecebimento', $requisicao));
+        $this->assertFalse(User::factory()->create()->can('confirmarRecebimento', $requisicao));
+        $this->assertFalse($usoConsumo->solicitante->can('confirmarRecebimento', $usoConsumo), 'uso e consumo não tem recebimento');
+    }
+
+    public function test_devolver_e_qualquer_um_do_estoque_no_teste_em_posse(): void
+    {
+        $requisicao = Requisicao::factory()->status(S::EM_POSSE)->create();
+
+        $this->assertTrue(User::factory()->estoque()->create()->can('devolver', $requisicao));
+        $this->assertFalse(User::factory()->create()->can('devolver', $requisicao));
+    }
+
+    public function test_dar_baixa_e_a_responsavel_menos_no_proprio_pedido(): void
+    {
+        $requisicao = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create();
+        $erica = User::factory()->responsavelBaixa()->create();
+        $proprioPedido = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create(['solicitante_id' => $erica->id]);
+
+        $this->assertTrue($erica->can('darBaixa', $requisicao));
+        $this->assertFalse($erica->can('darBaixa', $proprioPedido));
+    }
+
+    public function test_admin_da_baixa_quando_a_responsavel_e_a_propria_solicitante(): void
+    {
+        $erica = User::factory()->responsavelBaixa()->create();
+        $requisicao = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create(['solicitante_id' => $erica->id]);
+        $admin = User::factory()->admin()->create();
+
+        $this->assertTrue($admin->can('darBaixa', $requisicao));
+        $this->assertFalse(User::factory()->admin()->create()->can('darBaixa', Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create()), 'admin não entra nas baixas normais');
+    }
 }

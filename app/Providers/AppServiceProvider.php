@@ -41,6 +41,20 @@ class AppServiceProvider extends ServiceProvider
         // Líder do estoque sempre tem fila: recebe os setores sem aprovador.
         Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->setoresAprovados()->exists());
 
+        // Fila de separação: qualquer um do setor Estoque, de qualquer setor solicitante.
+        Gate::define('acessar-separacao', fn (User $user) => $user->is_estoque);
+
+        // Liberação é só de Uso e Consumo, só líder do estoque.
+        Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque);
+
+        Gate::define('acessar-entrega', fn (User $user) => $user->is_estoque);
+
+        // Devolução é só de Teste.
+        Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque);
+
+        // Baixa é só de Uso e Consumo: a responsável, ou o Admin (só vê o caso "própria responsável abriu o pedido").
+        Gate::define('acessar-baixa', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
+
         View::composer('components.layouts.app', MenuComposer::class);
     }
 }

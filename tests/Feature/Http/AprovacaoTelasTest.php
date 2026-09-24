@@ -53,20 +53,6 @@ class AprovacaoTelasTest extends TestCase
         $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
     }
 
-    public function test_aprovar_com_senha_errada_reabre_o_modal_com_erro(): void
-    {
-        [$ti, $lider] = $this->setorComAprovadores();
-        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
-        $url = "/requisicoes/{$requisicao->numero}";
-
-        $this->actingAs($lider)->from($url)->post("{$url}/aprovar", ['senha' => 'errada', '_acao' => 'aprovar'])
-            ->assertRedirect($url)
-            ->assertSessionHasErrors('senha');
-
-        $this->assertSame(StatusRequisicao::AGUARDANDO_APROVACAO, $requisicao->fresh()->status);
-        $this->get($url)->assertSee('Senha incorreta.')->assertSee('x-data="{ aberto: true', false);
-    }
-
     public function test_reprovar_exige_motivo(): void
     {
         [$ti, $lider] = $this->setorComAprovadores();

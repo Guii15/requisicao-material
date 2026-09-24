@@ -63,6 +63,84 @@ class RequisicaoPolicy
         return $this->aprovar($user, $requisicao);
     }
 
+    /**
+     * Qualquer um do setor Estoque separa qualquer requisição aprovada, de qualquer setor.
+     * (Sem regra de "não separar a própria" registrada ainda — só a de liberação tem essa restrição.)
+     */
+    public function separar(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::APROVADA;
+    }
+
+    /**
+     * Só líder do estoque, só Uso e Consumo, e nunca quem aprovou ou quem separou essa mesma
+     * requisição (antifraude: quem libera não pode ser quem já deu ok em outra etapa dela).
+     */
+    public function liberar(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $user->is_lider_estoque
+            && $requisicao->tipo === TipoRequisicao::USO_CONSUMO
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE
+            && $requisicao->aprovado_por_id !== $user->id
+            && $requisicao->separado_por_id !== $user->id;
+    }
+
+    public function reprovarEstoque(User $user, Requisicao $requisicao): bool
+    {
+        return $this->liberar($user, $requisicao);
+    }
+
+    /**
+     * Qualquer um do estoque entrega (o desenho de quem retira não precisa de login).
+     */
+    public function entregar(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
+    }
+
+    /**
+     * Só o próprio solicitante confirma que recebeu, e só no Teste (é o único tipo com essa etapa).
+     */
+    public function confirmarRecebimento(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $requisicao->solicitante_id === $user->id
+            && $requisicao->tipo === TipoRequisicao::TESTE
+            && $requisicao->status === StatusRequisicao::EM_POSSE;
+    }
+
+    /**
+     * Qualquer um do estoque confere a devolução (Teste).
+     */
+    public function devolver(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $user->is_estoque
+            && $requisicao->tipo === TipoRequisicao::TESTE
+            && $requisicao->status === StatusRequisicao::EM_POSSE;
+    }
+
+    /**
+     * A responsável pela baixa, nunca no próprio pedido. Se ela mesma abriu (ex.: Erica do
+     * RH), a baixa cai pro Admin — decisão de 24/09/2026, igual à fila do Admin pra aprovação.
+     */
+    public function darBaixa(User $user, Requisicao $requisicao): bool
+    {
+        if (! $user->ativo
+            || $requisicao->tipo !== TipoRequisicao::USO_CONSUMO
+            || $requisicao->status !== StatusRequisicao::AGUARDANDO_BAIXA
+            || $requisicao->solicitante_id === $user->id) {
+            return false;
+        }
+
+        if ($user->is_responsavel_baixa) {
+            return true;
+        }
+
+        return $user->is_admin && $requisicao->solicitante->is_responsavel_baixa;
+    }
+
     public function cancelar(User $user, Requisicao $requisicao): bool
     {
         if (! $user->ativo) {

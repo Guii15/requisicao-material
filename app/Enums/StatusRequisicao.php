@@ -93,7 +93,7 @@ enum StatusRequisicao: string
     public function proximoAutomatico(TipoRequisicao $tipo): ?self
     {
         return match ($this) {
-            self::LIBERADA, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
+            self::EM_SEPARACAO, self::LIBERADA, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
             default => null,
         };
     }

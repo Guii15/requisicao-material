@@ -67,19 +67,6 @@ class RequisicaoTelasTest extends TestCase
         $this->assertSame(StatusRequisicao::AGUARDANDO_APROVACAO, Requisicao::firstOrFail()->status);
     }
 
-    public function test_abrir_com_senha_errada_volta_com_erro_mantendo_o_que_foi_digitado(): void
-    {
-        $this->actingAs(User::factory()->create())
-            ->from('/requisicoes/nova')
-            ->post('/requisicoes', $this->dadosRequisicao(['senha' => 'errada']))
-            ->assertRedirect('/requisicoes/nova')
-            ->assertSessionHasErrors('senha');
-
-        $this->assertSame(0, Requisicao::count());
-        $this->assertSame('Validar a placa no PC do pedido 88412.', session()->getOldInput('finalidade'));
-        $this->assertNull(session()->getOldInput('senha'));
-    }
-
     public function test_detalhe_mostra_itens_assinaturas_e_integridade(): void
     {
         $eu = User::factory()->create(['nome' => 'Kevelin Honorato']);

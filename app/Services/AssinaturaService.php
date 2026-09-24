@@ -10,6 +10,9 @@ use App\Models\Requisicao;
 use App\Models\RequisicaoAssinatura;
 use App\Models\RequisicaoItem;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Assinatura eletrônica simples (não é ICP-Brasil).
@@ -72,6 +75,71 @@ class AssinaturaService
             'user_agent' => request()->userAgent(),
             'assinado_em' => $assinadoEm,
         ]);
+    }
+
+    /**
+     * Assinatura de quem retira o material: em papel, no tablet do estoque. Não exige login
+     * (por isso não recebe User) — só o nome de quem assina e o desenho, guardado como imagem.
+     */
+    public function assinarComDesenho(Requisicao $requisicao, Etapa $etapa, string $nomeAssinante, string $imagemBase64): RequisicaoAssinatura
+    {
+        $anterior = RequisicaoAssinatura::query()
+            ->where('requisicao_id', $requisicao->id)
+            ->orderByDesc('id')
+            ->value('hash_documento');
+
+        $assinadoEm = now()->startOfSecond();
+
+        $conteudo = self::json([
+            'documento' => $this->dadosDoDocumento($requisicao),
+            'etapa' => $etapa->value,
+            'assinante' => [
+                'user_id' => null,
+                'nome' => $nomeAssinante,
+                'cargo' => null,
+                'metodo' => MetodoAssinatura::DESENHO->value,
+            ],
+            'assinado_em' => $assinadoEm->toIso8601String(),
+            'hash_anterior' => $anterior,
+        ]);
+
+        return RequisicaoAssinatura::create([
+            'requisicao_id' => $requisicao->id,
+            'etapa' => $etapa,
+            'user_id' => null,
+            'nome_assinante' => $nomeAssinante,
+            'cargo_assinante' => null,
+            'metodo' => MetodoAssinatura::DESENHO,
+            'imagem_path' => $this->salvarImagemAssinatura($requisicao, $imagemBase64),
+            'conteudo_assinado' => $conteudo,
+            'hash_documento' => hash('sha256', $conteudo),
+            'hash_anterior' => $anterior,
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'assinado_em' => $assinadoEm,
+        ]);
+    }
+
+    /**
+     * Guarda o desenho (canvas exportado em PNG/JPEG base64) no disco privado — nunca público,
+     * a imagem só é servida a quem já pode ver a requisição.
+     */
+    private function salvarImagemAssinatura(Requisicao $requisicao, string $imagemBase64): string
+    {
+        if (! preg_match('/^data:image\/(png|jpeg);base64,(.+)$/', $imagemBase64, $m)) {
+            throw ValidationException::withMessages(['assinatura' => 'Assinatura inválida. Desenhe de novo.']);
+        }
+
+        $binario = base64_decode($m[2], true);
+
+        if ($binario === false || $binario === '') {
+            throw ValidationException::withMessages(['assinatura' => 'Assinatura inválida. Desenhe de novo.']);
+        }
+
+        $caminho = "assinaturas/{$requisicao->id}/".Str::random(24).'.'.($m[1] === 'jpeg' ? 'jpg' : 'png');
+        Storage::disk('local')->put($caminho, $binario);
+
+        return $caminho;
     }
 
     public function verificar(Requisicao $requisicao): ResultadoVerificacao
