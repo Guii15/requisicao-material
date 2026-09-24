@@ -1,8 +1,8 @@
 @props(['tipo'])
 @php($teste = $tipo === \App\Enums\TipoRequisicao::TESTE)
-{{-- Carimbo do tipo. Uso e Consumo é preenchido para não ser confundido com Teste nem de relance. --}}
+{{-- Selo do tipo. Teste em azul, Uso e Consumo em âmbar: não se confundem nem de relance. --}}
 <span {{ $attributes->class([
-    'inline-block border px-1.5 text-[11px] leading-[18px] font-semibold tracking-wider whitespace-nowrap uppercase',
-    'border-sky-800 bg-white text-sky-900' => $teste,
-    'border-amber-700 bg-amber-100 text-amber-950' => ! $teste,
+    'inline-block rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap lowercase ring-1 ring-inset first-letter:uppercase',
+    'bg-sky-50 text-sky-800 ring-sky-200' => $teste,
+    'bg-amber-50 text-amber-800 ring-amber-200' => ! $teste,
 ]) }}>{{ $tipo->rotulo() }}</span>

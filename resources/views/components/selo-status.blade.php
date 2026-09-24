@@ -1,6 +1,6 @@
 @props(['status'])
 @php
-    // Quadrado de cor + texto: a cor ajuda a bater o olho, o texto é que informa.
+    // Bolinha de cor + texto: a cor ajuda a bater o olho, o texto é que informa.
     // Reprovada é notícia ruim para quem pediu (vermelho); cancelada só encerra (cinza).
     $cor = match ($status->grupo()) {
         'aguardando' => 'bg-amber-500',
@@ -11,6 +11,6 @@
     };
 @endphp
 <span {{ $attributes->class(['inline-flex items-center gap-2 whitespace-nowrap']) }}>
-    <span class="size-2 shrink-0 {{ $cor }}" aria-hidden="true"></span>
+    <span class="size-2 shrink-0 rounded-full {{ $cor }}" aria-hidden="true"></span>
     {{ $status->rotulo() }}
 </span>

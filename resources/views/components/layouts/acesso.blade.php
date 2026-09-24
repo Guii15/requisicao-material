@@ -10,16 +10,16 @@
 </head>
 <body class="flex min-h-dvh flex-col">
     {{-- Mesma barra do sistema: a entrada é uma página dele, não uma vitrine. --}}
-    <header class="bg-marinho-900 text-white">
-        <div class="mx-auto flex h-12 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
-            <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-5 w-auto">
-            <span class="border-l border-white/25 pl-3 text-[13px] font-medium text-white/90">Requisição de Material</span>
+    <header class="bg-marinho-950 text-white">
+        <div class="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
+            <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-6 w-auto">
+            <span class="border-l border-white/20 pl-3 text-sm font-medium text-white">Requisição de Material</span>
         </div>
     </header>
 
-    <main class="flex-1">
-        <div class="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-14">
-            <div class="w-full max-w-sm">
+    <main class="flex flex-1 items-start justify-center px-4 py-10 sm:items-center sm:pb-24">
+        <div>
+            <div class="w-full max-w-sm sm:w-sm">
                 {{ $slot }}
             </div>
         </div>

@@ -44,7 +44,8 @@ class RequisicaoTelasTest extends TestCase
     {
         $this->actingAs(User::factory()->create())->get('/requisicoes')
             ->assertOk()
-            ->assertSee('Nenhuma requisição aberta por você');
+            ->assertSee('Você ainda não abriu nenhuma requisição')
+            ->assertSee('é por aqui que você pede');
     }
 
     public function test_tela_de_nova_requisicao_mostra_o_prazo_de_devolucao(): void

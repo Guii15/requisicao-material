@@ -1,25 +1,29 @@
 <x-layouts.app titulo="Minhas requisições">
-    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-xl font-semibold">Minhas requisições</h1>
-        <a href="{{ route('requisicoes.create') }}" class="botao botao-primario">Nova requisição</a>
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-semibold tracking-tight">Minhas requisições</h1>
+            @if ($requisicoes->total() > 0)
+                <p class="mt-1 text-sm text-slate-500">{{ $requisicoes->total() }} {{ $requisicoes->total() === 1 ? 'requisição' : 'requisições' }}</p>
+            @endif
+        </div>
+        <a href="{{ route('requisicoes.create') }}" class="botao botao-primario"><x-phosphor-plus class="size-4" aria-hidden="true" />Nova requisição</a>
     </div>
 
     @if ($requisicoes->isEmpty())
-        <div class="quadro px-4 py-6 text-sm">
-            <p class="font-medium">Nenhuma requisição aberta por você.</p>
-            <p class="mt-1 text-slate-600">Para pedir material ao estoque, use Nova requisição.</p>
-        </div>
+        <x-vazio icone="package" titulo="Você ainda não abriu nenhuma requisição">
+            Quando precisar de material do estoque, é por aqui que você pede.
+        </x-vazio>
     @else
         {{-- Celular e tablet: blocos. Computador: tabela de colunas fixas, sem rolagem lateral. --}}
-        <ul class="quadro divide-y divide-slate-300 lg:hidden">
+        <ul class="quadro divide-y divide-slate-100 overflow-hidden lg:hidden">
             @foreach ($requisicoes as $requisicao)
                 <li>
-                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 hover:bg-marinho-50">
+                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3.5 transition-colors hover:bg-slate-50">
                         <span class="flex items-center justify-between gap-2">
-                            <span class="font-mono font-medium text-blue-800">{{ $requisicao->numero }}</span>
-                            <span class="text-xs text-slate-600 tabular-nums">{{ $requisicao->created_at->format('d/m/Y') }}</span>
+                            <span class="font-mono text-sm font-medium text-marinho-800">{{ $requisicao->numero }}</span>
+                            <span class="text-xs text-slate-500 tabular-nums">{{ $requisicao->created_at->format('d/m/Y') }}</span>
                         </span>
-                        <span class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <span class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                             <x-selo-tipo :tipo="$requisicao->tipo" />
                             <x-selo-status :status="$requisicao->status" />
                         </span>
@@ -68,8 +72,8 @@
                                     @endif
                                 </span>
                             </td>
-                            <td class="tabular-nums">{{ $requisicao->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="num" title="Tempo na situação atual">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
+                            <td class="text-slate-600 tabular-nums">{{ $requisicao->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="num text-slate-500" title="Tempo na situação atual">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

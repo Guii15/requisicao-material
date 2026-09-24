@@ -1,31 +1,31 @@
 <x-layouts.app titulo="Aprovações">
-    <div class="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-        <h1 class="text-xl font-semibold">Aprovações</h1>
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold tracking-tight">Aprovações</h1>
         @if ($requisicoes->total() > 0)
-            <p class="text-sm text-slate-600">{{ $requisicoes->total() }} aguardando</p>
+            <p class="mt-1 text-sm text-slate-500">{{ $requisicoes->total() }} aguardando a sua decisão</p>
         @endif
     </div>
 
     @if ($requisicoes->isEmpty())
-        <div class="quadro px-4 py-6 text-sm">
-            <p class="font-medium">Nada aguardando a sua aprovação.</p>
-        </div>
+        <x-vazio icone="check-circle" titulo="Nada aguardando a sua aprovação">
+            Quando alguém do seu setor pedir material, a requisição aparece aqui.
+        </x-vazio>
     @else
         {{-- Celular e tablet: blocos (o líder pode aprovar pelo celular). Computador: tabela de colunas fixas. --}}
-        <ul class="quadro divide-y divide-slate-300 lg:hidden">
+        <ul class="quadro divide-y divide-slate-100 overflow-hidden lg:hidden">
             @foreach ($requisicoes as $requisicao)
                 <li>
-                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 hover:bg-marinho-50">
+                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3.5 transition-colors hover:bg-slate-50">
                         <span class="flex items-center justify-between gap-2">
-                            <span class="font-mono font-medium text-blue-800">{{ $requisicao->numero }}</span>
-                            <span class="text-xs text-slate-600">{{ \App\Support\Duracao::ha($requisicao->status_alterado_em) }}</span>
+                            <span class="font-mono text-sm font-medium text-marinho-800">{{ $requisicao->numero }}</span>
+                            <span class="text-xs text-slate-500">{{ \App\Support\Duracao::ha($requisicao->status_alterado_em) }}</span>
                         </span>
                         <span class="mt-1 block text-sm">
                             <span class="font-medium">{{ $requisicao->solicitante->nome }}</span>
-                            <span class="text-slate-600">· {{ $requisicao->setor->nome }}</span>
+                            <span class="text-slate-500">· {{ $requisicao->setor->nome }}</span>
                         </span>
                         @if ($motivos[$requisicao->id] ?? null)
-                            <span class="mt-0.5 block text-xs text-amber-900">{{ $motivos[$requisicao->id] }}</span>
+                            <span class="mt-0.5 block text-xs text-amber-700">{{ $motivos[$requisicao->id] }}</span>
                         @endif
                         <span class="mt-1.5 flex items-center gap-2 text-sm">
                             <x-selo-tipo :tipo="$requisicao->tipo" />
@@ -48,10 +48,10 @@
                     <col class="w-40 xl:w-44">
                     <col class="w-36">
                     <col class="w-36 xl:w-52">
-                    <col class="w-28">
+                    <col class="w-32">
                     <col>
                     <col>
-                    <col class="w-28">
+                    <col class="w-32">
                 </colgroup>
                 <thead>
                     <tr>
@@ -70,7 +70,7 @@
                             <td>
                                 <a href="{{ route('requisicoes.show', $requisicao) }}" class="link font-mono">{{ $requisicao->numero }}</a>
                                 @if ($motivos[$requisicao->id] ?? null)
-                                    <span class="mt-0.5 block text-xs text-amber-900">{{ $motivos[$requisicao->id] }}</span>
+                                    <span class="mt-0.5 block text-xs text-amber-700">{{ $motivos[$requisicao->id] }}</span>
                                 @endif
                             </td>
                             <td><x-selo-tipo :tipo="$requisicao->tipo" /></td>
@@ -84,8 +84,8 @@
                                     @endif
                                 </span>
                             </td>
-                            <td><span class="line-clamp-2" title="{{ $requisicao->finalidade }}">{{ $requisicao->finalidade }}</span></td>
-                            <td class="num">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
+                            <td class="text-slate-600"><span class="line-clamp-2" title="{{ $requisicao->finalidade }}">{{ $requisicao->finalidade }}</span></td>
+                            <td class="num text-slate-500">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
