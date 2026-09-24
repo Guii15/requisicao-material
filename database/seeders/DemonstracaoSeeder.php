@@ -12,7 +12,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Dados para ver o sistema funcionando na máquina de desenvolvimento.
- * Usuários com nome de papel (e não de pessoa) para não confundir com a carga real.
+ * Nomes fictícios, conferidos contra a planilha real para não coincidir com nenhum funcionário.
  * Nunca roda em produção.
  */
 class DemonstracaoSeeder extends Seeder
@@ -41,14 +41,14 @@ class DemonstracaoSeeder extends Seeder
             return $user;
         };
 
-        $usuario('demo.admin', 'Admin (demonstração)', 'Auxiliar de TI', 'TI', ['is_admin' => true]);
-        $liderTi = $usuario('demo.lider', 'Líder da TI (demonstração)', 'Analista de Sistemas', 'TI');
-        $subliderTi = $usuario('demo.sublider', 'Sublíder da TI (demonstração)', 'Auxiliar de TI', 'TI');
-        $solicitante = $usuario('demo.solicitante', 'Solicitante da TI (demonstração)', 'Auxiliar de TI', 'TI');
-        $liderEstoque = $usuario('demo.liderestoque', 'Líder do Estoque (demonstração)', 'Supervisor de Estoque', 'ESTOQUE', ['is_estoque' => true, 'is_lider_estoque' => true]);
-        $usuario('demo.estoque', 'Estoquista (demonstração)', 'Auxiliar de Estoque', 'ESTOQUE', ['is_estoque' => true]);
-        $showroom = $usuario('demo.showroom', 'Vendedor do Showroom (demonstração)', 'Vendedor', 'SHOWROOM');
-        $baixa = $usuario('demo.baixa', 'Responsável pela baixa (demonstração)', 'Assistente de RH', 'RH', ['is_responsavel_baixa' => true]);
+        $usuario('demo.admin', 'Paulo Andrade', 'Auxiliar de TI', 'TI', ['is_admin' => true]);
+        $liderTi = $usuario('demo.lider', 'Leandro Moreira', 'Analista de Sistemas', 'TI');
+        $subliderTi = $usuario('demo.sublider', 'Juliana Duarte', 'Auxiliar de TI', 'TI');
+        $solicitante = $usuario('demo.solicitante', 'Lucas Ramos', 'Auxiliar de TI', 'TI');
+        $liderEstoque = $usuario('demo.liderestoque', 'Marcos Vieira', 'Supervisor de Estoque', 'ESTOQUE', ['is_estoque' => true, 'is_lider_estoque' => true]);
+        $usuario('demo.estoque', 'Rodrigo Lopes', 'Auxiliar de Estoque', 'ESTOQUE', ['is_estoque' => true]);
+        $showroom = $usuario('demo.showroom', 'Aline Teixeira', 'Vendedora', 'SHOWROOM');
+        $baixa = $usuario('demo.baixa', 'Fernanda Nogueira', 'Assistente de RH', 'RH', ['is_responsavel_baixa' => true]);
 
         $setores['TI']->aprovadores()->syncWithoutDetaching([
             $liderTi->id => ['papel' => PapelSetor::LIDER],
@@ -93,6 +93,7 @@ class DemonstracaoSeeder extends Seeder
             'finalidade' => 'Ligar os monitores de exposição do showroom.',
         ]);
 
+        // O RH não tem aprovador: este pedido cai para o líder do estoque.
         $abrir($baixa, [
             'tipo' => 'TESTE',
             'itens' => [['descricao' => 'Headset USB com microfone', 'unidade' => 'UN', 'quantidade' => '1']],
