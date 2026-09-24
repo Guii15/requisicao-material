@@ -8,26 +8,21 @@
     <link rel="icon" type="image/png" href="{{ asset('imagens/favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-white">
-    <div class="grid min-h-dvh md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-        <aside class="flex flex-col bg-marinho-900 px-6 py-5 text-white md:justify-between md:px-10 md:py-10">
-            <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-7 w-auto self-start md:h-9">
+<body class="flex min-h-dvh flex-col">
+    {{-- Mesma barra do sistema: a entrada é uma página dele, não uma vitrine. --}}
+    <header class="bg-marinho-900 text-white">
+        <div class="mx-auto flex h-12 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
+            <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-5 w-auto">
+            <span class="border-l border-white/25 pl-3 text-[13px] font-medium text-white/90">Requisição de Material</span>
+        </div>
+    </header>
 
-            <div class="hidden md:block">
-                <p class="text-2xl font-semibold leading-snug">Requisição de Material</p>
-                <p class="mt-2 max-w-sm text-sm leading-relaxed text-white/75">
-                    Retirada de material do estoque com aprovação do setor, separação e assinatura em cada etapa.
-                </p>
-            </div>
-
-            <p class="hidden text-xs text-white/60 md:block">Uso interno da Binário Tecnologia.</p>
-        </aside>
-
-        <main class="flex items-start px-4 py-10 md:items-center md:px-12">
+    <main class="flex-1">
+        <div class="mx-auto max-w-[1400px] px-4 py-8 sm:px-6 sm:py-14">
             <div class="w-full max-w-sm">
                 {{ $slot }}
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
 </body>
 </html>

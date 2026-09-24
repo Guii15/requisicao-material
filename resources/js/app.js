@@ -1,5 +1,6 @@
 import './bootstrap';
 
+// As fontes ficam aqui e não no app.css: importadas pelo Tailwind, os caminhos dos arquivos quebram.
 import '@fontsource/ibm-plex-sans/latin-400.css';
 import '@fontsource/ibm-plex-sans/latin-500.css';
 import '@fontsource/ibm-plex-sans/latin-600.css';
@@ -68,6 +69,24 @@ Alpine.data('novaRequisicao', ({ tipo, itens, erros, abrirAssinatura }) => ({
         this.enviando = true;
     },
 }));
+
+/**
+ * Linhas de tabela com data-href abrem a requisição com um clique em qualquer parte.
+ * Ctrl/Cmd abre em outra aba; texto selecionado com o mouse não conta como clique.
+ */
+document.addEventListener('click', (evento) => {
+    const linha = evento.target.closest('tr[data-href]');
+
+    if (!linha || evento.target.closest('a, button, input, label') || window.getSelection()?.toString()) {
+        return;
+    }
+
+    if (evento.ctrlKey || evento.metaKey) {
+        window.open(linha.dataset.href, '_blank');
+    } else {
+        window.location.href = linha.dataset.href;
+    }
+});
 
 window.Alpine = Alpine;
 Alpine.start();

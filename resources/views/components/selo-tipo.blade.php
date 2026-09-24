@@ -1,15 +1,8 @@
 @props(['tipo'])
 @php($teste = $tipo === \App\Enums\TipoRequisicao::TESTE)
-{{-- Teste e Uso e Consumo nunca se diferenciam só pela cor: texto e ícone também mudam. --}}
+{{-- Carimbo do tipo. Uso e Consumo é preenchido para não ser confundido com Teste nem de relance. --}}
 <span {{ $attributes->class([
-    'inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[11px] leading-4 font-semibold tracking-wide whitespace-nowrap',
-    'border-sky-300 bg-sky-50 text-sky-900' => $teste,
-    'border-amber-400 bg-amber-100 text-amber-950' => ! $teste,
-]) }}>
-    @if ($teste)
-        <x-phosphor-arrow-u-up-left-bold class="size-3.5" aria-hidden="true" />
-    @else
-        <x-phosphor-package-bold class="size-3.5" aria-hidden="true" />
-    @endif
-    {{ $tipo->rotulo() }}
-</span>
+    'inline-block border px-1.5 text-[11px] leading-[18px] font-semibold tracking-wider whitespace-nowrap uppercase',
+    'border-sky-800 bg-white text-sky-900' => $teste,
+    'border-amber-700 bg-amber-100 text-amber-950' => ! $teste,
+]) }}>{{ $tipo->rotulo() }}</span>

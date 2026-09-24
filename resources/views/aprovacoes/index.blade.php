@@ -1,39 +1,58 @@
 <x-layouts.app titulo="Aprovações">
-    <div class="mb-4">
-        <h1 class="text-lg font-semibold">Aprovações</h1>
-        <p class="text-sm text-slate-600">Requisições aguardando a sua decisão, da mais antiga para a mais nova.</p>
+    <div class="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+        <h1 class="text-xl font-semibold">Aprovações</h1>
+        @if ($requisicoes->total() > 0)
+            <p class="text-sm text-slate-600">{{ $requisicoes->total() }} aguardando</p>
+        @endif
     </div>
 
     @if ($requisicoes->isEmpty())
-        <div class="painel px-6 py-10">
+        <div class="quadro px-4 py-6 text-sm">
             <p class="font-medium">Nada aguardando a sua aprovação.</p>
-            <p class="mt-1 max-w-prose text-sm text-slate-600">Quando alguém do setor que você aprova abrir uma requisição, ela aparece aqui.</p>
         </div>
     @else
-        {{-- Celular: lista em blocos (o líder pode aprovar do celular). Computador: tabela. --}}
-        <ul class="painel divide-y divide-slate-200 sm:hidden">
+        {{-- Celular e tablet: blocos (o líder pode aprovar pelo celular). Computador: tabela de colunas fixas. --}}
+        <ul class="quadro divide-y divide-slate-300 lg:hidden">
             @foreach ($requisicoes as $requisicao)
                 <li>
-                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 hover:bg-slate-50">
+                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 hover:bg-marinho-50">
                         <span class="flex items-center justify-between gap-2">
                             <span class="font-mono font-medium text-blue-800">{{ $requisicao->numero }}</span>
                             <span class="text-xs text-slate-600">{{ \App\Support\Duracao::ha($requisicao->status_alterado_em) }}</span>
                         </span>
-                        <span class="mt-1 block text-sm font-medium">{{ $requisicao->solicitante->nome }} <span class="font-normal text-slate-600">({{ $requisicao->setor->nome }})</span></span>
-                        <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <x-selo-tipo :tipo="$requisicao->tipo" />
-                            @if ($motivos[$requisicao->id] ?? null)
-                                <span class="text-xs text-amber-900">{{ $motivos[$requisicao->id] }}</span>
-                            @endif
+                        <span class="mt-1 block text-sm">
+                            <span class="font-medium">{{ $requisicao->solicitante->nome }}</span>
+                            <span class="text-slate-600">· {{ $requisicao->setor->nome }}</span>
                         </span>
-                        <span class="mt-1.5 block truncate text-sm text-slate-700">{{ $requisicao->finalidade }}</span>
+                        @if ($motivos[$requisicao->id] ?? null)
+                            <span class="mt-0.5 block text-xs text-amber-900">{{ $motivos[$requisicao->id] }}</span>
+                        @endif
+                        <span class="mt-1.5 flex items-center gap-2 text-sm">
+                            <x-selo-tipo :tipo="$requisicao->tipo" />
+                            <span class="truncate text-slate-700">
+                                {{ $requisicao->primeiro_item }}
+                                @if ($requisicao->itens_count > 1)
+                                    <span class="text-slate-500">e mais {{ $requisicao->itens_count - 1 }}</span>
+                                @endif
+                            </span>
+                        </span>
+                        <span class="mt-1 line-clamp-2 text-sm text-slate-600">{{ $requisicao->finalidade }}</span>
                     </a>
                 </li>
             @endforeach
         </ul>
 
-        <div class="painel hidden overflow-x-auto sm:block">
-            <table class="tabela">
+        <div class="quadro hidden lg:block">
+            <table class="tabela table-fixed">
+                <colgroup>
+                    <col class="w-40 xl:w-44">
+                    <col class="w-36">
+                    <col class="w-36 xl:w-52">
+                    <col class="w-28">
+                    <col>
+                    <col>
+                    <col class="w-28">
+                </colgroup>
                 <thead>
                     <tr>
                         <th scope="col">Número</th>
@@ -42,35 +61,31 @@
                         <th scope="col">Setor</th>
                         <th scope="col">Itens</th>
                         <th scope="col">Finalidade</th>
-                        <th scope="col" class="text-right">Aguardando há</th>
-                        <th scope="col"><span class="sr-only">Ação</span></th>
+                        <th scope="col" class="text-right">Aguardando</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($requisicoes as $requisicao)
-                        <tr class="hover:bg-slate-50">
-                            <td class="whitespace-nowrap">
+                        <tr data-href="{{ route('requisicoes.show', $requisicao) }}">
+                            <td>
                                 <a href="{{ route('requisicoes.show', $requisicao) }}" class="link font-mono">{{ $requisicao->numero }}</a>
                                 @if ($motivos[$requisicao->id] ?? null)
                                     <span class="mt-0.5 block text-xs text-amber-900">{{ $motivos[$requisicao->id] }}</span>
                                 @endif
                             </td>
                             <td><x-selo-tipo :tipo="$requisicao->tipo" /></td>
-                            <td class="whitespace-nowrap">{{ $requisicao->solicitante->nome }}</td>
-                            <td class="whitespace-nowrap">{{ $requisicao->setor->nome }}</td>
-                            <td class="max-w-xs">
-                                <span class="block truncate">
+                            <td><span class="block truncate" title="{{ $requisicao->solicitante->nome }}">{{ $requisicao->solicitante->nome }}</span></td>
+                            <td><span class="block truncate">{{ $requisicao->setor->nome }}</span></td>
+                            <td>
+                                <span class="block truncate" title="{{ $requisicao->primeiro_item }}">
                                     {{ $requisicao->primeiro_item }}
                                     @if ($requisicao->itens_count > 1)
                                         <span class="text-slate-500">e mais {{ $requisicao->itens_count - 1 }}</span>
                                     @endif
                                 </span>
                             </td>
-                            <td class="max-w-xs"><span class="block truncate" title="{{ $requisicao->finalidade }}">{{ $requisicao->finalidade }}</span></td>
-                            <td class="num whitespace-nowrap">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
-                            <td class="text-right">
-                                <a href="{{ route('requisicoes.show', $requisicao) }}" class="botao botao-secundario h-8 px-2.5">Analisar</a>
-                            </td>
+                            <td><span class="line-clamp-2" title="{{ $requisicao->finalidade }}">{{ $requisicao->finalidade }}</span></td>
+                            <td class="num">{{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

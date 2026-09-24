@@ -17,8 +17,8 @@ enum AcaoEvento: string
     {
         return match ($this) {
             self::CRIACAO => 'Requisição aberta',
-            self::APROVACAO => 'Aprovada pelo setor',
-            self::REPROVACAO => 'Reprovada pelo setor',
+            self::APROVACAO => 'Aprovada',
+            self::REPROVACAO => 'Reprovada',
             self::CANCELAMENTO => 'Cancelada',
             self::AVANCO_AUTOMATICO => 'Avançou automaticamente',
         };

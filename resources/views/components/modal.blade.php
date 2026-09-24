@@ -7,10 +7,8 @@
     <div x-show="aberto" x-cloak
          class="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-950/50 px-4 pt-[12vh] pb-8"
          role="dialog" aria-modal="true" aria-labelledby="modal-{{ $nome }}-titulo">
-        <div class="w-full max-w-md rounded-sm border border-slate-300 bg-white shadow-xl shadow-slate-950/10" x-on:click.outside="aberto = false">
-            <div class="border-b border-slate-200 px-5 py-3.5">
-                <h2 id="modal-{{ $nome }}-titulo" class="font-semibold text-slate-900">{{ $titulo }}</h2>
-            </div>
+        <div class="w-full max-w-md border border-slate-500 bg-white shadow-lg shadow-slate-950/20" x-on:click.outside="aberto = false">
+            <h2 id="modal-{{ $nome }}-titulo" class="quadro-titulo text-slate-800">{{ $titulo }}</h2>
             {{ $slot }}
         </div>
     </div>

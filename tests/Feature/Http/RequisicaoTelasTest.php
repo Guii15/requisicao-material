@@ -4,7 +4,9 @@ namespace Tests\Feature\Http;
 
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
+use App\Models\Setor;
 use App\Models\User;
+use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
@@ -88,6 +90,31 @@ class RequisicaoTelasTest extends TestCase
             ->assertSee('Solicitado por')
             ->assertSee('Kevelin Honorato')
             ->assertSee('Assinaturas íntegras');
+    }
+
+    public function test_detalhe_mostra_pelo_nome_quem_pode_aprovar(): void
+    {
+        [$ti, $lider, $sublider] = $this->setorComAprovadores();
+        $lider->forceFill(['nome' => 'Leandro Moreira'])->save();
+        $sublider->forceFill(['nome' => 'Juliana Duarte'])->save();
+        $eu = User::factory()->for($ti)->create();
+        $requisicao = $this->abrirRequisicao($eu);
+
+        $this->actingAs($eu)->get("/requisicoes/{$requisicao->numero}")
+            ->assertOk()
+            ->assertSee('Aguardando Juliana Duarte ou Leandro Moreira');
+    }
+
+    public function test_historico_nao_diz_setor_quando_quem_aprovou_foi_o_estoque(): void
+    {
+        $rh = Setor::factory()->create(['nome' => 'RH']);
+        $eu = User::factory()->for($rh)->create();
+        $requisicao = $this->abrirRequisicao($eu);
+        app(RequisicaoWorkflow::class)->aprovar($requisicao, User::factory()->liderEstoque()->create(), 'password');
+
+        $this->actingAs($eu)->get("/requisicoes/{$requisicao->numero}")
+            ->assertOk()
+            ->assertDontSee('Aprovada pelo setor');
     }
 
     public function test_estoque_nao_abre_requisicao_nao_aprovada_pelo_link_direto(): void
