@@ -246,38 +246,52 @@ class RequisicaoWorkflowTest extends TestCase
         $this->assertSame(EtapaAssinatura::REPROVACAO_SETOR, $requisicao->assinaturas->last()->etapa);
     }
 
-    public function test_admin_aprova_requisicao_de_setor_sem_aprovador(): void
+    public function test_lider_do_estoque_aprova_requisicao_de_setor_sem_aprovador(): void
     {
         $rh = Setor::factory()->create(['nome' => 'RH']);
         $erica = User::factory()->for($rh)->responsavelBaixa()->create();
-        $admin = User::factory()->admin()->create();
+        $liderEstoque = User::factory()->liderEstoque()->create();
         $requisicao = $this->abrirRequisicao($erica);
 
-        $this->workflow->aprovar($requisicao, $admin, 'password');
+        $this->workflow->aprovar($requisicao, $liderEstoque, 'password');
 
-        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->status);
+        $this->assertSame($liderEstoque->id, $requisicao->aprovado_por_id);
     }
 
-    public function test_admin_nao_aprova_setor_que_tem_aprovador(): void
+    public function test_admin_nao_aprova_nem_setor_sem_aprovador(): void
     {
-        [$ti] = $this->setorComAprovadores();
+        // Decisão de 24/09/2026: por enquanto o Admin fica fora da aprovação.
+        $rh = Setor::factory()->create(['nome' => 'RH']);
         $admin = User::factory()->admin()->create();
-        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+        $requisicao = $this->abrirRequisicao(User::factory()->for($rh)->create());
 
         $this->expectException(AuthorizationException::class);
 
         $this->workflow->aprovar($requisicao, $admin, 'password');
     }
 
-    public function test_pedido_do_unico_lider_e_aprovado_pelo_admin(): void
+    public function test_lider_do_estoque_nao_aprova_setor_que_tem_aprovador(): void
     {
-        // Ninja Place: o Gustavo é o único aprovador. O pedido dele vai para o Admin.
+        [$ti] = $this->setorComAprovadores();
+        $liderEstoque = User::factory()->liderEstoque()->create();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->workflow->aprovar($requisicao, $liderEstoque, 'password');
+    }
+
+    public function test_pedido_do_unico_lider_e_aprovado_pelo_lider_do_estoque(): void
+    {
+        // Ninja Place: o Gustavo é o único aprovador. O pedido dele vai para os líderes do estoque.
         $ninja = Setor::factory()->create(['nome' => 'NINJA PLACE', 'sem_sublider_definido' => true]);
         $gustavo = User::factory()->for($ninja)->aprovadorDe($ninja)->create();
-        $admin = User::factory()->admin()->create();
+        $liderEstoque = User::factory()->liderEstoque()->create();
         $requisicao = $this->abrirRequisicao($gustavo);
 
-        $this->workflow->aprovar($requisicao, $admin, 'password');
+        $this->workflow->aprovar($requisicao, $liderEstoque, 'password');
 
         $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
     }

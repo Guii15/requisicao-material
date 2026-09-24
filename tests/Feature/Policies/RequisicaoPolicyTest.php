@@ -6,20 +6,25 @@ use App\Enums\StatusRequisicao as S;
 use App\Models\Requisicao;
 use App\Models\Setor;
 use App\Models\User;
+use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 class RequisicaoPolicyTest extends TestCase
 {
-    use RefreshDatabase;
+    use CenarioRequisicao, RefreshDatabase;
 
     public function test_estoque_nunca_ve_requisicao_nao_aprovada(): void
     {
         $estoquista = User::factory()->estoque()->create();
         $liderEstoque = User::factory()->liderEstoque()->create();
+        // Setor com aprovador: a aprovação não cai para os líderes do estoque.
+        $solicitante = User::factory()->create();
+        User::factory()->aprovadorDe($solicitante->setor)->create();
 
         foreach (S::cases() as $status) {
-            $requisicao = Requisicao::factory()->status($status)->create();
+            $requisicao = Requisicao::factory()->for($solicitante, 'solicitante')->status($status)->create();
             $esperado = ! in_array($status, [S::AGUARDANDO_APROVACAO, S::REPROVADA, S::CANCELADA], true);
 
             $this->assertSame($esperado, $estoquista->can('view', $requisicao), "estoque / {$status->value}");
@@ -66,6 +71,45 @@ class RequisicaoPolicyTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $this->assertTrue($admin->can('view', Requisicao::factory()->create()));
+    }
+
+    public function test_admin_ve_e_cancela_mas_nao_aprova(): void
+    {
+        $rh = Setor::factory()->create(['nome' => 'RH']);
+        $admin = User::factory()->admin()->create();
+        $requisicao = Requisicao::factory()->create(['setor_id' => $rh->id]);
+
+        $this->assertTrue($admin->can('view', $requisicao));
+        $this->assertTrue($admin->can('cancelar', $requisicao));
+        $this->assertFalse($admin->can('aprovar', $requisicao));
+        $this->assertFalse($admin->can('reprovar', $requisicao));
+    }
+
+    public function test_lider_do_estoque_ve_e_aprova_somente_setor_sem_aprovador(): void
+    {
+        $rh = Setor::factory()->create(['nome' => 'RH']);
+        $liderEstoque = User::factory()->liderEstoque()->create();
+        $semAprovador = Requisicao::factory()->create(['setor_id' => $rh->id]);
+        $comAprovador = Requisicao::factory()->create();
+        User::factory()->aprovadorDe($comAprovador->setor)->create();
+
+        $this->assertTrue($liderEstoque->can('view', $semAprovador));
+        $this->assertTrue($liderEstoque->can('aprovar', $semAprovador));
+        $this->assertFalse($liderEstoque->can('view', $comAprovador));
+        $this->assertFalse($liderEstoque->can('aprovar', $comAprovador));
+    }
+
+    public function test_quem_assinou_continua_vendo_depois_da_decisao(): void
+    {
+        $this->travelTo('2026-09-24 10:00:00');
+        $rh = Setor::factory()->create(['nome' => 'RH']);
+        $liderEstoque = User::factory()->liderEstoque()->create();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($rh)->create());
+
+        app(RequisicaoWorkflow::class)->reprovar($requisicao, $liderEstoque, 'Pedido em duplicidade.', 'password');
+
+        $this->assertSame(S::REPROVADA, $requisicao->fresh()->status);
+        $this->assertTrue($liderEstoque->can('view', $requisicao->fresh()));
     }
 
     public function test_usuario_inativo_nao_abre_requisicao(): void

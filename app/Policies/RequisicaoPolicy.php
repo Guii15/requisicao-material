@@ -26,6 +26,11 @@ class RequisicaoPolicy
             return true;
         }
 
+        // Quem pode decidir precisa ver; quem já assinou alguma etapa continua vendo.
+        if ($this->aprovar($user, $requisicao) || $requisicao->assinaturas()->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+
         // O estoque nunca vê o que não foi aprovado.
         if (($user->is_estoque || $user->is_lider_estoque) && $requisicao->status->visivelParaEstoque()) {
             return true;
@@ -49,7 +54,8 @@ class RequisicaoPolicy
             return true;
         }
 
-        return $user->is_admin && $this->fila->semAprovadorElegivel($requisicao);
+        // Setor sem outro aprovador ativo: decidem os líderes do estoque. O Admin fica fora por enquanto.
+        return $user->is_lider_estoque && $this->fila->semAprovadorElegivel($requisicao);
     }
 
     public function reprovar(User $user, Requisicao $requisicao): bool

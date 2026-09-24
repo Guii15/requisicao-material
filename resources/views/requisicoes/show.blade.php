@@ -54,10 +54,10 @@
         </div>
     @endunless
 
-    @if ($motivoFilaAdmin)
+    @if ($motivoSemAprovador)
         <div class="mb-4 flex items-start gap-2 rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
             <x-phosphor-info class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span>Aprovação pelo Admin: {{ $motivoFilaAdmin }}.</span>
+            <span>Aprovação pelos líderes do estoque: {{ $motivoSemAprovador }}.</span>
         </div>
     @endif
 

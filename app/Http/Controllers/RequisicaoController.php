@@ -67,7 +67,7 @@ class RequisicaoController extends Controller
         return view('requisicoes.show', [
             'requisicao' => $requisicao,
             'verificacao' => $assinaturas->verificar($requisicao),
-            'motivoFilaAdmin' => $fila->motivoFilaAdmin($requisicao),
+            'motivoSemAprovador' => $fila->motivoSemAprovador($requisicao),
         ]);
     }
 

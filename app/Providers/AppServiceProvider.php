@@ -38,7 +38,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
             ->by(mb_strtolower(trim((string) $request->input('login'))).'|'.$request->ip()));
 
-        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_admin || $user->setoresAprovados()->exists());
+        // Líder do estoque sempre tem fila: recebe os setores sem aprovador.
+        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->setoresAprovados()->exists());
 
         View::composer('components.layouts.app', MenuComposer::class);
     }

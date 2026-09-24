@@ -104,15 +104,23 @@ class AprovacaoTelasTest extends TestCase
             ->assertSessionHas('erro', fn (string $erro) => str_contains($erro, 'Paloma Maclaine'));
     }
 
-    public function test_admin_ve_a_fila_do_admin_com_o_motivo(): void
+    public function test_lider_do_estoque_ve_setor_sem_aprovador_com_o_motivo(): void
     {
         $rh = Setor::factory()->create(['nome' => 'RH']);
         $requisicao = $this->abrirRequisicao(User::factory()->for($rh)->create());
 
-        $this->actingAs(User::factory()->admin()->create())->get('/aprovacoes')
+        $this->actingAs(User::factory()->liderEstoque()->create())->get('/aprovacoes')
             ->assertOk()
             ->assertSee($requisicao->numero)
             ->assertSee('Setor sem aprovador cadastrado');
+    }
+
+    public function test_admin_que_nao_aprova_setor_nao_tem_fila(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get('/requisicoes')->assertOk()->assertDontSee('href="'.route('aprovacoes.index').'"', false);
+        $this->actingAs($admin)->get('/aprovacoes')->assertForbidden();
     }
 
     public function test_detalhe_mostra_botoes_de_decisao_somente_para_quem_pode_aprovar(): void

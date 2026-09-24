@@ -29,8 +29,9 @@ class AprovacaoController extends Controller
             ->orderBy('id')
             ->paginate(50);
 
-        $motivos = $request->user()->is_admin
-            ? $requisicoes->getCollection()->mapWithKeys(fn (Requisicao $r) => [$r->id => $fila->motivoFilaAdmin($r)])->all()
+        // Só o líder do estoque recebe pedido de outro setor; ele precisa saber por quê.
+        $motivos = $request->user()->is_lider_estoque
+            ? $requisicoes->getCollection()->mapWithKeys(fn (Requisicao $r) => [$r->id => $fila->motivoSemAprovador($r)])->all()
             : [];
 
         return view('aprovacoes.index', ['requisicoes' => $requisicoes, 'motivos' => $motivos]);

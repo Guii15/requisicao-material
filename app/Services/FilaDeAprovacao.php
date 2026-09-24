@@ -6,6 +6,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\DB;
  *
  * Todos os aprovadores do setor (líder e sublíder valem igual) veem a fila; ninguém vê o
  * próprio pedido. Quando o setor não tem outro aprovador ativo além do solicitante, a
- * requisição cai na fila do Admin.
+ * requisição cai para os líderes do estoque (decisão de 24/09/2026: o Admin fica fora
+ * da aprovação por enquanto).
  */
 class FilaDeAprovacao
 {
@@ -29,7 +31,7 @@ class FilaDeAprovacao
             ->where(function (Builder $query) use ($user) {
                 $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
 
-                if ($user->is_admin) {
+                if ($user->is_lider_estoque) {
                     $query->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
                         ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
                         ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
@@ -46,9 +48,27 @@ class FilaDeAprovacao
     }
 
     /**
-     * Por que a requisição está na fila do Admin (nulo quando não está).
+     * Quem pode aprovar a requisição agora, em ordem alfabética: os aprovadores ativos do
+     * setor ou, se não houver, os líderes do estoque ativos. Nunca o próprio solicitante.
+     *
+     * @return Collection<int, User>
      */
-    public function motivoFilaAdmin(Requisicao $requisicao): ?string
+    public function aprovadoresElegiveis(Requisicao $requisicao): Collection
+    {
+        $query = User::query()
+            ->where('ativo', true)
+            ->whereKeyNot($requisicao->solicitante_id)
+            ->orderBy('nome');
+
+        return $this->semAprovadorElegivel($requisicao)
+            ? $query->where('is_lider_estoque', true)->get()
+            : $query->whereIn('id', DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id))->get();
+    }
+
+    /**
+     * Por que a requisição foi para os líderes do estoque (nulo quando o setor aprova).
+     */
+    public function motivoSemAprovador(Requisicao $requisicao): ?string
     {
         if ($requisicao->status !== StatusRequisicao::AGUARDANDO_APROVACAO || ! $this->semAprovadorElegivel($requisicao)) {
             return null;
