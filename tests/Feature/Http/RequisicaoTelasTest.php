@@ -106,16 +106,47 @@ class RequisicaoTelasTest extends TestCase
         $this->actingAs(User::factory()->create())->get("/requisicoes/{$requisicao->numero}")->assertForbidden();
     }
 
-    public function test_solicitante_cancela_pela_tela(): void
+    public function test_solicitante_cancela_pela_tela_e_volta_para_a_lista(): void
     {
         $eu = User::factory()->create();
         $requisicao = $this->abrirRequisicao($eu);
 
         $this->actingAs($eu)->post("/requisicoes/{$requisicao->numero}/cancelar", ['motivo' => 'Pedi o item errado.'])
-            ->assertRedirect("/requisicoes/{$requisicao->numero}")
-            ->assertSessionHas('sucesso');
+            ->assertRedirect('/requisicoes')
+            ->assertSessionHas('sucesso', "Requisição {$requisicao->numero} cancelada.");
 
         $this->assertSame(StatusRequisicao::CANCELADA, $requisicao->fresh()->status);
+    }
+
+    public function test_detalhe_da_propria_requisicao_volta_para_minhas_requisicoes(): void
+    {
+        $eu = User::factory()->create();
+        $requisicao = $this->abrirRequisicao($eu);
+
+        $this->actingAs($eu)->get("/requisicoes/{$requisicao->numero}")
+            ->assertOk()
+            ->assertSee('href="'.route('requisicoes.index').'" data-voltar', false)
+            ->assertSee('Voltar para Minhas requisições');
+    }
+
+    public function test_detalhe_aberto_pelo_aprovador_volta_para_aprovacoes(): void
+    {
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+
+        $this->actingAs($lider)->get("/requisicoes/{$requisicao->numero}")
+            ->assertOk()
+            ->assertSee('href="'.route('aprovacoes.index').'" data-voltar', false)
+            ->assertSee('Voltar para Aprovações');
+    }
+
+    public function test_aprovador_que_cancela_pedido_proprio_volta_para_minhas_requisicoes(): void
+    {
+        [, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao($lider);
+
+        $this->actingAs($lider)->post("/requisicoes/{$requisicao->numero}/cancelar", ['motivo' => 'Não preciso mais.'])
+            ->assertRedirect('/requisicoes');
     }
 
     public function test_cancelar_sem_motivo_volta_com_erro(): void

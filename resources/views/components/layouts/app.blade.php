@@ -1,4 +1,13 @@
-@props(['titulo'])
+@props(['titulo', 'secao' => null])
+@php
+    // Item do menu marcado: a página pode informar (detalhe da requisição); senão, vale a rota.
+    $secao ??= match (true) {
+        request()->routeIs('requisicoes.index') => 'minhas',
+        request()->routeIs('requisicoes.create') => 'nova',
+        request()->routeIs('aprovacoes.*') => 'aprovacoes',
+        default => null,
+    };
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -16,12 +25,11 @@
                 <span class="hidden border-l border-white/25 pl-3 text-sm font-medium text-white/90 xl:inline">Requisição de Material</span>
             </a>
 
-            @php($requisicaoAberta = request()->route('requisicao'))
             <nav class="order-last -mx-1 flex w-full min-w-0 items-center overflow-x-auto border-t border-white/15 text-sm md:order-none md:mx-0 md:w-auto md:flex-1 md:border-t-0" aria-label="Menu principal">
-                <x-menu-link :href="route('requisicoes.index')" :ativo="request()->routeIs('requisicoes.index') || ($requisicaoAberta instanceof \App\Models\Requisicao && $requisicaoAberta->solicitante_id === auth()->id())">Minhas requisições</x-menu-link>
-                <x-menu-link :href="route('requisicoes.create')" :ativo="request()->routeIs('requisicoes.create')">Nova requisição</x-menu-link>
+                <x-menu-link :href="route('requisicoes.index')" :ativo="$secao === 'minhas'">Minhas requisições</x-menu-link>
+                <x-menu-link :href="route('requisicoes.create')" :ativo="$secao === 'nova'">Nova requisição</x-menu-link>
                 @if ($menu['aprovacoes'] !== null)
-                    <x-menu-link :href="route('aprovacoes.index')" :ativo="request()->routeIs('aprovacoes.*')" :contador="$menu['aprovacoes']" contador-nome="aprovacoes">Aprovações</x-menu-link>
+                    <x-menu-link :href="route('aprovacoes.index')" :ativo="$secao === 'aprovacoes'" :contador="$menu['aprovacoes']" contador-nome="aprovacoes">Aprovações</x-menu-link>
                 @endif
             </nav>
 

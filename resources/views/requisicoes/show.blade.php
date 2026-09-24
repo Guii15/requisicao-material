@@ -1,4 +1,4 @@
-<x-layouts.app :titulo="$requisicao->numero">
+<x-layouts.app :titulo="$requisicao->numero" :secao="$voltar['secao']">
     @php
         $assinadas = $requisicao->assinaturas->pluck('etapa');
         $pendentes = $requisicao->status->isFinal()
@@ -6,6 +6,8 @@
             : array_filter(\App\Enums\EtapaAssinatura::fluxo($requisicao->tipo), fn ($etapa) => ! $assinadas->contains($etapa));
         $dataHora = fn ($data) => $data->format('d/m/Y').' às '.$data->format('H:i');
     @endphp
+
+    <a href="{{ $voltar['url'] }}" data-voltar class="botao botao-secundario mb-3">Voltar para {{ $voltar['rotulo'] }}</a>
 
     <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>

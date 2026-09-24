@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Parametro;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
+use App\Models\User;
 use App\Services\AssinaturaService;
 use App\Services\FilaDeAprovacao;
 use App\Services\RequisicaoWorkflow;
@@ -58,7 +59,7 @@ class RequisicaoController extends Controller
             ->with('sucesso', "Requisição {$requisicao->numero} assinada e enviada para aprovação.");
     }
 
-    public function show(Requisicao $requisicao, AssinaturaService $assinaturas, FilaDeAprovacao $fila): View
+    public function show(Request $request, Requisicao $requisicao, AssinaturaService $assinaturas, FilaDeAprovacao $fila): View
     {
         Gate::authorize('view', $requisicao);
 
@@ -68,6 +69,7 @@ class RequisicaoController extends Controller
             'requisicao' => $requisicao,
             'verificacao' => $assinaturas->verificar($requisicao),
             'motivoSemAprovador' => $fila->motivoSemAprovador($requisicao),
+            'voltar' => $this->voltarPara($request->user(), $requisicao),
         ]);
     }
 
@@ -75,8 +77,22 @@ class RequisicaoController extends Controller
     {
         $workflow->cancelar($requisicao, $request->user(), $this->texto($request, 'motivo'));
 
-        return redirect()
-            ->route('requisicoes.show', $requisicao)
+        return redirect($this->voltarPara($request->user(), $requisicao)['url'])
             ->with('sucesso', "Requisição {$requisicao->numero} cancelada.");
+    }
+
+    /**
+     * Lista de onde a pessoa veio: a própria requisição volta para "Minhas requisições";
+     * a de outra pessoa, para a fila de aprovação de quem tem uma.
+     *
+     * @return array{url: string, rotulo: string, secao: string}
+     */
+    private function voltarPara(User $user, Requisicao $requisicao): array
+    {
+        if ($requisicao->solicitante_id !== $user->id && Gate::forUser($user)->allows('acessar-aprovacoes')) {
+            return ['url' => route('aprovacoes.index'), 'rotulo' => 'Aprovações', 'secao' => 'aprovacoes'];
+        }
+
+        return ['url' => route('requisicoes.index'), 'rotulo' => 'Minhas requisições', 'secao' => 'minhas'];
     }
 }
