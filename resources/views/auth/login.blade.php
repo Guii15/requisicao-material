@@ -34,5 +34,5 @@
         </div>
     </form>
 
-    <p class="mt-4 text-center text-sm text-mid-gray">Primeiro acesso ou esqueceu a senha: procure a TI.</p>
+    <p class="mt-4 text-center text-sm text-white/70">Primeiro acesso ou esqueceu a senha: procure a TI.</p>
 </x-layouts.acesso>

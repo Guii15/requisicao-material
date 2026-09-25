@@ -8,21 +8,21 @@
     <link rel="icon" type="image/png" href="{{ asset('imagens/favicon.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="flex min-h-dvh flex-col">
-    {{-- Mesma barra do sistema: a entrada é uma página dele, não uma vitrine. --}}
-    <header class="bg-marinho-950 text-white">
-        <div class="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6">
-            <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-6 w-auto">
-            <span class="border-l border-white/20 pl-3 text-sm font-medium text-white">Requisição de Material</span>
-        </div>
-    </header>
+<body class="min-h-dvh">
+    {{-- A entrada é a única tela com foto: o resto do sistema é sóbrio, mas aqui é o
+         primeiro contato — vale mostrar o estoque de verdade por trás do formulário. --}}
+    <div class="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+        <img src="{{ asset('imagens/login-fundo.webp') }}" alt="" aria-hidden="true"
+             class="absolute inset-0 h-full w-full object-cover">
+        <div class="absolute inset-0 bg-gradient-to-t from-marinho-950/95 via-marinho-950/80 to-marinho-950/55" aria-hidden="true"></div>
 
-    <main class="flex flex-1 items-start justify-center px-4 py-10 sm:items-center sm:pb-24">
-        <div>
-            <div class="w-full max-w-sm sm:w-sm">
-                {{ $slot }}
+        <div class="relative w-full max-w-sm">
+            <div class="mb-8 flex flex-col items-center gap-1.5">
+                <img src="{{ asset('imagens/logo.png') }}" alt="Binário Tecnologia" class="h-8 w-auto">
+                <span class="text-sm font-medium text-white/80">Requisição de Material</span>
             </div>
+            {{ $slot }}
         </div>
-    </main>
+    </div>
 </body>
 </html>

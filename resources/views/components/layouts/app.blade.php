@@ -118,6 +118,19 @@
             <x-avisos />
             {{ $slot }}
         </div>
+
+        <footer class="border-t border-hairline px-4 py-5 sm:px-6 lg:px-8">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                    <img src="{{ asset('imagens/logo.png') }}" alt="" aria-hidden="true" class="h-5 w-auto opacity-70 grayscale">
+                    <span class="text-sm text-mid-gray">Requisição de Material · Binário Tecnologia</span>
+                </div>
+                <div class="text-sm text-mid-gray">
+                    Suporte (TI):
+                    <a href="tel:+553598998455" class="font-medium text-ink hover:underline">+55 35 9899-8455</a>
+                </div>
+            </div>
+        </footer>
     </main>
 
     @stack('modais')

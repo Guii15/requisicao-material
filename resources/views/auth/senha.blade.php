@@ -45,6 +45,6 @@
 
     <form method="POST" action="{{ route('logout') }}" class="mt-4 text-center">
         @csrf
-        <button type="submit" class="link cursor-pointer text-sm">Sair</button>
+        <button type="submit" class="cursor-pointer text-sm font-medium text-white/80 underline-offset-2 hover:text-white hover:underline">Sair</button>
     </form>
 </x-layouts.acesso>
