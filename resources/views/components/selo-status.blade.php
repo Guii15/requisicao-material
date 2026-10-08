@@ -1,18 +1,14 @@
 @props(['status'])
 @php
-    // Barra lateral de cor (sem fundo preenchido) + texto: a cor só marca, o texto informa.
-    // Reprovada é notícia ruim para quem pediu (vermelho); cancelada só encerra (cinza).
-    $cor = match ($status->grupo()) {
-        'aguardando' => 'bg-amber-500',
-        'concluida' => 'bg-emerald-600',
-        'encerrada' => $status === \App\Enums\StatusRequisicao::CANCELADA ? 'bg-slate-400' : 'bg-red-600',
-        'alerta' => 'bg-red-600',
-        default => 'bg-blue-700',
+    // Sem cor para chamar atenção: aguardando é contorno, concluída é cinza suave, encerrada por reprovação
+    // ou alerta é vermelho (o único aviso do sistema), cancelada só se apaga.
+    $cancelada = $status === \App\Enums\StatusRequisicao::CANCELADA;
+    $classe = match ($status->grupo()) {
+        'aguardando' => 'selo-contorno',
+        'concluida' => 'selo-ok',
+        'encerrada' => $cancelada ? 'selo-neutro text-mid-gray' : 'selo-erro',
+        'alerta' => 'selo-erro',
+        default => 'selo-neutro',
     };
-    // Pulso só em "aguardando": é o único grupo que representa algo esperando acontecer agora.
-    $aguardando = $status->grupo() === 'aguardando';
 @endphp
-<span {{ $attributes->class(['inline-flex items-center gap-2 whitespace-nowrap']) }}>
-    <span class="h-3.5 w-1 shrink-0 {{ $cor }} {{ $aguardando ? 'pulso-suave' : '' }}" aria-hidden="true"></span>
-    {{ $status->rotulo() }}
-</span>
+<span {{ $attributes->class(['selo', $classe]) }}>{{ $status->rotulo() }}</span>

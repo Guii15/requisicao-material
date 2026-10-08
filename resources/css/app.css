@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
@@ -10,36 +12,35 @@
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    /* EXPERIMENTO (branch experimento/visual-shadcn): paleta monocromática estilo shadcn/ui.
-       Azul-marinho da Binário fica só na logo/cabeçalho; o resto do sistema vira preto e branco. */
-    --color-marinho-950: #00004d;
-    --color-marinho-900: #000069;
-    --color-marinho-800: #05018d;
-    --color-marinho-700: #2622b0;
-    --color-marinho-100: #e3e3f7;
-    --color-marinho-50: #f3f3fb;
-
+    /* shadcn monocromático, escolhido para este projeto: cinza neutro de uma família só, texto quase preto,
+       vermelho exclusivo para o que é destrutivo ou atrasado. A marca aparece no logo, não na interface. */
     --color-fundo: #f5f5f5;
+    --color-barra: #fafafa;
     --color-paper: #ffffff;
-    --color-surface-alt: #fafafa;
+    --color-surface-alt: #f0f0f0;
     --color-ink: #0a0a0a;
-    --color-ink-soft: #171717;
-    --color-mid-gray: #737373;
+    --color-ink-soft: #404040;
+    --color-mid-gray: #6b6b6b;
     --color-hairline: #e5e5e5;
-    --color-ember: #e7000b;
+    --color-hairline-campo: #d4d4d4;
+    --color-destrutivo: #e7000b;
+
+    /* Tokens do modo escuro (usados via dark:bg-void, dark:text-bone etc.) */
+    --color-void: #08080a;
+    --color-card-escuro: #040406;
+    --color-panel-escuro: #121317;
+    --color-line-escuro: #1c1d22;
+    --color-line-escuro-2: #2e3038;
+    --color-steel: #9a9dab;
+    --color-fog: #b6b9c4;
+    --color-bone: #e2e3e9;
+
+    --color-status-erro: #e7000b;
 }
 
-/*
- * EXPERIMENTO: sistema quase todo preto-e-branco (achromatic), tipografia Geist com
- * tracking apertado nos títulos, cantos moderados (12px em cartões, 8px em botões/campos,
- * selos continuam em pílula), sombra quase imperceptível (hairline + leve elevação).
- * Vermelho só em ação destrutiva. Cores de situação e tipo (âmbar/esmeralda/céu/vermelho)
- * continuam, por terem significado.
- */
 @layer base {
     html {
         color-scheme: light;
-        /* O cabeçalho é fixo: campo focado ou âncora não pode ficar escondido atrás dele. */
         scroll-padding-top: 8rem;
 
         @media (width >= 48rem) {
@@ -47,19 +48,24 @@
         }
     }
 
+    html.dark {
+        color-scheme: dark;
+    }
+
     body {
-        @apply bg-fundo text-[14px] text-ink antialiased;
+        @apply bg-fundo text-sm leading-6 text-ink antialiased dark:bg-void dark:text-bone;
+        overflow-wrap: anywhere;
     }
 
     h1, h2, h3 {
         letter-spacing: -0.025em;
+        text-wrap: balance;
     }
 
     [x-cloak] {
         display: none !important;
     }
 
-    /* Rede de segurança: qualquer animação/transição encolhe quase a zero para quem pediu menos movimento. */
     @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
             animation-duration: 0.01ms !important;
@@ -75,106 +81,132 @@
 }
 
 @layer components {
-    /* Cartão: superfície branca sobre o fundo cinza, raio pequeno (6px, nunca xl/2xl), sombra quase imperceptível.
-       Não usar em tabela de dados — tabela fica direto no fundo da página (ver .tabela). */
+    /* Escala de cantos, uma só: botões e selos em pílula, painéis 20px, campos 12px. */
     .quadro {
-        @apply rounded-md border border-hairline bg-paper shadow-[0_0_0_1px_rgb(23_23_23/0.05),0_1px_3px_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)];
+        @apply rounded-[20px] border border-hairline bg-paper dark:border-line-escuro dark:bg-card-escuro;
     }
 
-    /* Título de uma seção dentro do cartão. */
     .quadro-titulo {
-        @apply border-b border-hairline px-4 py-3 text-sm font-semibold text-ink;
+        @apply border-b border-hairline px-5 py-3.5 text-sm font-semibold tracking-tight text-ink dark:border-line-escuro dark:text-bone;
     }
 
-    /* Título de seção fora de cartão: mesma ideia da tabela, uma linha fina embaixo, sem caixa. */
     .titulo-secao {
-        @apply mb-3 border-b border-hairline pb-2 text-sm font-semibold text-ink;
+        @apply mb-3 text-[15px] leading-6 font-semibold tracking-tight text-ink dark:text-bone;
     }
 
-    /* Título de página: peso de manchete, mas sem exagerar no espaço (é painel de gestão, não landing). */
     .titulo-pagina {
-        @apply text-2xl font-semibold text-ink;
-        letter-spacing: -0.02em;
+        @apply text-[28px] leading-9 font-semibold tracking-[-0.035em] text-ink dark:text-bone;
     }
 
-    /* Rótulo pequeno de um dado exibido (não de campo de formulário). */
     .legenda {
-        @apply block text-xs tracking-wide text-mid-gray uppercase;
+        @apply block text-[13px] text-mid-gray dark:text-steel;
     }
 
     .rotulo {
-        @apply block text-sm font-medium text-ink-soft;
+        @apply block text-sm font-medium text-ink dark:text-fog;
     }
 
     .ajuda {
-        @apply mt-0.5 text-[13px] text-mid-gray;
+        @apply mt-0.5 text-[13px] text-mid-gray dark:text-steel;
     }
 
     .erro-campo {
-        @apply mt-1 text-[13px] font-medium text-ember;
+        @apply mt-1.5 text-[13px] font-medium text-destrutivo;
     }
 
-    /* Campo com borda visível: precisa se destacar sozinho, sem depender de um cartão atrás. */
+    /* Campo: fundo cinza claro, borda fina para ter contraste, anel escuro no foco.
+       16px/44px no celular evita zoom e garante alvo de toque confortável. */
     .campo {
-        @apply block w-full rounded-lg border border-hairline bg-paper px-3.5 py-2 text-sm text-ink shadow-none placeholder:text-mid-gray focus:border-ink focus:ring-2 focus:ring-ink/10 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray;
+        @apply block w-full rounded-xl border border-hairline bg-fundo px-3.5 py-2 text-sm text-ink shadow-none transition-colors placeholder:text-mid-gray/80 focus:border-ink/40 focus:bg-paper focus:ring-[3px] focus:ring-ink/8 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray dark:border-line-escuro-2 dark:bg-panel-escuro dark:text-bone dark:focus:border-bone;
+
+        @media (width < 768px) {
+            font-size: 16px;
+            min-height: 44px;
+        }
     }
 
     .campo-erro {
-        @apply ring-1 ring-ember focus:ring-ember;
+        @apply border-destrutivo bg-paper focus:border-destrutivo focus:ring-destrutivo/15;
     }
 
     .botao {
-        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
     }
 
     .botao-primario {
-        @apply bg-ink text-surface-alt shadow-none hover:bg-ink-soft;
+        @apply bg-ink text-white shadow-none hover:bg-neutral-700 dark:bg-white dark:text-ink dark:hover:bg-bone;
     }
 
     .botao-secundario {
-        @apply bg-fundo text-ink shadow-none hover:bg-hairline/60;
+        @apply border-hairline-campo bg-paper text-ink shadow-none hover:bg-fundo dark:border-line-escuro-2 dark:bg-transparent dark:text-fog dark:hover:bg-panel-escuro;
     }
 
     .botao-perigo {
-        @apply bg-ember text-white shadow-none hover:opacity-90;
+        @apply bg-destrutivo text-white shadow-none hover:opacity-90;
     }
 
     .botao-perigo-contorno {
-        @apply border border-hairline bg-transparent text-ember shadow-none hover:bg-ember/5;
+        @apply border-destrutivo/35 bg-paper text-destrutivo shadow-none hover:bg-destrutivo/5;
     }
 
     .link {
-        @apply font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+        @apply font-medium text-ink underline decoration-ink/25 underline-offset-[3px] transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink dark:text-bone;
     }
 
-    /* Tabela de dados: sem cartão, sem sombra — fica direto no fundo da página.
-       Só a borda inferior de cada linha separa uma da outra. */
+    /* Tabela: direto sobre o fundo, uma linha fina entre linhas, cabeçalho em cinza e minúsculas. */
     .tabela {
         @apply w-full border-collapse text-sm;
     }
 
     .tabela th {
-        @apply border-b border-hairline px-3 py-1.5 text-left text-xs font-medium tracking-wide whitespace-nowrap text-mid-gray uppercase;
+        @apply border-b border-hairline px-3 py-2 text-left text-[13px] font-medium whitespace-nowrap text-mid-gray dark:border-line-escuro dark:text-steel;
     }
 
     .tabela td {
-        @apply border-b border-hairline px-3 py-1.5 align-top;
+        @apply border-b border-hairline px-3 py-3 align-top dark:border-line-escuro;
     }
 
     .tabela tbody tr:last-child td {
         @apply border-b-0;
     }
 
-    /* Linha que abre a requisição com um clique em qualquer parte (ver app.js). */
     .tabela tbody tr[data-href] {
-        @apply cursor-pointer transition-colors hover:bg-surface-alt;
+        @apply cursor-pointer transition-colors hover:bg-paper dark:hover:bg-panel-escuro;
     }
 
     .num {
         @apply text-right tabular-nums;
     }
 
-    /* Pulso discreto: só no que está de fato esperando algo acontecer agora (ex.: aprovação). */
+    /* Selos: cinza suave, preto cheio ou contorno. Vermelho só no que deu errado. */
+    .selo {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap;
+    }
+
+    .selo-neutro {
+        @apply bg-surface-alt text-ink-soft dark:bg-panel-escuro dark:text-steel;
+    }
+
+    .selo-forte {
+        @apply bg-ink text-white dark:bg-white dark:text-ink;
+    }
+
+    .selo-contorno {
+        @apply border border-hairline-campo bg-paper text-ink dark:border-line-escuro-2 dark:bg-transparent dark:text-fog;
+    }
+
+    .selo-erro {
+        @apply border border-destrutivo/35 bg-paper text-destrutivo;
+    }
+
+    .selo-ok {
+        @apply bg-surface-alt text-ink dark:bg-panel-escuro dark:text-bone;
+    }
+
+    .selo-pendente {
+        @apply border border-hairline-campo bg-paper text-ink dark:border-line-escuro-2 dark:bg-transparent dark:text-fog;
+    }
+
     .pulso-suave {
         animation: pulso-suave 2s ease-in-out infinite;
     }

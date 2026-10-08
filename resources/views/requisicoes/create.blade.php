@@ -23,7 +23,7 @@
     </div>
 
     <form method="POST" action="{{ route('requisicoes.store') }}"
-          class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+          class="grid max-w-[68rem] gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
               'itens' => $itensAnteriores,
@@ -35,28 +35,22 @@
         <div class="space-y-6">
             <fieldset>
                 <legend class="titulo-secao float-left w-full">Tipo de retirada</legend>
-                <div class="clear-both grid gap-3 pt-1 sm:grid-cols-2">
-                    <label class="relative flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors"
-                           :class="tipo === 'TESTE' ? 'border-sky-500 bg-sky-50/60 ring-1 ring-sky-500' : 'border-hairline hover:border-mid-gray/40 hover:bg-surface-alt'">
+                <div class="clear-both grid gap-3 sm:grid-cols-2">
+                    <label class="flex cursor-pointer gap-3.5 rounded-2xl border bg-paper p-4 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
+                           :class="tipo === 'TESTE' ? 'border-ink ring-1 ring-ink' : 'border-hairline hover:border-hairline-campo'">
                         <input type="radio" name="tipo" value="TESTE" x-model="tipo" required
-                               class="mt-0.5 size-4 border-hairline text-sky-700 focus:ring-sky-700">
+                               class="mt-1 size-4 border-hairline-campo text-ink focus:ring-0 focus:ring-offset-0">
                         <span>
-                            <span class="flex items-center gap-2 font-semibold text-ink">
-                                <x-phosphor-arrows-clockwise class="size-5 text-sky-700" aria-hidden="true" />
-                                Teste
-                            </span>
+                            <span class="block font-semibold tracking-tight text-ink">Teste</span>
                             <span class="mt-1 block text-sm text-mid-gray">O material sai para teste e volta ao estoque em até {{ $prazoDias }} dias úteis.</span>
                         </span>
                     </label>
-                    <label class="relative flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors"
-                           :class="tipo === 'USO_CONSUMO' ? 'border-amber-500 bg-amber-50/60 ring-1 ring-amber-500' : 'border-hairline hover:border-mid-gray/40 hover:bg-surface-alt'">
+                    <label class="flex cursor-pointer gap-3.5 rounded-2xl border bg-paper p-4 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink"
+                           :class="tipo === 'USO_CONSUMO' ? 'border-ink ring-1 ring-ink' : 'border-hairline hover:border-hairline-campo'">
                         <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required
-                               class="mt-0.5 size-4 border-hairline text-amber-600 focus:ring-amber-600">
+                               class="mt-1 size-4 border-hairline-campo text-ink focus:ring-0 focus:ring-offset-0">
                         <span>
-                            <span class="flex items-center gap-2 font-semibold text-ink">
-                                <x-phosphor-package class="size-5 text-amber-600" aria-hidden="true" />
-                                Uso e consumo
-                            </span>
+                            <span class="block font-semibold tracking-tight text-ink">Uso e consumo</span>
                             <span class="mt-1 block text-sm text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque e pela baixa no WinThor.</span>
                         </span>
                     </label>
@@ -95,7 +89,7 @@
                                     <span class="sm:hidden">Item </span><span x-text="indice + 1"></span>
                                 </span>
                                 <button type="button"
-                                        class="cursor-pointer text-sm font-medium text-red-700 hover:underline disabled:cursor-not-allowed disabled:text-mid-gray disabled:no-underline sm:hidden"
+                                        class="cursor-pointer text-sm font-medium text-destrutivo hover:underline disabled:cursor-not-allowed disabled:text-mid-gray disabled:no-underline sm:hidden"
                                         x-on:click="remover(indice)" :disabled="itens.length === 1"
                                         :aria-label="`Remover item ${indice + 1}`">
                                     Remover
@@ -132,7 +126,7 @@
 
                             <div class="hidden sm:block">
                                 <button type="button"
-                                        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-mid-gray transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-marinho-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-mid-gray"
+                                        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-xl text-mid-gray transition-colors hover:bg-destrutivo/5 hover:text-destrutivo focus-visible:outline-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-mid-gray"
                                         x-on:click="remover(indice)" :disabled="itens.length === 1"
                                         :aria-label="`Remover item ${indice + 1}`" title="Remover item">
                                     <x-phosphor-trash class="size-[18px]" aria-hidden="true" />
@@ -153,7 +147,7 @@
                         <x-phosphor-plus class="size-4" aria-hidden="true" />Adicionar item
                     </button>
                     @error('itens')
-                        <p class="text-sm font-medium text-red-700">{{ $message }}</p>
+                        <p class="text-sm font-medium text-destrutivo">{{ $message }}</p>
                     @enderror
                 </div>
             </section>
@@ -206,7 +200,7 @@
         </div>
 
         {{-- Resumo: no computador fica fixo ao lado, com o botão de enviar sempre à vista. --}}
-        <aside class="lg:sticky lg:top-24">
+        <aside class="quadro p-5 lg:sticky lg:top-8">
             <h2 class="titulo-secao">Resumo</h2>
             <dl class="space-y-3 text-sm">
                 <div class="flex items-center justify-between gap-3">

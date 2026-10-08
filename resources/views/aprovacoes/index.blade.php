@@ -25,7 +25,7 @@
                             <span class="text-mid-gray">· {{ $requisicao->setor->nome }}</span>
                         </span>
                         @if ($motivos[$requisicao->id] ?? null)
-                            <span class="mt-0.5 block text-xs font-medium text-amber-700">{{ $motivos[$requisicao->id] }}</span>
+                            <span class="mt-0.5 block text-xs font-medium text-mid-gray">{{ $motivos[$requisicao->id] }}</span>
                         @endif
                         <span class="mt-1.5 flex items-center gap-2 text-sm">
                             <x-selo-tipo :tipo="$requisicao->tipo" />
@@ -70,7 +70,7 @@
                             <td>
                                 <a href="{{ route('requisicoes.show', $requisicao) }}" class="link font-mono">{{ $requisicao->numero }}</a>
                                 @if ($motivos[$requisicao->id] ?? null)
-                                    <span class="mt-0.5 block text-xs font-medium text-amber-700">{{ $motivos[$requisicao->id] }}</span>
+                                    <span class="mt-0.5 block text-xs font-medium text-mid-gray">{{ $motivos[$requisicao->id] }}</span>
                                 @endif
                             </td>
                             <td><x-selo-tipo :tipo="$requisicao->tipo" /></td>

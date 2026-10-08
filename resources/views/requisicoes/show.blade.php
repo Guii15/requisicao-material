@@ -8,7 +8,7 @@
         $aguardandoAprovacao = $requisicao->status === \App\Enums\StatusRequisicao::AGUARDANDO_APROVACAO;
     @endphp
 
-    <a href="{{ $voltar['url'] }}" data-voltar class="-ml-2 inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-mid-gray transition-colors hover:bg-hairline hover:text-ink">
+    <a href="{{ $voltar['url'] }}" data-voltar class="-ml-2 inline-flex h-8 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-mid-gray transition-colors hover:bg-hairline hover:text-ink">
         <x-phosphor-arrow-left class="size-4" aria-hidden="true" />Voltar para {{ $voltar['rotulo'] }}
     </a>
 
@@ -76,8 +76,8 @@
     </div>
 
     @unless ($verificacao->integro)
-        <div role="alert" class="mb-6 flex gap-3 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-950">
-            <x-phosphor-warning-octagon class="size-5 shrink-0 text-red-700" aria-hidden="true" />
+        <div role="alert" class="mb-6 flex gap-3 rounded-2xl border border-destrutivo/35 bg-paper p-4 text-sm text-ink">
+            <x-phosphor-warning-octagon class="size-5 shrink-0 text-destrutivo" aria-hidden="true" />
             <div>
                 <p class="font-semibold">Documento divergente: o conteúdo não confere com as assinaturas.</p>
                 <p class="mt-0.5">Não entregue material com base nesta requisição e avise a TI.</p>
@@ -128,14 +128,14 @@
                         <dd class="mt-1 whitespace-pre-line">{{ $requisicao->justificativa }}</dd>
                     </div>
                     @if ($requisicao->motivo_reprovacao)
-                        <div class="rounded-lg border border-red-200 bg-red-50 p-4">
-                            <dt class="text-[13px] font-medium text-red-800">Motivo da reprovação</dt>
-                            <dd class="mt-1 whitespace-pre-line text-red-950">{{ $requisicao->motivo_reprovacao }}</dd>
-                            <dd class="mt-1.5 text-[13px] text-red-800/80">{{ $requisicao->reprovadoPor?->nome }}, {{ $dataHora($requisicao->reprovado_em) }}</dd>
+                        <div class="rounded-2xl border border-destrutivo/35 p-4">
+                            <dt class="text-[13px] font-medium text-destrutivo">Motivo da reprovação</dt>
+                            <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->motivo_reprovacao }}</dd>
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->reprovadoPor?->nome }}, {{ $dataHora($requisicao->reprovado_em) }}</dd>
                         </div>
                     @endif
                     @if ($requisicao->motivo_cancelamento)
-                        <div class="rounded-lg border border-hairline bg-surface-alt p-4">
+                        <div class="rounded-2xl border border-hairline bg-surface-alt p-4">
                             <dt class="text-[13px] font-medium text-mid-gray">Motivo do cancelamento</dt>
                             <dd class="mt-1 whitespace-pre-line">{{ $requisicao->motivo_cancelamento }}</dd>
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->canceladoPor?->nome }}, {{ $dataHora($requisicao->cancelado_em) }}</dd>
@@ -200,12 +200,12 @@
                         @endphp
                         <li class="relative flex gap-3 pb-5 last:pb-0">
                             @unless ($loop->last)
-                                <span @class(['absolute top-7 bottom-0 left-3 w-px -translate-x-1/2', 'bg-emerald-200' => $assinatura, 'bg-hairline' => ! $assinatura]) aria-hidden="true"></span>
+                                <span @class(['absolute top-7 bottom-0 left-3 w-px -translate-x-1/2', 'bg-ink/30' => $assinatura, 'bg-hairline' => ! $assinatura]) aria-hidden="true"></span>
                             @endunless
                             <span @class([
                                 'relative flex size-6 shrink-0 items-center justify-center rounded-full',
-                                'bg-emerald-100 text-emerald-700' => $assinatura,
-                                'bg-amber-100 text-amber-700' => $aguardando,
+                                'bg-ink text-white' => $assinatura,
+                                'border border-ink bg-paper text-ink' => $aguardando,
                                 'bg-surface-alt text-mid-gray' => ! $assinatura && ! $aguardando,
                             ]) aria-hidden="true">
                                 @if ($assinatura)
@@ -225,7 +225,7 @@
                                         <span class="font-mono text-ink-soft" title="Código de verificação">{{ \App\Services\AssinaturaService::codigoCurto($assinatura->hash_documento) }}</span>
                                     </p>
                                 @elseif ($aguardando)
-                                    <p class="mt-0.5 text-sm text-amber-800">
+                                    <p class="mt-0.5 text-sm text-ink">
                                         @if ($aguardandoAprovacaoDe->isEmpty())
                                             Nenhum aprovador disponível. Procure a TI.
                                         @else
@@ -244,8 +244,8 @@
                 </ol>
                 <p @class([
                     'flex items-start gap-2 border-t border-hairline px-5 py-3 text-[13px]',
-                    'text-emerald-700' => $verificacao->integro,
-                    'font-semibold text-red-700' => ! $verificacao->integro,
+                    'text-ink-soft' => $verificacao->integro,
+                    'font-semibold text-destrutivo' => ! $verificacao->integro,
                 ])>
                     @if ($verificacao->integro)
                         <x-phosphor-seal-check class="mt-px size-4 shrink-0" aria-hidden="true" />
@@ -334,7 +334,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="separar">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Confira a quantidade de cada item. O que não achar, deixe em 0 — a requisição segue com o que foi separado.</p>
+                        <p class="text-sm text-ink-soft">Confira a quantidade de cada item. O que não achar, deixe em 0. A requisição segue com o que foi separado.</p>
                         <div class="space-y-3">
                             @foreach ($requisicao->itens as $item)
                                 <div class="flex items-center gap-3">
@@ -429,7 +429,7 @@
                         <div>
                             <label class="rotulo">Assinatura de quem retira</label>
                             <p class="ajuda">Peça pra pessoa desenhar aqui na tela, com o dedo ou o mouse.</p>
-                            <div class="mt-1.5 overflow-hidden rounded-lg border border-hairline bg-fundo">
+                            <div class="mt-1.5 overflow-hidden rounded-2xl border border-hairline bg-fundo">
                                 <canvas x-ref="tela" class="h-40 w-full touch-none"
                                         x-on:mousedown="comecar" x-on:mousemove="desenhar" x-on:mouseup="parar" x-on:mouseleave="parar"
                                         x-on:touchstart="comecar" x-on:touchmove="desenhar" x-on:touchend="parar"></canvas>
@@ -457,7 +457,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="confirmar-recebimento">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Confirme que o material chegou às suas mãos. Isso só fica registrado — a situação continua a mesma.</p>
+                        <p class="text-sm text-ink-soft">Confirme que o material chegou às suas mãos. Isso só fica registrado, a situação continua a mesma.</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
@@ -485,7 +485,7 @@
                         <p class="text-sm text-ink-soft">Pra cada item, confira quanto voltou bom, quanto veio com defeito e quanto não voltou. Os três juntos têm que fechar com a quantidade solicitada.</p>
                         <div class="space-y-4">
                             @foreach ($requisicao->itens as $item)
-                                <div class="rounded-lg border border-hairline p-3">
+                                <div class="rounded-2xl border border-hairline p-3">
                                     <p class="text-sm font-medium text-ink">{{ $item->descricao }}</p>
                                     <p class="text-[13px] text-mid-gray">Solicitada: {{ $semZerosDevolucao($item->qtd_solicitada) }} {{ $item->unidade }}</p>
                                     <div class="mt-2 grid grid-cols-3 gap-2">
