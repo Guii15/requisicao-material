@@ -1,65 +1,97 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Visual vindo do protótipo do Lovable: DM Sans no texto, Manrope nos títulos e números. */
+    --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Manrope Variable', 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Manrope Variable', 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
-    /* EXPERIMENTO (branch experimento/visual-shadcn): paleta monocromática estilo shadcn/ui.
-       Azul-marinho da Binário fica só na logo/cabeçalho; o resto do sistema vira preto e branco. */
-    --color-marinho-950: #00004d;
-    --color-marinho-900: #000069;
-    --color-marinho-800: #05018d;
-    --color-marinho-700: #2622b0;
-    --color-marinho-100: #e3e3f7;
-    --color-marinho-50: #f3f3fb;
+    /* Superfícies */
+    --color-fundo: oklch(0.978 0.003 250);
+    --color-barra: oklch(1 0 0);
+    --color-paper: oklch(1 0 0);
+    --color-surface-alt: oklch(0.955 0.005 260);
 
-    --color-fundo: #f5f5f5;
-    --color-paper: #ffffff;
-    --color-surface-alt: #fafafa;
-    --color-ink: #0a0a0a;
-    --color-ink-soft: #171717;
-    --color-mid-gray: #737373;
-    --color-hairline: #e5e5e5;
-    --color-ember: #e7000b;
+    /* Texto */
+    --color-ink: oklch(0.25 0.012 260);
+    --color-ink-soft: oklch(0.4 0.012 260);
+    --color-mid-gray: oklch(0.55 0.015 260);
+
+    /* Linhas */
+    --color-hairline: oklch(0.919 0.006 260);
+    --color-hairline-campo: oklch(0.87 0.008 260);
+
+    /* Cor da marca: o mesmo azul (#05018D) do Requisição de Compras. */
+    --color-marca: #05018d;
+    --color-marca-escura: #04016c;
+    --color-marca-clara: #9b99ff;
+    --color-marca-suave: #eeeefb;
+
+    /* Vermelho só para o que dá errado ou apaga: erro, reprovar, cancelar. */
+    --color-destrutivo: oklch(0.55 0.21 27);
+    --color-destrutivo-suave: oklch(0.962 0.025 22);
+
+    /* Situações */
+    --color-sucesso: oklch(0.55 0.115 162);
+    --color-sucesso-suave: oklch(0.953 0.026 163);
+    --color-aviso: oklch(0.68 0.145 77);
+    --color-aviso-suave: oklch(0.975 0.031 80);
+    --color-info: oklch(0.58 0.11 215);
+    --color-info-suave: oklch(0.96 0.025 215);
+
+    /* Menu lateral no azul da Binário. Os nomes "preto" ficaram de quando ele era preto. */
+    --color-preto: #05018d;
+    --color-preto-2: #1b16a6;
+    --color-preto-linha: #2c28b4;
+    --color-preto-texto: #dcdbff;
+
+    /* Tokens do modo escuro (usados via dark:bg-void, dark:text-bone etc.) */
+    --color-void: #08080a;
+    --color-card-escuro: #040406;
+    --color-panel-escuro: #121317;
+    --color-line-escuro: #1c1d22;
+    --color-line-escuro-2: #2e3038;
+    --color-steel: #9a9dab;
+    --color-fog: #b6b9c4;
+    --color-bone: #e2e3e9;
+    --color-copper: #cc9166;
 }
 
-/*
- * EXPERIMENTO: sistema quase todo preto-e-branco (achromatic), tipografia Geist com
- * tracking apertado nos títulos, cantos moderados (12px em cartões, 8px em botões/campos,
- * selos continuam em pílula), sombra quase imperceptível (hairline + leve elevação).
- * Vermelho só em ação destrutiva. Cores de situação e tipo (âmbar/esmeralda/céu/vermelho)
- * continuam, por terem significado.
- */
 @layer base {
     html {
         color-scheme: light;
-        /* O cabeçalho é fixo: campo focado ou âncora não pode ficar escondido atrás dele. */
-        scroll-padding-top: 8rem;
+        scroll-padding-top: 6rem;
+    }
 
-        @media (width >= 48rem) {
-            scroll-padding-top: 5rem;
-        }
+    html.dark {
+        color-scheme: dark;
     }
 
     body {
-        @apply bg-fundo text-[14px] text-ink antialiased;
+        @apply bg-fundo text-[14px] leading-[1.5] text-ink antialiased dark:bg-void dark:text-bone;
+        overflow-wrap: anywhere;
     }
 
     h1, h2, h3 {
-        letter-spacing: -0.025em;
+        font-family: var(--font-display);
+    }
+
+    button {
+        cursor: pointer;
     }
 
     [x-cloak] {
         display: none !important;
     }
 
-    /* Rede de segurança: qualquer animação/transição encolhe quase a zero para quem pediu menos movimento. */
     @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
             animation-duration: 0.01ms !important;
@@ -75,106 +107,168 @@
 }
 
 @layer components {
-    /* Cartão: superfície branca sobre o fundo cinza, raio pequeno (6px, nunca xl/2xl), sombra quase imperceptível.
-       Não usar em tabela de dados — tabela fica direto no fundo da página (ver .tabela). */
+    /* Cartão: branco, linha fina, canto de 8px e uma sombra quase imperceptível. */
     .quadro {
-        @apply rounded-md border border-hairline bg-paper shadow-[0_0_0_1px_rgb(23_23_23/0.05),0_1px_3px_rgb(0_0_0/0.1),0_1px_2px_-1px_rgb(0_0_0/0.1)];
+        @apply rounded-lg border border-hairline bg-paper dark:border-line-escuro-2 dark:bg-card-escuro;
+        box-shadow: 0 2px 4px oklch(0.2 0.01 260 / 0.025);
     }
 
-    /* Título de uma seção dentro do cartão. */
     .quadro-titulo {
-        @apply border-b border-hairline px-4 py-3 text-sm font-semibold text-ink;
+        @apply border-b border-hairline px-5 py-4 text-sm font-semibold text-ink dark:border-line-escuro dark:text-bone;
     }
 
-    /* Título de seção fora de cartão: mesma ideia da tabela, uma linha fina embaixo, sem caixa. */
-    .titulo-secao {
-        @apply mb-3 border-b border-hairline pb-2 text-sm font-semibold text-ink;
+    .cabecalho-pagina {
+        @apply mb-7 flex flex-wrap items-center justify-between gap-x-5 gap-y-3;
     }
 
-    /* Título de página: peso de manchete, mas sem exagerar no espaço (é painel de gestão, não landing). */
     .titulo-pagina {
-        @apply text-2xl font-semibold text-ink;
-        letter-spacing: -0.02em;
+        @apply text-[28px] leading-[1.3] text-ink dark:text-bone;
+        font-family: var(--font-display);
+        font-weight: 750;
     }
 
-    /* Rótulo pequeno de um dado exibido (não de campo de formulário). */
+    .titulo-secao {
+        @apply mb-3 text-[15px] leading-6 text-ink dark:text-bone;
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+
+    /* Sobretítulo pequeno, em caixa alta, que fica acima do título ou de um campo. */
+    .etiqueta {
+        @apply text-[11px] font-semibold tracking-[0.05em] text-mid-gray uppercase dark:text-steel;
+    }
+
     .legenda {
-        @apply block text-xs tracking-wide text-mid-gray uppercase;
+        @apply block text-xs font-medium text-mid-gray dark:text-steel;
     }
 
     .rotulo {
-        @apply block text-sm font-medium text-ink-soft;
+        @apply block text-[13px] font-medium text-ink dark:text-fog;
     }
 
     .ajuda {
-        @apply mt-0.5 text-[13px] text-mid-gray;
+        @apply mt-0.5 text-[13px] text-mid-gray dark:text-steel;
     }
 
     .erro-campo {
-        @apply mt-1 text-[13px] font-medium text-ember;
+        @apply mt-1 text-[13px] font-medium text-destrutivo;
     }
 
-    /* Campo com borda visível: precisa se destacar sozinho, sem depender de um cartão atrás. */
+    /* Campo: no celular fica com 16px e 44px de altura para não dar zoom e ter alvo de toque. */
     .campo {
-        @apply block w-full rounded-lg border border-hairline bg-paper px-3.5 py-2 text-sm text-ink shadow-none placeholder:text-mid-gray focus:border-ink focus:ring-2 focus:ring-ink/10 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray;
+        @apply block w-full rounded-md border border-hairline-campo bg-paper px-3 py-2 text-sm text-ink shadow-none placeholder:text-mid-gray/80 focus:border-marca focus:ring-2 focus:ring-marca/20 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray dark:border-line-escuro-2 dark:bg-panel-escuro dark:text-bone;
+
+        @media (width < 768px) {
+            font-size: 16px;
+            min-height: 44px;
+        }
     }
 
     .campo-erro {
-        @apply ring-1 ring-ember focus:ring-ember;
+        @apply border-destrutivo ring-1 ring-destrutivo focus:border-destrutivo focus:ring-destrutivo;
     }
 
     .botao {
-        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border-0 px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 text-[13px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-60;
     }
 
     .botao-primario {
-        @apply bg-ink text-surface-alt shadow-none hover:bg-ink-soft;
+        @apply bg-marca text-white shadow-none hover:bg-marca-escura;
     }
 
     .botao-secundario {
-        @apply bg-fundo text-ink shadow-none hover:bg-hairline/60;
+        @apply border-hairline-campo bg-paper text-ink shadow-none hover:bg-surface-alt dark:border-line-escuro-2 dark:bg-transparent dark:text-fog dark:hover:bg-panel-escuro;
     }
 
     .botao-perigo {
-        @apply bg-ember text-white shadow-none hover:opacity-90;
+        @apply bg-destrutivo text-white shadow-none hover:opacity-90;
     }
 
     .botao-perigo-contorno {
-        @apply border border-hairline bg-transparent text-ember shadow-none hover:bg-ember/5;
+        @apply border-destrutivo/40 bg-transparent text-destrutivo shadow-none hover:bg-destrutivo/5;
     }
 
     .link {
-        @apply font-medium text-ink underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+        @apply font-medium text-ink underline decoration-hairline-campo underline-offset-2 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca dark:text-copper;
     }
 
-    /* Tabela de dados: sem cartão, sem sombra — fica direto no fundo da página.
-       Só a borda inferior de cada linha separa uma da outra. */
+    /* Tabela: cabeçalho em caixa alta sobre o fundo da página, linhas só com divisória. */
     .tabela {
-        @apply w-full border-collapse text-sm;
+        @apply w-full border-collapse text-[13px];
     }
 
     .tabela th {
-        @apply border-b border-hairline px-3 py-1.5 text-left text-xs font-medium tracking-wide whitespace-nowrap text-mid-gray uppercase;
+        @apply border-y border-hairline bg-fundo px-5 py-3 text-left text-[11px] font-semibold tracking-[0.05em] whitespace-nowrap text-mid-gray uppercase dark:border-line-escuro dark:bg-transparent dark:text-steel;
     }
 
     .tabela td {
-        @apply border-b border-hairline px-3 py-1.5 align-top;
+        @apply border-b border-hairline px-5 py-4 align-middle dark:border-line-escuro;
+    }
+
+    .tabela tbody tr {
+        @apply transition-colors hover:bg-fundo;
     }
 
     .tabela tbody tr:last-child td {
         @apply border-b-0;
     }
 
-    /* Linha que abre a requisição com um clique em qualquer parte (ver app.js). */
     .tabela tbody tr[data-href] {
-        @apply cursor-pointer transition-colors hover:bg-surface-alt;
+        @apply cursor-pointer transition-colors hover:bg-fundo dark:hover:bg-panel-escuro;
     }
 
     .num {
         @apply text-right tabular-nums;
     }
 
-    /* Pulso discreto: só no que está de fato esperando algo acontecer agora (ex.: aprovação). */
+    /* Situação e tipo: pastilha com um pontinho da mesma cor do texto. */
+    .selo {
+        @apply inline-flex w-fit items-center gap-1.5 rounded-[4px] px-2 py-[5px] text-[11px] leading-none font-medium whitespace-nowrap;
+    }
+
+    .selo-ok,
+    .selo-erro,
+    .selo-pendente,
+    .selo-info,
+    .selo-neutro {
+        &::before {
+            content: '';
+            @apply size-[5px] shrink-0 rounded-full bg-current;
+        }
+    }
+
+    .selo-ok {
+        @apply bg-sucesso-suave text-sucesso;
+    }
+
+    .selo-erro {
+        @apply bg-destrutivo-suave text-destrutivo;
+    }
+
+    .selo-pendente {
+        @apply bg-aviso-suave text-aviso;
+    }
+
+    .selo-info {
+        @apply bg-info-suave text-info;
+    }
+
+    .selo-neutro {
+        @apply bg-surface-alt text-mid-gray;
+    }
+
+    .selo-contorno {
+        @apply border border-hairline-campo bg-paper text-ink-soft;
+    }
+
+    .selo-forte {
+        @apply bg-ink text-white;
+    }
+
+    .avatar {
+        @apply inline-flex size-[35px] shrink-0 items-center justify-center rounded-full bg-marca-suave text-[11px] font-semibold text-marca;
+    }
+
     .pulso-suave {
         animation: pulso-suave 2s ease-in-out infinite;
     }

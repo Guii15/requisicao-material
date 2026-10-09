@@ -55,6 +55,7 @@ class Requisicao extends Model
             'recebido_em' => 'datetime',
             'devolucao_conferida_em' => 'datetime',
             'baixa_em' => 'datetime',
+            'compra_decidido_em' => 'datetime',
             'cancelado_em' => 'datetime',
         ];
     }
@@ -178,6 +179,12 @@ class Requisicao extends Model
     public function baixaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'baixa_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function compraDecididaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'compra_decidido_por_id');
     }
 
     /** @return BelongsTo<User, $this> */

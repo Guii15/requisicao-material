@@ -1,14 +1,14 @@
 import './bootstrap';
 
 // As fontes ficam aqui e não no app.css: importadas pelo Tailwind, os caminhos dos arquivos quebram.
-import '@fontsource-variable/geist/index.css';
-import '@fontsource-variable/geist-mono/index.css';
+import '@fontsource-variable/dm-sans/index.css';
+import '@fontsource-variable/manrope/index.css';
 
 import Alpine from 'alpinejs';
 
 let proximaChave = 1;
 
-const itemVazio = () => ({ chave: proximaChave++, descricao: '', quantidade: '', unidade: 'UN' });
+const itemVazio = () => ({ chave: proximaChave++, codigo: '', descricao: '', quantidade: '', unidade: 'UN' });
 
 /**
  * Formulário de nova requisição: itens dinâmicos. As regras de verdade estão no backend;
@@ -141,6 +141,53 @@ Alpine.data('assinaturaDesenho', () => ({
     aoEnviar() {
         this.dataUrl = this.$refs.tela.toDataURL('image/png');
         this.enviando = true;
+    },
+}));
+
+/**
+ * Lista de requisições: busca, aba e exportação em CSV sobre as linhas que a página já trouxe.
+ * Cada linha da lista chama aparece(indice) para saber se continua visível.
+ */
+Alpine.data('listaRequisicoes', (linhas) => ({
+    linhas,
+    busca: '',
+    aba: 'todas',
+
+    aparece(indice) {
+        const linha = this.linhas[indice];
+        const termo = this.busca.trim().toLowerCase();
+
+        if (termo && !linha.texto.includes(termo)) {
+            return false;
+        }
+
+        if (this.aba === 'pendentes') {
+            return ['aguardando', 'andamento', 'alerta'].includes(linha.grupo);
+        }
+
+        if (this.aba === 'concluidas') {
+            return linha.grupo === 'concluida';
+        }
+
+        return true;
+    },
+
+    get visiveis() {
+        return this.linhas.filter((_, indice) => this.aparece(indice)).length;
+    },
+
+    exportar() {
+        const cabecalho = ['Número', 'Tipo', 'Situação', 'Produto', 'Itens', 'Solicitante', 'Setor', 'Abertura'];
+        const celula = (valor) => '"' + String(valor ?? '').replaceAll('"', '""') + '"';
+        const corpo = this.linhas.filter((_, indice) => this.aparece(indice)).map((linha) => linha.csv.map(celula).join(';'));
+        const csv = [cabecalho.map(celula).join(';'), ...corpo].join('\r\n');
+        const endereco = URL.createObjectURL(new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+
+        link.href = endereco;
+        link.download = 'requisicoes.csv';
+        link.click();
+        URL.revokeObjectURL(endereco);
     },
 }));
 

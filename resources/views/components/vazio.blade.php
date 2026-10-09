@@ -1,12 +1,12 @@
-@props(['icone', 'titulo'])
-{{-- Lista vazia: diz o que aconteceu e, quando houver, o próximo passo (slot "acao"). --}}
-<div {{ $attributes->class(['quadro flex flex-col items-center px-6 py-14 text-center']) }}>
-    <span class="flex size-12 items-center justify-center rounded-md bg-surface-alt text-ink" aria-hidden="true">
-        <x-dynamic-component :component="'phosphor-' . $icone" class="size-6" />
+@props(['icone' => 'tray', 'titulo'])
+{{-- Lista vazia: ícone numa bolinha, o que aconteceu e, quando houver, o próximo passo (slot "acao"). --}}
+<div {{ $attributes->class(['quadro px-5 py-16 text-center']) }}>
+    <span class="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-surface-alt text-mid-gray">
+        <x-dynamic-component :component="'phosphor-'.($icone ?: 'tray')" class="size-6" aria-hidden="true" />
     </span>
-    <p class="mt-4 font-semibold text-ink">{{ $titulo }}</p>
+    <p class="font-display text-[15px] font-bold text-ink">{{ $titulo }}</p>
     @if ($slot->isNotEmpty())
-        <p class="mt-1 max-w-sm text-sm text-mid-gray">{{ $slot }}</p>
+        <p class="mx-auto mt-2 max-w-md text-[13px] text-mid-gray">{{ $slot }}</p>
     @endif
     @isset($acao)
         <div class="mt-5">{{ $acao }}</div>

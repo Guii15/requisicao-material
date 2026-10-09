@@ -18,6 +18,7 @@ class RequisicaoItemFactory extends Factory
     {
         return [
             'requisicao_id' => Requisicao::factory(),
+            'codigo' => fake()->numerify('######'),
             'descricao' => fake()->words(3, true),
             'unidade' => 'UN',
             'qtd_solicitada' => fake()->numberBetween(1, 10),

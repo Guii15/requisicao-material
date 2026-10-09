@@ -31,6 +31,12 @@ class RequisicaoPolicy
             return true;
         }
 
+        // Compra de funcionário não passa pelo estoque: quem decide é a responsável pela baixa.
+        if ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
+            return $user->is_responsavel_baixa
+                && in_array($requisicao->status, [StatusRequisicao::AGUARDANDO_COMPRA, StatusRequisicao::COMPRA_APROVADA, StatusRequisicao::COMPRA_REPROVADA], true);
+        }
+
         // O estoque nunca vê o que não foi aprovado.
         if (($user->is_estoque || $user->is_lider_estoque) && $requisicao->status->visivelParaEstoque()) {
             return true;
@@ -50,6 +56,11 @@ class RequisicaoPolicy
             return false;
         }
 
+        // Compra de funcionário: só quem está marcado como aprovador de compras (Kelber, Sérgio, Miguel).
+        if ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
+            return $user->aprova_compras;
+        }
+
         if ($user->aprovaSetor($requisicao->setor_id)) {
             return true;
         }
@@ -65,7 +76,7 @@ class RequisicaoPolicy
 
     /**
      * Qualquer um do setor Estoque separa qualquer requisição aprovada, de qualquer setor.
-     * (Sem regra de "não separar a própria" registrada ainda — só a de liberação tem essa restrição.)
+     * Sem trava de pessoa: quem separa pode ser quem entrega e quem confere a devolução.
      */
     public function separar(User $user, Requisicao $requisicao): bool
     {
@@ -73,17 +84,23 @@ class RequisicaoPolicy
     }
 
     /**
-     * Só líder do estoque, só Uso e Consumo, e nunca quem aprovou ou quem separou essa mesma
-     * requisição (antifraude: quem libera não pode ser quem já deu ok em outra etapa dela).
+     * Separar e entregar na mesma tela: só no Teste (no Uso e Consumo o líder libera no meio).
+     */
+    public function separarEntregar(User $user, Requisicao $requisicao): bool
+    {
+        return $requisicao->tipo === TipoRequisicao::TESTE && $this->separar($user, $requisicao);
+    }
+
+    /**
+     * Só líder do estoque e só Uso e Consumo. Não há trava de "quem separou não libera": no
+     * estoque, quem tem o papel faz a etapa, sem separar quem faz de quem confere.
      */
     public function liberar(User $user, Requisicao $requisicao): bool
     {
         return $user->ativo
             && $user->is_lider_estoque
             && $requisicao->tipo === TipoRequisicao::USO_CONSUMO
-            && $requisicao->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE
-            && $requisicao->aprovado_por_id !== $user->id
-            && $requisicao->separado_por_id !== $user->id;
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE;
     }
 
     public function reprovarEstoque(User $user, Requisicao $requisicao): bool
@@ -97,17 +114,6 @@ class RequisicaoPolicy
     public function entregar(User $user, Requisicao $requisicao): bool
     {
         return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
-    }
-
-    /**
-     * Só o próprio solicitante confirma que recebeu, e só no Teste (é o único tipo com essa etapa).
-     */
-    public function confirmarRecebimento(User $user, Requisicao $requisicao): bool
-    {
-        return $user->ativo
-            && $requisicao->solicitante_id === $user->id
-            && $requisicao->tipo === TipoRequisicao::TESTE
-            && $requisicao->status === StatusRequisicao::EM_POSSE;
     }
 
     /**
@@ -139,6 +145,26 @@ class RequisicaoPolicy
         }
 
         return $user->is_admin && $requisicao->solicitante->is_responsavel_baixa;
+    }
+
+    /**
+     * Compra de funcionário, depois dos aprovadores: a responsável pela baixa (Erica) aprova ou
+     * reprova. Nunca o próprio pedido; se ela mesma abriu, quem decide é o Admin.
+     */
+    public function decidirCompra(User $user, Requisicao $requisicao): bool
+    {
+        if (! $user->ativo
+            || $requisicao->tipo !== TipoRequisicao::COMPRA_FUNCIONARIO
+            || $requisicao->status !== StatusRequisicao::AGUARDANDO_COMPRA
+            || $requisicao->solicitante_id === $user->id) {
+            return false;
+        }
+
+        if ($user->is_responsavel_baixa) {
+            return true;
+        }
+
+        return $user->is_admin && $requisicao->loadMissing('solicitante')->solicitante->is_responsavel_baixa;
     }
 
     public function cancelar(User $user, Requisicao $requisicao): bool

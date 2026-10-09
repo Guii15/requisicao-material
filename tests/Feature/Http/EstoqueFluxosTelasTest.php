@@ -11,7 +11,7 @@ use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 /**
- * Wiring das telas de Liberação, Entrega, Recebimento, Devolução e Baixa (rota -> controller
+ * Wiring das telas de Separação+entrega (Teste), Liberação, Entrega, Devolução e Baixa (rota -> controller
  * -> view -> redirect). As regras de negócio de cada uma já têm teste próprio e mais completo
  * em RequisicaoWorkflowTest e RequisicaoPolicyTest; aqui é só conferir que a tela funciona.
  */
@@ -28,8 +28,6 @@ class EstoqueFluxosTelasTest extends TestCase
         $this->travelTo('2026-09-24 10:00:00');
         $this->workflow = app(RequisicaoWorkflow::class);
     }
-
-    private const ASSINATURA_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
     private function requisicaoAguardandoLiberacao(string $setor = 'TI'): Requisicao
     {
@@ -54,7 +52,7 @@ class EstoqueFluxosTelasTest extends TestCase
     private function requisicaoEmPosse(): Requisicao
     {
         $requisicao = $this->requisicaoProntaParaRetirada();
-        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano', self::ASSINATURA_PNG, 'password');
+        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano');
 
         return $requisicao->fresh();
     }
@@ -64,7 +62,7 @@ class EstoqueFluxosTelasTest extends TestCase
         $requisicao = $this->requisicaoAguardandoLiberacao();
         $lider = User::factory()->liderEstoque()->create();
         $this->workflow->liberar($requisicao, $lider, 'password');
-        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Fulano', self::ASSINATURA_PNG, 'password');
+        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Fulano');
 
         return $requisicao->fresh();
     }
@@ -111,7 +109,6 @@ class EstoqueFluxosTelasTest extends TestCase
         $this->actingAs(User::factory()->estoque()->create())
             ->post("/requisicoes/{$requisicao->numero}/entregar", [
                 'retirado_por_nome' => 'Maria da Silva',
-                'assinatura' => self::ASSINATURA_PNG,
                 'senha' => 'password',
             ])
             ->assertRedirect('/entrega')
@@ -122,18 +119,38 @@ class EstoqueFluxosTelasTest extends TestCase
         $this->assertSame('Maria da Silva', $requisicao->retirado_por_nome);
     }
 
-    // ---- Recebimento ---------------------------------------------------------------------------
+    // ---- Separar e entregar na mesma tela (Teste) -----------------------------------------------
 
-    public function test_solicitante_confirma_recebimento_pela_tela(): void
+    public function test_separar_e_entregar_pela_tela_no_teste(): void
     {
-        $requisicao = $this->requisicaoEmPosse();
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+        $this->workflow->aprovar($requisicao, $lider, 'password');
+        $requisicao = $requisicao->fresh();
 
-        $this->actingAs($requisicao->solicitante)
-            ->post("/requisicoes/{$requisicao->numero}/confirmar-recebimento", ['senha' => 'password'])
-            ->assertRedirect("/requisicoes/{$requisicao->numero}")
+        $this->actingAs(User::factory()->estoque()->create())
+            ->post("/requisicoes/{$requisicao->numero}/separar-e-entregar", [
+                'itens' => $requisicao->itens->pluck('qtd_solicitada', 'id')->map(fn ($qtd) => (string) $qtd)->all(),
+                'retirado_por_nome' => 'Maria da Silva',
+            ])
+            ->assertRedirect('/separacao')
             ->assertSessionHas('sucesso');
 
-        $this->assertNotNull($requisicao->fresh()->recebido_em);
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->status);
+        $this->assertSame('Maria da Silva', $requisicao->retirado_por_nome);
+    }
+
+    public function test_detalhe_do_teste_aprovado_oferece_separar_e_entregar(): void
+    {
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+        $this->workflow->aprovar($requisicao, $lider, 'password');
+
+        $this->actingAs(User::factory()->estoque()->create())
+            ->get("/requisicoes/{$requisicao->numero}")
+            ->assertOk()
+            ->assertSee('Separar e entregar');
     }
 
     // ---- Devolução -----------------------------------------------------------------------------
@@ -155,11 +172,15 @@ class EstoqueFluxosTelasTest extends TestCase
         ])->all();
 
         $this->actingAs(User::factory()->estoque()->create())
-            ->post("/requisicoes/{$requisicao->numero}/devolver", ['itens' => $itens, 'senha' => 'password'])
+            ->post("/requisicoes/{$requisicao->numero}/devolver", [
+                'itens' => $itens,
+                'devolvido_por_nome' => 'Maria da Silva',
+            ])
             ->assertRedirect('/devolucao')
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::DEVOLVIDA, $requisicao->fresh()->status);
+        $this->assertSame('Maria da Silva', $requisicao->fresh()->devolvido_por_nome);
     }
 
     // ---- Baixa ---------------------------------------------------------------------------------

@@ -52,7 +52,7 @@ class RequisicaoTelasTest extends TestCase
     {
         $this->actingAs(User::factory()->create())->get('/requisicoes/nova')
             ->assertOk()
-            ->assertSee('USO E CONSUMO')
+            ->assertSee('Uso e consumo')
             ->assertSee('29/09/2026');
     }
 

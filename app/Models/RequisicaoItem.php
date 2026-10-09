@@ -21,6 +21,7 @@ class RequisicaoItem extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'codigo',
         'descricao',
         'unidade',
         'qtd_solicitada',

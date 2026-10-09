@@ -6,12 +6,14 @@ enum TipoRequisicao: string
 {
     case TESTE = 'TESTE';
     case USO_CONSUMO = 'USO_CONSUMO';
+    case COMPRA_FUNCIONARIO = 'COMPRA_FUNCIONARIO';
 
     public function rotulo(): string
     {
         return match ($this) {
             self::TESTE => 'TESTE',
             self::USO_CONSUMO => 'USO E CONSUMO',
+            self::COMPRA_FUNCIONARIO => 'COMPRA DE FUNCIONÁRIO',
         };
     }
 

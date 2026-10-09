@@ -13,8 +13,11 @@ enum EtapaAssinatura: string
     case ENTREGA = 'ENTREGA';
     case RETIRADA = 'RETIRADA';
     case RECEBIMENTO = 'RECEBIMENTO';
+    case DEVOLVIDO_POR = 'DEVOLVIDO_POR';
     case DEVOLUCAO = 'DEVOLUCAO';
     case BAIXA = 'BAIXA';
+    case COMPRA_APROVADA = 'COMPRA_APROVADA';
+    case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
 
     /**
      * Texto da linha no bloco de assinaturas (tela e PDF).
@@ -29,10 +32,13 @@ enum EtapaAssinatura: string
             self::LIBERACAO_ESTOQUE => 'Liberado por (Líder do Estoque)',
             self::REPROVACAO_ESTOQUE => 'Reprovado por (Líder do Estoque)',
             self::ENTREGA => 'Entregue por',
-            self::RETIRADA => 'Retirado por',
+            self::RETIRADA => 'Retirado por', // só em registros antigos, que tinham assinatura desenhada
             self::RECEBIMENTO => 'Recebimento confirmado por',
+            self::DEVOLVIDO_POR => 'Devolvido por', // só em registros antigos
             self::DEVOLUCAO => 'Devolução conferida por',
             self::BAIXA => 'Baixa por',
+            self::COMPRA_APROVADA => 'Compra aprovada por',
+            self::COMPRA_REPROVADA => 'Compra reprovada por',
         };
     }
 
@@ -43,8 +49,12 @@ enum EtapaAssinatura: string
      */
     public static function fluxo(TipoRequisicao $tipo): array
     {
+        if ($tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
+            return [self::SOLICITACAO, self::APROVACAO_SETOR, self::COMPRA_APROVADA];
+        }
+
         return $tipo === TipoRequisicao::TESTE
-            ? [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::ENTREGA, self::RETIRADA, self::RECEBIMENTO, self::DEVOLUCAO]
-            : [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::LIBERACAO_ESTOQUE, self::ENTREGA, self::RETIRADA, self::RECEBIMENTO, self::BAIXA];
+            ? [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::ENTREGA, self::DEVOLUCAO]
+            : [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::LIBERACAO_ESTOQUE, self::ENTREGA, self::BAIXA];
     }
 }

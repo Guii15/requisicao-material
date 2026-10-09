@@ -38,6 +38,7 @@ class UserFactory extends Factory
             'is_estoque' => false,
             'is_lider_estoque' => false,
             'is_responsavel_baixa' => false,
+            'aprova_compras' => false,
             'is_admin' => false,
             'remember_token' => Str::random(10),
         ];

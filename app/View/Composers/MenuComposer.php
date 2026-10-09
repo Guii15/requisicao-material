@@ -4,6 +4,7 @@ namespace App\View\Composers;
 
 use App\Services\FilaDeAprovacao;
 use App\Services\FilaDeBaixa;
+use App\Services\FilaDeCompras;
 use App\Services\FilaDeDevolucao;
 use App\Services\FilaDeEntrega;
 use App\Services\FilaDeLiberacao;
@@ -25,6 +26,7 @@ class MenuComposer
         private readonly FilaDeEntrega $filaEntrega,
         private readonly FilaDeDevolucao $filaDevolucao,
         private readonly FilaDeBaixa $filaBaixa,
+        private readonly FilaDeCompras $filaCompras,
     ) {}
 
     public function compose(View $view): void
@@ -42,6 +44,7 @@ class MenuComposer
             'entrega' => $contar('acessar-entrega', $this->filaEntrega),
             'devolucao' => $contar('acessar-devolucao', $this->filaDevolucao),
             'baixa' => $contar('acessar-baixa', $this->filaBaixa),
+            'compras' => $contar('acessar-compras', $this->filaCompras),
         ]);
     }
 }

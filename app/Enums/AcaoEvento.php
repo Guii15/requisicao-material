@@ -16,6 +16,8 @@ enum AcaoEvento: string
     case DEVOLUCAO = 'DEVOLUCAO';
     case BAIXA = 'BAIXA';
     case AVANCO_AUTOMATICO = 'AVANCO_AUTOMATICO';
+    case COMPRA_APROVADA = 'COMPRA_APROVADA';
+    case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
 
     /**
      * Texto da linha do tempo da requisição.
@@ -35,6 +37,8 @@ enum AcaoEvento: string
             self::DEVOLUCAO => 'Devolução conferida',
             self::BAIXA => 'Baixa registrada',
             self::AVANCO_AUTOMATICO => 'Avançou automaticamente',
+            self::COMPRA_APROVADA => 'Compra aprovada',
+            self::COMPRA_REPROVADA => 'Compra reprovada',
         };
     }
 }

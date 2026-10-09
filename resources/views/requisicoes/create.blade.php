@@ -5,6 +5,7 @@
             ->filter(fn (mixed $item) => is_array($item))
             ->values()
             ->map(fn (array $item) => [
+                'codigo' => $texto($item['codigo'] ?? null),
                 'descricao' => $texto($item['descricao'] ?? null),
                 'quantidade' => $texto($item['quantidade'] ?? null),
                 'unidade' => $texto($item['unidade'] ?? null, 'UN'),
@@ -14,16 +15,13 @@
             ->filter(fn (array $mensagens, string $campo) => str_starts_with($campo, 'itens.'))
             ->map(fn (array $mensagens) => $mensagens[0])
             ->all();
-        $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO'], true) ? old('tipo') : null;
+        $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO'], true) ? old('tipo') : null;
     @endphp
 
-    <div class="mb-6">
-        <h1 class="titulo-pagina">Nova requisição</h1>
-        <p class="mt-1 text-sm text-mid-gray">Peça material ao estoque. Depois de enviar, a requisição vai para a aprovação do seu setor.</p>
-    </div>
+    <x-cabecalho titulo="Nova requisição" subtitulo="Peça material ao estoque. Depois de enviar, a requisição vai para a aprovação do seu setor." />
 
     <form method="POST" action="{{ route('requisicoes.store') }}"
-          class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+          class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_295px] lg:items-start xl:gap-10"
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
               'itens' => $itensAnteriores,
@@ -32,33 +30,39 @@
           x-on:submit="enviando = true">
         @csrf
 
-        <div class="space-y-6">
-            <fieldset>
-                <legend class="titulo-secao float-left w-full">Tipo de retirada</legend>
-                <div class="clear-both grid gap-3 pt-1 sm:grid-cols-2">
-                    <label class="relative flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors"
-                           :class="tipo === 'TESTE' ? 'border-sky-500 bg-sky-50/60 ring-1 ring-sky-500' : 'border-hairline hover:border-mid-gray/40 hover:bg-surface-alt'">
-                        <input type="radio" name="tipo" value="TESTE" x-model="tipo" required
-                               class="mt-0.5 size-4 border-hairline text-sky-700 focus:ring-sky-700">
-                        <span>
-                            <span class="flex items-center gap-2 font-semibold text-ink">
-                                <x-phosphor-arrows-clockwise class="size-5 text-sky-700" aria-hidden="true" />
-                                Teste
-                            </span>
-                            <span class="mt-1 block text-sm text-mid-gray">O material sai para teste e volta ao estoque em até {{ $prazoDias }} dias úteis.</span>
-                        </span>
+        <div class="space-y-7">
+            <fieldset class="border-b border-hairline pb-7">
+                <legend class="float-left mb-4 flex w-full items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">01</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Tipo de retirada</span>
+                </legend>
+                <div class="clear-both grid gap-3.5 sm:grid-cols-2">
+                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca"
+                           :class="tipo === 'TESTE' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
+                        <input type="radio" name="tipo" value="TESTE" x-model="tipo" required class="sr-only">
+                        <span class="mb-4 block text-mid-gray" :class="tipo === 'TESTE' && 'text-marca'"><x-phosphor-flask class="size-[21px]" aria-hidden="true" /></span>
+                        <span class="text-[13px] font-semibold text-ink">Teste</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material sai para teste e volta ao estoque em até {{ $prazoDias }} dias úteis.</span>
+                        <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
+                              :class="tipo === 'TESTE' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'TESTE'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
-                    <label class="relative flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors"
-                           :class="tipo === 'USO_CONSUMO' ? 'border-amber-500 bg-amber-50/60 ring-1 ring-amber-500' : 'border-hairline hover:border-mid-gray/40 hover:bg-surface-alt'">
-                        <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required
-                               class="mt-0.5 size-4 border-hairline text-amber-600 focus:ring-amber-600">
-                        <span>
-                            <span class="flex items-center gap-2 font-semibold text-ink">
-                                <x-phosphor-package class="size-5 text-amber-600" aria-hidden="true" />
-                                Uso e consumo
-                            </span>
-                            <span class="mt-1 block text-sm text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque e pela baixa no WinThor.</span>
-                        </span>
+                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca"
+                           :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
+                        <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required class="sr-only">
+                        <span class="mb-4 block text-mid-gray" :class="tipo === 'USO_CONSUMO' && 'text-marca'"><x-phosphor-package class="size-[21px]" aria-hidden="true" /></span>
+                        <span class="text-[13px] font-semibold text-ink">Uso e consumo</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque e pela baixa no WinThor.</span>
+                        <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
+                              :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'USO_CONSUMO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
+                    </label>
+                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca sm:col-span-2"
+                           :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
+                        <input type="radio" name="tipo" value="COMPRA_FUNCIONARIO" x-model="tipo" required class="sr-only">
+                        <span class="mb-4 block text-mid-gray" :class="tipo === 'COMPRA_FUNCIONARIO' && 'text-marca'"><x-phosphor-shopping-cart class="size-[21px]" aria-hidden="true" /></span>
+                        <span class="text-[13px] font-semibold text-ink">Compra de funcionário</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra para o próprio funcionário. Não passa pelo estoque: é aprovada por Kelber, Sérgio ou Miguel e depois pela Erica.</span>
+                        <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
+                              :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
                 </div>
                 @error('tipo')
@@ -66,15 +70,17 @@
                 @enderror
             </fieldset>
 
-            <section aria-labelledby="itens-titulo">
-                <h2 id="itens-titulo" class="titulo-secao flex items-baseline justify-between">
-                    <span>Itens</span>
-                    <span class="text-sm font-normal text-mid-gray" x-text="itens.length === 1 ? '1 item' : itens.length + ' itens'"></span>
+            <section aria-labelledby="itens-titulo" class="border-b border-hairline pb-7">
+                <h2 id="itens-titulo" class="mb-4 flex items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">02</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Materiais</span>
+                    <span class="ml-auto text-[12px] font-normal text-mid-gray" x-text="itens.length === 1 ? '1 item' : itens.length + ' itens'"></span>
                 </h2>
 
                 {{-- No computador é uma grade; no celular cada item vira um bloco com os rótulos visíveis. --}}
-                <div class="hidden grid-cols-[1.5rem_minmax(0,1fr)_7rem_6rem_2.25rem] gap-3 pb-1 sm:grid">
+                <div class="hidden grid-cols-[1.5rem_8rem_minmax(0,1fr)_7rem_6rem_2.25rem] gap-3 pb-1 sm:grid">
                     <span class="legenda text-right">#</span>
+                    <span class="legenda">Cód.</span>
                     <span class="legenda">Descrição do produto</span>
                     <span class="legenda text-right">Quantidade</span>
                     <span class="legenda">Unidade</span>
@@ -83,7 +89,7 @@
 
                 <div class="divide-y divide-hairline">
                     <template x-for="(item, indice) in itens" :key="item.chave">
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-2 py-3 sm:grid-cols-[1.5rem_minmax(0,1fr)_7rem_6rem_2.25rem] sm:items-start"
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-2 py-3 sm:grid-cols-[1.5rem_8rem_minmax(0,1fr)_7rem_6rem_2.25rem] sm:items-start"
                              x-transition:enter="transition ease-out duration-150"
                              x-transition:enter-start="opacity-0 -translate-y-1"
                              x-transition:enter-end="opacity-100 translate-y-0"
@@ -95,11 +101,21 @@
                                     <span class="sm:hidden">Item </span><span x-text="indice + 1"></span>
                                 </span>
                                 <button type="button"
-                                        class="cursor-pointer text-sm font-medium text-red-700 hover:underline disabled:cursor-not-allowed disabled:text-mid-gray disabled:no-underline sm:hidden"
+                                        class="cursor-pointer text-sm font-medium text-destrutivo hover:underline disabled:cursor-not-allowed disabled:text-mid-gray disabled:no-underline sm:hidden"
                                         x-on:click="remover(indice)" :disabled="itens.length === 1"
                                         :aria-label="`Remover item ${indice + 1}`">
                                     Remover
                                 </button>
+                            </div>
+
+                            <div class="col-span-2 sm:col-span-1">
+                                <label :for="`item-${item.chave}-codigo`" class="text-sm text-mid-gray sm:sr-only">Cód. do produto</label>
+                                <input type="text" maxlength="30" inputmode="text"
+                                       class="campo mt-1 tabular-nums sm:mt-0" :class="erroDoItem(indice, 'codigo') && 'campo-erro'"
+                                       :id="`item-${item.chave}-codigo`"
+                                       :name="`itens[${indice}][codigo]`" x-model="item.codigo"
+                                       placeholder="Cód.">
+                                <p class="erro-campo" x-show="erroDoItem(indice, 'codigo')" x-text="erroDoItem(indice, 'codigo')"></p>
                             </div>
 
                             <div class="col-span-2 sm:col-span-1">
@@ -132,7 +148,7 @@
 
                             <div class="hidden sm:block">
                                 <button type="button"
-                                        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg text-mid-gray transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-marinho-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-mid-gray"
+                                        class="inline-flex size-9 cursor-pointer items-center justify-center rounded-md text-mid-gray transition-colors hover:bg-destrutivo/5 hover:text-destrutivo focus-visible:outline-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-mid-gray"
                                         x-on:click="remover(indice)" :disabled="itens.length === 1"
                                         :aria-label="`Remover item ${indice + 1}`" title="Remover item">
                                     <x-phosphor-trash class="size-[18px]" aria-hidden="true" />
@@ -153,13 +169,16 @@
                         <x-phosphor-plus class="size-4" aria-hidden="true" />Adicionar item
                     </button>
                     @error('itens')
-                        <p class="text-sm font-medium text-red-700">{{ $message }}</p>
+                        <p class="text-sm font-medium text-destrutivo">{{ $message }}</p>
                     @enderror
                 </div>
             </section>
 
-            <section aria-labelledby="motivo-titulo">
-                <h2 id="motivo-titulo" class="titulo-secao">Para que é o material</h2>
+            <section aria-labelledby="motivo-titulo" class="border-b border-hairline pb-7">
+                <h2 id="motivo-titulo" class="mb-4 flex items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">03</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Finalidade</span>
+                </h2>
                 <div class="space-y-5">
                     <div>
                         <label for="finalidade" class="rotulo">Finalidade</label>
@@ -171,22 +190,14 @@
                             <p class="erro-campo">{{ $message }}</p>
                         @enderror
                     </div>
-
-                    <div>
-                        <label for="justificativa" class="rotulo">Justificativa</label>
-                        <p id="justificativa-ajuda" class="ajuda">Por que o material precisa sair do estoque?</p>
-                        <textarea id="justificativa" name="justificativa" rows="3" maxlength="2000" required
-                                  aria-describedby="justificativa-ajuda"
-                                  class="campo mt-2 @error('justificativa') campo-erro @enderror">{{ old('justificativa') }}</textarea>
-                        @error('justificativa')
-                            <p class="erro-campo">{{ $message }}</p>
-                        @enderror
-                    </div>
                 </div>
             </section>
 
             <section x-show="tipo === 'TESTE'" x-cloak aria-labelledby="devolucao-titulo">
-                <h2 id="devolucao-titulo" class="titulo-secao">Devolução</h2>
+                <h2 id="devolucao-titulo" class="mb-4 flex items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Devolução</span>
+                </h2>
                 <div>
                     <label for="data_prevista_devolucao" class="rotulo">Data prevista de devolução</label>
                     <p id="devolucao-ajuda" class="ajuda">
@@ -206,8 +217,8 @@
         </div>
 
         {{-- Resumo: no computador fica fixo ao lado, com o botão de enviar sempre à vista. --}}
-        <aside class="lg:sticky lg:top-24">
-            <h2 class="titulo-secao">Resumo</h2>
+        <aside class="quadro p-6 lg:sticky lg:top-24">
+            <h2 class="mb-5 flex items-center gap-2.5 border-b border-hairline pb-4 font-display text-[14px] font-bold text-ink"><x-phosphor-file-text class="size-[19px] text-mid-gray" aria-hidden="true" />Resumo da requisição</h2>
             <dl class="space-y-3 text-sm">
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Tipo</dt>
@@ -215,6 +226,7 @@
                         <span x-show="!tipo" class="text-mid-gray">Não escolhido</span>
                         <span x-show="tipo === 'TESTE'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::TESTE" /></span>
                         <span x-show="tipo === 'USO_CONSUMO'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::USO_CONSUMO" /></span>
+                        <span x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO" /></span>
                     </dd>
                 </div>
                 <div class="flex items-center justify-between gap-3">
@@ -223,9 +235,13 @@
                 </div>
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Setor</dt>
-                    <dd class="font-medium">{{ auth()->user()->setor->nome }}</dd>
+                    <dd class="font-medium">{{ \App\Support\Texto::setor(auth()->user()->setor->nome) }}</dd>
                 </div>
             </dl>
+            <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
+                <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras (Kelber, Sérgio ou Miguel)' : 'Aprovação do setor'">Aprovação do setor</strong></span>
+            </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">
                     <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />

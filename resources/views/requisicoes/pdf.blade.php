@@ -93,6 +93,8 @@
                 <div class="pequeno">
                     @if ($requisicao->tipo === TipoRequisicao::TESTE)
                         Devolução prevista: {{ $requisicao->data_prevista_devolucao?->format('d/m/Y') }}
+                    @elseif ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO)
+                        Compra para funcionário, sem passar pelo estoque
                     @else
                         Material consumido, com baixa no WinThor
                     @endif
@@ -119,12 +121,28 @@
                 <div class="valor">{!! nl2br(e($requisicao->finalidade)) !!}</div>
             </td>
         </tr>
-        <tr>
-            <td colspan="3">
-                <div class="rotulo">Justificativa</div>
-                <div class="valor">{!! nl2br(e($requisicao->justificativa)) !!}</div>
-            </td>
-        </tr>
+        @if (filled($requisicao->justificativa))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Justificativa</div>
+                    <div class="valor">{!! nl2br(e($requisicao->justificativa)) !!}</div>
+                </td>
+            </tr>
+        @endif
+        @if ($requisicao->retirado_por_nome || $requisicao->devolvido_por_nome)
+            <tr>
+                <td colspan="3">
+                    @if ($requisicao->retirado_por_nome)
+                        <div class="rotulo">Retirado por</div>
+                        <div class="valor">{{ $requisicao->retirado_por_nome }}</div>
+                    @endif
+                    @if ($requisicao->devolvido_por_nome)
+                        <div class="rotulo">Devolvido por</div>
+                        <div class="valor">{{ $requisicao->devolvido_por_nome }}</div>
+                    @endif
+                </td>
+            </tr>
+        @endif
         @if ($requisicao->motivo_reprovacao)
             <tr>
                 <td colspan="3">
@@ -150,6 +168,7 @@
         <thead>
             <tr>
                 <th class="num" style="width: 7mm;">#</th>
+                <th style="width: 20mm;">Cód.</th>
                 <th>Descrição</th>
                 <th style="width: 14mm;">Un.</th>
                 <th class="num" style="width: 27mm;">Qtd. solicitada</th>
@@ -160,6 +179,7 @@
             @foreach ($requisicao->itens as $item)
                 <tr>
                     <td class="num">{{ $loop->iteration }}</td>
+                    <td>{{ $item->codigo }}</td>
                     <td>{{ $item->descricao }}</td>
                     <td>{{ $item->unidade }}</td>
                     <td class="num">{{ Quantidade::formatar($item->qtd_solicitada) }}</td>

@@ -1,10 +1,5 @@
 <x-layouts.app titulo="Aprovações">
-    <div class="mb-5 flex items-baseline gap-3">
-        <h1 class="titulo-pagina">Aprovações</h1>
-        @if ($requisicoes->total() > 0)
-            <span class="text-sm text-mid-gray tabular-nums">{{ $requisicoes->total() }} aguardando a sua decisão</span>
-        @endif
-    </div>
+    <x-cabecalho titulo="Aprovações" :subtitulo="$requisicoes->total() > 0 ? $requisicoes->total().' aguardando a sua decisão' : 'Pedidos do seu setor esperando a sua decisão.'" />
 
     @if ($requisicoes->isEmpty())
         <x-vazio icone="check-circle" titulo="Nada aguardando a sua aprovação">
@@ -17,7 +12,7 @@
                 <li>
                     <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-3 transition-colors hover:bg-surface-alt">
                         <span class="flex items-center justify-between gap-2">
-                            <span class="font-mono text-sm font-medium text-ink">{{ $requisicao->numero }}</span>
+                            <span class="text-sm font-semibold text-ink tabular-nums">{{ $requisicao->numero }}</span>
                             <span class="text-xs text-mid-gray">{{ \App\Support\Duracao::ha($requisicao->status_alterado_em) }}</span>
                         </span>
                         <span class="mt-1 block text-sm">
@@ -25,7 +20,7 @@
                             <span class="text-mid-gray">· {{ $requisicao->setor->nome }}</span>
                         </span>
                         @if ($motivos[$requisicao->id] ?? null)
-                            <span class="mt-0.5 block text-xs font-medium text-amber-700">{{ $motivos[$requisicao->id] }}</span>
+                            <span class="mt-0.5 block text-xs font-medium text-mid-gray">{{ $motivos[$requisicao->id] }}</span>
                         @endif
                         <span class="mt-1.5 flex items-center gap-2 text-sm">
                             <x-selo-tipo :tipo="$requisicao->tipo" />
@@ -42,7 +37,7 @@
             @endforeach
         </ul>
 
-        <div class="hidden lg:block">
+        <div class="quadro hidden overflow-hidden lg:block">
             <table class="tabela table-fixed">
                 <colgroup>
                     <col class="w-40 xl:w-44">
@@ -68,9 +63,9 @@
                     @foreach ($requisicoes as $requisicao)
                         <tr data-href="{{ route('requisicoes.show', $requisicao) }}">
                             <td>
-                                <a href="{{ route('requisicoes.show', $requisicao) }}" class="link font-mono">{{ $requisicao->numero }}</a>
+                                <a href="{{ route('requisicoes.show', $requisicao) }}" class="link tabular-nums">{{ $requisicao->numero }}</a>
                                 @if ($motivos[$requisicao->id] ?? null)
-                                    <span class="mt-0.5 block text-xs font-medium text-amber-700">{{ $motivos[$requisicao->id] }}</span>
+                                    <span class="mt-0.5 block text-xs font-medium text-mid-gray">{{ $motivos[$requisicao->id] }}</span>
                                 @endif
                             </td>
                             <td><x-selo-tipo :tipo="$requisicao->tipo" /></td>

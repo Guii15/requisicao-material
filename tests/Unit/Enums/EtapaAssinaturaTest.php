@@ -22,17 +22,18 @@ class EtapaAssinaturaTest extends TestCase
         $this->assertSame('Liberado por (Líder do Estoque)', E::LIBERACAO_ESTOQUE->rotulo());
         $this->assertSame('Entregue por', E::ENTREGA->rotulo());
         $this->assertSame('Retirado por', E::RETIRADA->rotulo());
+        $this->assertSame('Devolvido por', E::DEVOLVIDO_POR->rotulo());
         $this->assertSame('Baixa por', E::BAIXA->rotulo());
     }
 
     public function test_fluxo_de_assinaturas_por_tipo(): void
     {
         $this->assertSame(
-            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::ENTREGA, E::RETIRADA, E::RECEBIMENTO, E::DEVOLUCAO],
+            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::ENTREGA, E::DEVOLUCAO],
             E::fluxo(TipoRequisicao::TESTE),
         );
         $this->assertSame(
-            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::LIBERACAO_ESTOQUE, E::ENTREGA, E::RETIRADA, E::RECEBIMENTO, E::BAIXA],
+            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::LIBERACAO_ESTOQUE, E::ENTREGA, E::BAIXA],
             E::fluxo(TipoRequisicao::USO_CONSUMO),
         );
     }

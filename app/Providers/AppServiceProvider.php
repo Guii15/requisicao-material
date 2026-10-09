@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
             ->by(mb_strtolower(trim((string) $request->input('login'))).'|'.$request->ip()));
 
         // Líder do estoque sempre tem fila: recebe os setores sem aprovador.
-        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->setoresAprovados()->exists());
+        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->aprova_compras || $user->setoresAprovados()->exists());
 
         // Fila de separação: qualquer um do setor Estoque, de qualquer setor solicitante.
         Gate::define('acessar-separacao', fn (User $user) => $user->is_estoque);
@@ -54,6 +54,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Baixa é só de Uso e Consumo: a responsável, ou o Admin (só vê o caso "própria responsável abriu o pedido").
         Gate::define('acessar-baixa', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
+
+        // Compras de funcionário: a responsável pela baixa decide (o Admin só vê o caso em que ela mesma pediu).
+        Gate::define('acessar-compras', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
 
         View::composer('components.layouts.app', MenuComposer::class);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
 use App\Services\FilaDeBaixa;
+use App\Services\FilaDeCompras;
 use App\Services\FilaDeDevolucao;
 use App\Services\FilaDeEntrega;
 use App\Services\FilaDeLiberacao;
@@ -60,6 +61,22 @@ class EstoqueController extends Controller
         return redirect()->route('separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada.");
     }
 
+    public function separarEntregar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
+    {
+        $itens = collect($request->input('itens', []))
+            ->filter(fn (mixed $valor, mixed $id) => is_numeric($id))
+            ->all();
+
+        $workflow->separarEntregar(
+            $requisicao,
+            $request->user(),
+            $itens,
+            $this->texto($request, 'retirado_por_nome') ?? '',
+        );
+
+        return redirect()->route('separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada e entregue.");
+    }
+
     public function liberacao(Request $request, FilaDeLiberacao $fila): View
     {
         Gate::authorize('acessar-liberacao');
@@ -94,8 +111,6 @@ class EstoqueController extends Controller
             $requisicao,
             $request->user(),
             $this->texto($request, 'retirado_por_nome') ?? '',
-            $this->texto($request, 'assinatura') ?? '',
-            $this->texto($request, 'senha'),
         );
 
         return redirect()->route('entrega.index')->with('sucesso', "Requisição {$requisicao->numero} entregue.");
@@ -114,9 +129,32 @@ class EstoqueController extends Controller
             ->filter(fn (mixed $valor, mixed $id) => is_numeric($id))
             ->all();
 
-        $workflow->devolver($requisicao, $request->user(), $itens, $this->texto($request, 'senha'));
+        $workflow->devolver(
+            $requisicao,
+            $request->user(),
+            $itens,
+            $this->texto($request, 'devolvido_por_nome') ?? '',
+        );
 
         return redirect()->route('devolucao.index')->with('sucesso', "Devolução da requisição {$requisicao->numero} conferida.");
+    }
+
+    public function compras(Request $request, FilaDeCompras $fila): View
+    {
+        Gate::authorize('acessar-compras');
+
+        return view('estoque.compras', ['requisicoes' => $this->paginar($fila->para($request->user()))]);
+    }
+
+    public function decidirCompra(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
+    {
+        $aprova = $request->input('decisao') === 'aprovar';
+
+        $workflow->decidirCompra($requisicao, $request->user(), $aprova, $this->texto($request, 'observacao'));
+
+        return redirect()->route('compras.index')->with('sucesso', $aprova
+            ? "Compra da requisição {$requisicao->numero} aprovada."
+            : "Compra da requisição {$requisicao->numero} reprovada.");
     }
 
     public function baixa(Request $request, FilaDeBaixa $fila): View
