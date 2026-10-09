@@ -56,7 +56,7 @@ class RequisicaoWorkflow
 
             $requisicao = new Requisicao([
                 'tipo' => $tipo,
-                'justificativa' => $validado['justificativa'],
+                'justificativa' => $validado['justificativa'] ?? '',
                 'finalidade' => $validado['finalidade'],
                 'data_prevista_devolucao' => $tipo->exigeDevolucao() ? $validado['data_prevista_devolucao'] : null,
             ]);
@@ -71,6 +71,7 @@ class RequisicaoWorkflow
 
             foreach ($validado['itens'] as $item) {
                 $requisicao->itens()->create([
+                    'codigo' => $item['codigo'] ?? null,
                     'descricao' => $item['descricao'],
                     'unidade' => $item['unidade'],
                     'qtd_solicitada' => $item['quantidade'],
@@ -183,60 +184,65 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Entrega + retirada num passo só: o estoquista assina a entrega por senha, e quem retira
-     * assina por desenho (não precisa de login — pode ser qualquer pessoa buscando o material).
-     * As duas assinaturas ficam encadeadas, na ordem: entrega, depois retirada.
+     * Teste: separa e entrega na mesma tela. É a mesma separação e a mesma entrega de sempre,
+     * uma depois da outra, dentro de uma transação só: se algo falhar na entrega,
+     * a separação também não vale. As assinaturas ficam encadeadas na ordem: separação, entrega.
+     * Uso e Consumo não passa por aqui, porque o líder do estoque libera entre uma etapa e outra.
+     *
+     * @param  array<int, mixed>  $itens  quantidade separada por id de item
      */
-    public function entregar(Requisicao $requisicao, User $por, string $retiradoPorNome, string $assinaturaDesenho, ?string $senha = null): Requisicao
+    public function separarEntregar(Requisicao $requisicao, User $por, array $itens, string $retiradoPorNome): Requisicao
     {
-        $nome = $this->exigirMotivo($retiradoPorNome, 'Informe quem está retirando', minimo: 2, campo: 'retirado_por_nome');
+        if ($requisicao->tipo !== TipoRequisicao::TESTE) {
+            throw RegraDeNegocioException::statusMudou($requisicao);
+        }
 
-        return $this->executar(
-            $requisicao, $por, StatusRequisicao::ENTREGUE, 'entregar', AcaoEvento::ENTREGA, null, null,
-            alterar: function (Requisicao $r) use ($por, $nome, $assinaturaDesenho) {
-                $r->forceFill(['entregue_por_id' => $por->id, 'entregue_em' => now(), 'retirado_por_nome' => $nome]);
-                $this->assinaturas->assinarComSenha($r, EtapaAssinatura::ENTREGA, $por);
-                $this->assinaturas->assinarComDesenho($r, EtapaAssinatura::RETIRADA, $nome, $assinaturaDesenho);
-            },
-        );
-    }
+        // Valida o nome antes de mexer em qualquer coisa.
+        $this->exigirMotivo($retiradoPorNome, 'Informe quem está retirando', minimo: 2, campo: 'retirado_por_nome');
 
-    /**
-     * Só existe no Teste: registro de que o material chegou às mãos de quem pediu. Não muda
-     * o status (a requisição já está Em posse desde a entrega) — só grava a assinatura.
-     */
-    public function confirmarRecebimento(Requisicao $requisicao, User $por, ?string $senha = null): Requisicao
-    {
-        Gate::forUser($por)->authorize('confirmarRecebimento', $requisicao);
+        return DB::transaction(function () use ($requisicao, $por, $itens, $retiradoPorNome) {
+            $this->separar($requisicao, $por, $itens, null);
 
-        return DB::transaction(function () use ($requisicao, $por) {
-            $atual = Requisicao::query()->whereKey($requisicao->getKey())->lockForUpdate()->firstOrFail();
-            Gate::forUser($por)->authorize('confirmarRecebimento', $atual);
-
-            Requisicao::viaWorkflow(fn () => $atual->forceFill(['recebido_em' => now()])->save());
-            $this->assinaturas->assinarComSenha($atual, EtapaAssinatura::RECEBIMENTO, $por);
-            $this->registrarEvento($atual, $por, AcaoEvento::RECEBIMENTO, $atual->status, $atual->status);
-
-            return $atual;
+            return $this->entregar($requisicao, $por, $retiradoPorNome);
         });
     }
 
     /**
-     * Devolução (Teste): confere o que voltou item a item. Fecha "Devolvida" se tudo voltou
-     * bom; qualquer defeito ou falta vira "Devolução com pendência".
+     * Entrega: o estoquista assina por senha e registra o nome de quem está retirando
+     * (pode ser qualquer pessoa buscando o material, não precisa de login).
+     */
+    public function entregar(Requisicao $requisicao, User $por, string $retiradoPorNome, ?string $senha = null): Requisicao
+    {
+        $nome = $this->exigirMotivo($retiradoPorNome, 'Informe quem está retirando', minimo: 2, campo: 'retirado_por_nome');
+
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::ENTREGUE, 'entregar', AcaoEvento::ENTREGA,
+            EtapaAssinatura::ENTREGA, null,
+            alterar: fn (Requisicao $r) => $r->forceFill(['entregue_por_id' => $por->id, 'entregue_em' => now(), 'retirado_por_nome' => $nome]),
+        );
+    }
+
+    /**
+     * Devolução (Teste): numa tela só, confere o que voltou item a item e registra o nome de quem
+     * devolveu. Fecha "Devolvida" se tudo voltou bom; qualquer defeito ou falta vira
+     * "Devolução com pendência".
      *
      * @param  array<int, array{ok?: mixed, defeito?: mixed, nao_devolvida?: mixed, observacao?: mixed}>  $itens
      */
-    public function devolver(Requisicao $requisicao, User $por, array $itens, ?string $senha): Requisicao
+    public function devolver(Requisicao $requisicao, User $por, array $itens, string $devolvidoPorNome, ?string $senha = null): Requisicao
     {
+        $nome = $this->exigirMotivo($devolvidoPorNome, 'Informe quem está devolvendo', minimo: 2, campo: 'devolvido_por_nome');
         $validado = $this->validarDevolucao($requisicao, $itens);
         $comPendencia = collect($validado)->contains(fn (array $linha) => bccomp($linha['defeito'], '0', 3) > 0 || bccomp($linha['nao_devolvida'], '0', 3) > 0);
         $para = $comPendencia ? StatusRequisicao::DEVOLUCAO_COM_PENDENCIA : StatusRequisicao::DEVOLVIDA;
 
         return $this->executar(
             $requisicao, $por, $para, 'devolver', AcaoEvento::DEVOLUCAO,
-            EtapaAssinatura::DEVOLUCAO, $senha,
-            alterar: fn (Requisicao $r, array $dados) => $this->gravarDevolucao($r, $por, $dados['itens']),
+            EtapaAssinatura::DEVOLUCAO, null,
+            alterar: function (Requisicao $r, array $dados) use ($por, $nome) {
+                $this->gravarDevolucao($r, $por, $dados['itens']);
+                $r->forceFill(['devolvido_por_nome' => $nome]);
+            },
             validar: fn () => ['itens' => $validado],
         );
     }
@@ -319,6 +325,32 @@ class RequisicaoWorkflow
             validar: fn () => [
                 'documento' => $this->exigirMotivo($documentoWinthor, 'Informe o documento de baixa do WinThor', minimo: 2, campo: 'documento'),
                 'observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null,
+            ],
+        );
+    }
+
+    /**
+     * Compra de funcionário: a responsável pela baixa aprova ou reprova depois dos aprovadores.
+     * Reprovar exige motivo; aprovar aceita uma observação.
+     */
+    public function decidirCompra(Requisicao $requisicao, User $por, bool $aprova, ?string $texto): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por,
+            $aprova ? StatusRequisicao::COMPRA_APROVADA : StatusRequisicao::COMPRA_REPROVADA,
+            'decidirCompra',
+            $aprova ? AcaoEvento::COMPRA_APROVADA : AcaoEvento::COMPRA_REPROVADA,
+            $aprova ? EtapaAssinatura::COMPRA_APROVADA : EtapaAssinatura::COMPRA_REPROVADA,
+            null,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'compra_decidido_por_id' => $por->id,
+                'compra_decidido_em' => now(),
+                'compra_observacao' => $dados['observacao'],
+            ]),
+            validar: fn () => [
+                'observacao' => $aprova
+                    ? (is_string($texto) && trim($texto) !== '' ? trim($texto) : null)
+                    : $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao'),
             ],
         );
     }
@@ -448,6 +480,7 @@ class RequisicaoWorkflow
 
         if (is_array($dados['itens'] ?? null)) {
             $dados['itens'] = array_map(fn (mixed $item) => ! is_array($item) ? $item : [
+                'codigo' => ($c = $texto($item['codigo'] ?? null)) === '' ? null : $c,
                 'descricao' => $texto($item['descricao'] ?? null),
                 'unidade' => is_string($item['unidade'] ?? null) ? mb_strtoupper(trim($item['unidade'])) : ($item['unidade'] ?? null),
                 // Aceita vírgula decimal (2,5).
@@ -462,10 +495,11 @@ class RequisicaoWorkflow
             'tipo' => ['required', Rule::enum(TipoRequisicao::class)],
             'itens' => ['required', 'array', 'min:1', 'max:50'],
             'itens.*' => ['array'],
+            'itens.*.codigo' => ['nullable', 'string', 'max:30'],
             'itens.*.descricao' => ['required', 'string', 'max:255'],
             'itens.*.unidade' => ['required', 'string', 'max:20'],
             'itens.*.quantidade' => ['required', 'numeric', 'gt:0', 'max:999999.999', 'decimal:0,3'],
-            'justificativa' => ['required', 'string', 'min:5', 'max:2000'],
+            'justificativa' => ['nullable', 'string', 'max:2000'],
             'finalidade' => ['required', 'string', 'min:5', 'max:2000'],
             'data_prevista_devolucao' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TESTE->value,
@@ -486,6 +520,7 @@ class RequisicaoWorkflow
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",
         ], [
             'tipo' => 'tipo',
+            'itens.*.codigo' => 'código do produto',
             'itens.*.descricao' => 'descrição do item',
             'itens.*.unidade' => 'unidade',
             'itens.*.quantidade' => 'quantidade',

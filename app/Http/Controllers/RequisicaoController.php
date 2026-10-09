@@ -29,6 +29,7 @@ class RequisicaoController extends Controller
                 ->orderBy('id')
                 ->limit(1)])
             ->withCount('itens')
+            ->with(['solicitante', 'setor'])
             ->orderByDesc('id')
             ->paginate(25);
 
@@ -89,17 +90,6 @@ class RequisicaoController extends Controller
     }
 
     /**
-     * O próprio solicitante confirmando que o material chegou às mãos dele (Teste). Não muda
-     * status, só assina — por isso volta pro detalhe, não pra uma lista.
-     */
-    public function confirmarRecebimento(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
-    {
-        $workflow->confirmarRecebimento($requisicao, $request->user(), $this->texto($request, 'senha'));
-
-        return redirect()->route('requisicoes.show', $requisicao)->with('sucesso', 'Recebimento confirmado.');
-    }
-
-    /**
      * Lista de onde a pessoa veio: a própria requisição volta para "Minhas requisições";
      * a de outra pessoa, para a fila de aprovação de quem tem uma.
      *
@@ -118,6 +108,7 @@ class RequisicaoController extends Controller
                 StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE->value => ['acessar-liberacao', 'liberacao.index', 'Liberação', 'liberacao'],
                 StatusRequisicao::PRONTA_PARA_RETIRADA->value => ['acessar-entrega', 'entrega.index', 'Entrega', 'entrega'],
                 StatusRequisicao::EM_POSSE->value => ['acessar-devolucao', 'devolucao.index', 'Devolução', 'devolucao'],
+                StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Compras de funcionários', 'compras'],
                 StatusRequisicao::AGUARDANDO_BAIXA->value => ['acessar-baixa', 'baixa.index', 'Baixa', 'baixa'],
             ];
 

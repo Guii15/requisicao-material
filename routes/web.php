@@ -31,7 +31,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/requisicoes/{requisicao}', [RequisicaoController::class, 'show'])->name('requisicoes.show');
             Route::get('/requisicoes/{requisicao}/pdf', [RequisicaoController::class, 'pdf'])->name('requisicoes.pdf');
             Route::post('/requisicoes/{requisicao}/cancelar', [RequisicaoController::class, 'cancelar'])->name('requisicoes.cancelar');
-            Route::post('/requisicoes/{requisicao}/confirmar-recebimento', [RequisicaoController::class, 'confirmarRecebimento'])->name('requisicoes.confirmar-recebimento');
 
             Route::get('/aprovacoes', [AprovacaoController::class, 'index'])->name('aprovacoes.index');
             Route::post('/requisicoes/{requisicao}/aprovar', [AprovacaoController::class, 'aprovar'])->name('requisicoes.aprovar');
@@ -39,6 +38,7 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/separacao', [EstoqueController::class, 'separacao'])->name('separacao.index');
             Route::post('/requisicoes/{requisicao}/separar', [EstoqueController::class, 'separar'])->name('requisicoes.separar');
+            Route::post('/requisicoes/{requisicao}/separar-e-entregar', [EstoqueController::class, 'separarEntregar'])->name('requisicoes.separar-entregar');
 
             Route::get('/liberacao', [EstoqueController::class, 'liberacao'])->name('liberacao.index');
             Route::post('/requisicoes/{requisicao}/liberar', [EstoqueController::class, 'liberar'])->name('requisicoes.liberar');
@@ -49,6 +49,9 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/devolucao', [EstoqueController::class, 'devolucao'])->name('devolucao.index');
             Route::post('/requisicoes/{requisicao}/devolver', [EstoqueController::class, 'devolver'])->name('requisicoes.devolver');
+
+            Route::get('/compras', [EstoqueController::class, 'compras'])->name('compras.index');
+            Route::post('/requisicoes/{requisicao}/decidir-compra', [EstoqueController::class, 'decidirCompra'])->name('requisicoes.decidir-compra');
 
             Route::get('/baixa', [EstoqueController::class, 'baixa'])->name('baixa.index');
             Route::post('/requisicoes/{requisicao}/dar-baixa', [EstoqueController::class, 'darBaixa'])->name('requisicoes.dar-baixa');

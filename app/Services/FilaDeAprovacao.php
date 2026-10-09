@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StatusRequisicao;
+use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,13 +29,24 @@ class FilaDeAprovacao
         return Requisicao::query()
             ->where('status', StatusRequisicao::AGUARDANDO_APROVACAO)
             ->where('solicitante_id', '!=', $user->id)
-            ->where(function (Builder $query) use ($user) {
-                $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
+            ->where(function (Builder $fila) use ($user) {
+                // Fluxo normal: aprovadores do setor (ou líder do estoque, se o setor não tem).
+                $fila->where(function (Builder $normal) use ($user) {
+                    $normal->where('tipo', '!=', TipoRequisicao::COMPRA_FUNCIONARIO->value)
+                        ->where(function (Builder $query) use ($user) {
+                            $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
 
-                if ($user->is_lider_estoque) {
-                    $query->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
-                        ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
-                        ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
+                            if ($user->is_lider_estoque) {
+                                $query->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
+                                    ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
+                                    ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
+                            }
+                        });
+                });
+
+                // Compra de funcionário: só quem aprova compras, de qualquer setor.
+                if ($user->aprova_compras) {
+                    $fila->orWhere('tipo', TipoRequisicao::COMPRA_FUNCIONARIO->value);
                 }
             });
     }
@@ -60,6 +72,10 @@ class FilaDeAprovacao
             ->whereKeyNot($requisicao->solicitante_id)
             ->orderBy('nome');
 
+        if ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
+            return $query->where('aprova_compras', true)->get();
+        }
+
         return $this->semAprovadorElegivel($requisicao)
             ? $query->where('is_lider_estoque', true)->get()
             : $query->whereIn('id', DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id))->get();
@@ -70,7 +86,9 @@ class FilaDeAprovacao
      */
     public function motivoSemAprovador(Requisicao $requisicao): ?string
     {
-        if ($requisicao->status !== StatusRequisicao::AGUARDANDO_APROVACAO || ! $this->semAprovadorElegivel($requisicao)) {
+        if ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
+            || $requisicao->status !== StatusRequisicao::AGUARDANDO_APROVACAO
+            || ! $this->semAprovadorElegivel($requisicao)) {
             return null;
         }
 

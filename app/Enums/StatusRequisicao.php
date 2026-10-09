@@ -25,6 +25,9 @@ enum StatusRequisicao: string
     case DEVOLUCAO_COM_PENDENCIA = 'DEVOLUCAO_COM_PENDENCIA';
     case AGUARDANDO_BAIXA = 'AGUARDANDO_BAIXA';
     case BAIXADA = 'BAIXADA';
+    case AGUARDANDO_COMPRA = 'AGUARDANDO_COMPRA';
+    case COMPRA_APROVADA = 'COMPRA_APROVADA';
+    case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
 
     public function rotulo(): string
     {
@@ -44,6 +47,9 @@ enum StatusRequisicao: string
             self::DEVOLUCAO_COM_PENDENCIA => 'Devolução com pendência',
             self::AGUARDANDO_BAIXA => 'Aguardando baixa',
             self::BAIXADA => 'Baixada',
+            self::AGUARDANDO_COMPRA => 'Aguardando compra',
+            self::COMPRA_APROVADA => 'Compra aprovada',
+            self::COMPRA_REPROVADA => 'Compra reprovada',
         };
     }
 
@@ -53,9 +59,9 @@ enum StatusRequisicao: string
     public function grupo(): string
     {
         return match ($this) {
-            self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA => 'aguardando',
-            self::DEVOLVIDA, self::BAIXADA => 'concluida',
-            self::REPROVADA, self::REPROVADA_ESTOQUE, self::CANCELADA => 'encerrada',
+            self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA, self::AGUARDANDO_COMPRA => 'aguardando',
+            self::DEVOLVIDA, self::BAIXADA, self::COMPRA_APROVADA => 'concluida',
+            self::REPROVADA, self::REPROVADA_ESTOQUE, self::CANCELADA, self::COMPRA_REPROVADA => 'encerrada',
             self::DEVOLUCAO_COM_PENDENCIA => 'alerta',
             default => 'andamento',
         };
@@ -70,7 +76,8 @@ enum StatusRequisicao: string
 
         return match ($this) {
             self::AGUARDANDO_APROVACAO => [self::APROVADA, self::REPROVADA, self::CANCELADA],
-            self::APROVADA => [self::EM_SEPARACAO, self::CANCELADA],
+            self::APROVADA => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? [self::AGUARDANDO_COMPRA, self::CANCELADA] : [self::EM_SEPARACAO, self::CANCELADA],
+            self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
             self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_LIBERACAO_ESTOQUE, self::CANCELADA],
             self::AGUARDANDO_LIBERACAO_ESTOQUE => $teste ? [] : [self::LIBERADA, self::REPROVADA_ESTOQUE, self::CANCELADA],
             self::LIBERADA => $teste ? [] : [self::PRONTA_PARA_RETIRADA],
@@ -94,6 +101,8 @@ enum StatusRequisicao: string
     {
         return match ($this) {
             self::EM_SEPARACAO, self::LIBERADA, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
+            // Compra de funcionário não passa pelo estoque: depois do aprovador vai direto para a Erica.
+            self::APROVADA => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? self::AGUARDANDO_COMPRA : null,
             default => null,
         };
     }
@@ -107,11 +116,13 @@ enum StatusRequisicao: string
             self::DEVOLVIDA,
             self::DEVOLUCAO_COM_PENDENCIA,
             self::BAIXADA,
+            self::COMPRA_APROVADA,
+            self::COMPRA_REPROVADA,
         ], true);
     }
 
     public function visivelParaEstoque(): bool
     {
-        return ! in_array($this, [self::AGUARDANDO_APROVACAO, self::REPROVADA, self::CANCELADA], true);
+        return ! in_array($this, [self::AGUARDANDO_APROVACAO, self::REPROVADA, self::CANCELADA, self::AGUARDANDO_COMPRA, self::COMPRA_APROVADA, self::COMPRA_REPROVADA], true);
     }
 }

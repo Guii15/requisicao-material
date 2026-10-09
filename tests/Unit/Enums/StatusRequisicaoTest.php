@@ -43,6 +43,15 @@ class StatusRequisicaoTest extends TestCase
         $add(S::EM_POSSE, S::DEVOLVIDA, T::TESTE);
         $add(S::EM_POSSE, S::DEVOLUCAO_COM_PENDENCIA, T::TESTE);
         $add(S::AGUARDANDO_BAIXA, S::BAIXADA, T::USO_CONSUMO);
+        // Compra de funcionário não passa pelo estoque: vai do aprovador direto para a compra.
+        $add(S::AGUARDANDO_APROVACAO, S::APROVADA, T::COMPRA_FUNCIONARIO);
+        $add(S::AGUARDANDO_APROVACAO, S::REPROVADA, T::COMPRA_FUNCIONARIO);
+        $add(S::AGUARDANDO_APROVACAO, S::CANCELADA, T::COMPRA_FUNCIONARIO);
+        $add(S::APROVADA, S::AGUARDANDO_COMPRA, T::COMPRA_FUNCIONARIO);
+        $add(S::APROVADA, S::CANCELADA, T::COMPRA_FUNCIONARIO);
+        $add(S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, T::COMPRA_FUNCIONARIO);
+        $add(S::AGUARDANDO_COMPRA, S::COMPRA_REPROVADA, T::COMPRA_FUNCIONARIO);
+        $add(S::AGUARDANDO_COMPRA, S::CANCELADA, T::COMPRA_FUNCIONARIO);
 
         return $casos;
     }
@@ -60,6 +69,14 @@ class StatusRequisicaoTest extends TestCase
         foreach (S::cases() as $de) {
             foreach (S::cases() as $para) {
                 foreach (T::cases() as $tipo) {
+                    // Compra de funcionário nunca chega nos status do fluxo de estoque.
+                    if ($tipo === T::COMPRA_FUNCIONARIO && ! in_array($de, [S::AGUARDANDO_APROVACAO, S::APROVADA, S::AGUARDANDO_COMPRA], true)) {
+                        continue;
+                    }
+                    // Aguardando compra só existe para compra de funcionário.
+                    if ($de === S::AGUARDANDO_COMPRA && $tipo !== T::COMPRA_FUNCIONARIO) {
+                        continue;
+                    }
                     $chave = "{$de->value} -> {$para->value} ({$tipo->value})";
                     if (in_array($chave, $permitidas, true)) {
                         continue;
@@ -92,12 +109,13 @@ class StatusRequisicaoTest extends TestCase
         $this->assertSame(S::EM_POSSE, S::ENTREGUE->proximoAutomatico(T::TESTE));
         $this->assertSame(S::AGUARDANDO_BAIXA, S::ENTREGUE->proximoAutomatico(T::USO_CONSUMO));
         $this->assertNull(S::APROVADA->proximoAutomatico(T::TESTE));
+        $this->assertSame(S::AGUARDANDO_COMPRA, S::APROVADA->proximoAutomatico(T::COMPRA_FUNCIONARIO));
         $this->assertNull(S::EM_POSSE->proximoAutomatico(T::TESTE));
     }
 
     public function test_status_finais_nao_tem_saida(): void
     {
-        $finais = [S::REPROVADA, S::CANCELADA, S::REPROVADA_ESTOQUE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::BAIXADA];
+        $finais = [S::REPROVADA, S::CANCELADA, S::REPROVADA_ESTOQUE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::BAIXADA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA];
 
         foreach (S::cases() as $status) {
             $this->assertSame(in_array($status, $finais, true), $status->isFinal(), $status->value);
@@ -106,7 +124,7 @@ class StatusRequisicaoTest extends TestCase
 
     public function test_estoque_nunca_ve_requisicao_nao_aprovada(): void
     {
-        $invisiveis = [S::AGUARDANDO_APROVACAO, S::REPROVADA, S::CANCELADA];
+        $invisiveis = [S::AGUARDANDO_APROVACAO, S::REPROVADA, S::CANCELADA, S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA];
 
         foreach (S::cases() as $status) {
             $this->assertSame(! in_array($status, $invisiveis, true), $status->visivelParaEstoque(), $status->value);

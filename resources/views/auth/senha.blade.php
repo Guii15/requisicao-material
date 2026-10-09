@@ -2,7 +2,7 @@
     <form method="POST" action="{{ route('senha.update') }}">
         @csrf
         @method('PUT')
-        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.035em] text-ink dark:text-bone">{{ $obrigatoria ? 'Defina sua senha' : 'Trocar senha' }}</h1>
+        <h1 class="font-display text-2xl leading-8 font-bold text-ink dark:text-bone">{{ $obrigatoria ? 'Defina sua senha' : 'Trocar senha' }}</h1>
         <p class="mt-1 text-sm text-mid-gray dark:text-steel">
             @if ($obrigatoria)
                 Você entrou com uma senha provisória. Crie a sua para continuar. Ela também assina as suas requisições.

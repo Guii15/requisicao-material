@@ -1,10 +1,10 @@
 <x-layouts.acesso titulo="Entrar">
     <form method="POST" action="{{ route('login.store') }}">
         @csrf
-        <h1 class="text-2xl leading-8 font-semibold tracking-[-0.035em] text-ink dark:text-bone">Entrar</h1>
-        <p class="mt-1 text-sm text-mid-gray dark:text-steel">Use o usuário e a senha que a TI passou para você.</p>
+        <h1 class="titulo-pagina">Entrar</h1>
+        <p class="mt-2 text-[13px] text-mid-gray">Use o usuário e a senha que a TI passou para você.</p>
 
-        <div class="mt-6 space-y-4">
+        <div class="mt-7 space-y-4">
             <div>
                 <label for="login" class="rotulo">Usuário</label>
                 <input id="login" name="login" type="text" value="{{ old('login') }}"

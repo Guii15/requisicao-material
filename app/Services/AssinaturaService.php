@@ -239,6 +239,7 @@ class AssinaturaService
             'baixa_documento_winthor' => $requisicao->baixa_documento_winthor,
             'itens' => $requisicao->itens()->get()->map(fn (RequisicaoItem $item) => [
                 'id' => $item->id,
+                ...($item->codigo !== null ? ['codigo' => $item->codigo] : []),
                 'descricao' => $item->descricao,
                 'unidade' => $item->unidade,
                 'qtd_solicitada' => $item->qtd_solicitada,
@@ -266,7 +267,8 @@ class AssinaturaService
         ];
         $depoisDaEntrega = [S::ENTREGUE, S::EM_POSSE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::AGUARDANDO_BAIXA, S::BAIXADA];
 
-        if ($status === S::APROVADA || $status === S::EM_SEPARACAO || in_array($status, $depoisDaSeparacao, true)) {
+        if ($status === S::APROVADA || $status === S::EM_SEPARACAO || in_array($status, $depoisDaSeparacao, true)
+            || in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)) {
             $exigidas[] = Etapa::APROVACAO_SETOR;
         }
 
@@ -289,7 +291,6 @@ class AssinaturaService
 
         if (in_array($status, $depoisDaEntrega, true)) {
             $exigidas[] = Etapa::ENTREGA;
-            $exigidas[] = Etapa::RETIRADA;
         }
 
         if ($status === S::DEVOLVIDA || $status === S::DEVOLUCAO_COM_PENDENCIA) {
@@ -298,6 +299,14 @@ class AssinaturaService
 
         if ($status === S::BAIXADA) {
             $exigidas[] = Etapa::BAIXA;
+        }
+
+        if ($status === S::COMPRA_APROVADA) {
+            $exigidas[] = Etapa::COMPRA_APROVADA;
+        }
+
+        if ($status === S::COMPRA_REPROVADA) {
+            $exigidas[] = Etapa::COMPRA_REPROVADA;
         }
 
         return $exigidas;

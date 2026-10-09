@@ -11,15 +11,27 @@
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-dvh bg-fundo dark:bg-void">
-    <div class="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
-        <img src="{{ asset('imagens/logo-escuro.png') }}" alt="Binário Tecnologia" class="mb-8 h-9 w-auto">
+<body class="min-h-dvh bg-paper dark:bg-void">
+    <div class="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+        {{-- Lado do formulário --}}
+        <div class="flex min-h-dvh flex-col px-6 py-8 sm:px-12">
+            <a href="{{ url('/') }}" class="inline-flex w-fit focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-marca">
+                <img src="{{ asset('imagens/logo-escuro.png') }}" alt="Binário Tecnologia" class="h-9 w-auto">
+            </a>
 
-        <div class="w-full max-w-[400px] rounded-3xl border border-hairline bg-paper p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] dark:border-line-escuro dark:bg-card-escuro">
-            {{ $slot }}
+            <div class="mx-auto flex w-full max-w-[360px] flex-1 flex-col justify-center py-10">
+                {{ $slot }}
+            </div>
+
+            <p class="text-[12px] text-mid-gray dark:text-steel">Requisição de Material · Binário Tecnologia</p>
         </div>
 
-        <p class="mt-6 text-center text-[13px] text-mid-gray dark:text-steel">Requisição de Material · Binário Tecnologia</p>
+        {{-- Lado da foto: o estoque da Binário. Some no celular. --}}
+        <div class="hidden bg-fundo p-4 lg:block">
+            <div class="relative size-full overflow-hidden rounded-xl">
+                <img src="{{ asset('imagens/login-fundo.webp') }}" alt="" class="absolute inset-0 size-full object-cover">
+            </div>
+        </div>
     </div>
 </body>
 </html>

@@ -9,21 +9,49 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Visual vindo do protótipo do Lovable: DM Sans no texto, Manrope nos títulos e números. */
+    --font-sans: 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Manrope Variable', 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Manrope Variable', 'DM Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
-    /* shadcn monocromático, escolhido para este projeto: cinza neutro de uma família só, texto quase preto,
-       vermelho exclusivo para o que é destrutivo ou atrasado. A marca aparece no logo, não na interface. */
-    --color-fundo: #f5f5f5;
-    --color-barra: #fafafa;
-    --color-paper: #ffffff;
-    --color-surface-alt: #f0f0f0;
-    --color-ink: #0a0a0a;
-    --color-ink-soft: #404040;
-    --color-mid-gray: #6b6b6b;
-    --color-hairline: #e5e5e5;
-    --color-hairline-campo: #d4d4d4;
-    --color-destrutivo: #e7000b;
+    /* Superfícies */
+    --color-fundo: oklch(0.978 0.003 250);
+    --color-barra: oklch(1 0 0);
+    --color-paper: oklch(1 0 0);
+    --color-surface-alt: oklch(0.955 0.005 260);
+
+    /* Texto */
+    --color-ink: oklch(0.25 0.012 260);
+    --color-ink-soft: oklch(0.4 0.012 260);
+    --color-mid-gray: oklch(0.55 0.015 260);
+
+    /* Linhas */
+    --color-hairline: oklch(0.919 0.006 260);
+    --color-hairline-campo: oklch(0.87 0.008 260);
+
+    /* Cor da marca: o mesmo azul (#05018D) do Requisição de Compras. */
+    --color-marca: #05018d;
+    --color-marca-escura: #04016c;
+    --color-marca-clara: #9b99ff;
+    --color-marca-suave: #eeeefb;
+
+    /* Vermelho só para o que dá errado ou apaga: erro, reprovar, cancelar. */
+    --color-destrutivo: oklch(0.55 0.21 27);
+    --color-destrutivo-suave: oklch(0.962 0.025 22);
+
+    /* Situações */
+    --color-sucesso: oklch(0.55 0.115 162);
+    --color-sucesso-suave: oklch(0.953 0.026 163);
+    --color-aviso: oklch(0.68 0.145 77);
+    --color-aviso-suave: oklch(0.975 0.031 80);
+    --color-info: oklch(0.58 0.11 215);
+    --color-info-suave: oklch(0.96 0.025 215);
+
+    /* Menu lateral no azul da Binário. Os nomes "preto" ficaram de quando ele era preto. */
+    --color-preto: #05018d;
+    --color-preto-2: #1b16a6;
+    --color-preto-linha: #2c28b4;
+    --color-preto-texto: #dcdbff;
 
     /* Tokens do modo escuro (usados via dark:bg-void, dark:text-bone etc.) */
     --color-void: #08080a;
@@ -34,18 +62,13 @@
     --color-steel: #9a9dab;
     --color-fog: #b6b9c4;
     --color-bone: #e2e3e9;
-
-    --color-status-erro: #e7000b;
+    --color-copper: #cc9166;
 }
 
 @layer base {
     html {
         color-scheme: light;
-        scroll-padding-top: 8rem;
-
-        @media (width >= 48rem) {
-            scroll-padding-top: 5rem;
-        }
+        scroll-padding-top: 6rem;
     }
 
     html.dark {
@@ -53,13 +76,16 @@
     }
 
     body {
-        @apply bg-fundo text-sm leading-6 text-ink antialiased dark:bg-void dark:text-bone;
+        @apply bg-fundo text-[14px] leading-[1.5] text-ink antialiased dark:bg-void dark:text-bone;
         overflow-wrap: anywhere;
     }
 
     h1, h2, h3 {
-        letter-spacing: -0.025em;
-        text-wrap: balance;
+        font-family: var(--font-display);
+    }
+
+    button {
+        cursor: pointer;
     }
 
     [x-cloak] {
@@ -81,29 +107,43 @@
 }
 
 @layer components {
-    /* Escala de cantos, uma só: botões e selos em pílula, painéis 20px, campos 12px. */
+    /* Cartão: branco, linha fina, canto de 8px e uma sombra quase imperceptível. */
     .quadro {
-        @apply rounded-[20px] border border-hairline bg-paper dark:border-line-escuro dark:bg-card-escuro;
+        @apply rounded-lg border border-hairline bg-paper dark:border-line-escuro-2 dark:bg-card-escuro;
+        box-shadow: 0 2px 4px oklch(0.2 0.01 260 / 0.025);
     }
 
     .quadro-titulo {
-        @apply border-b border-hairline px-5 py-3.5 text-sm font-semibold tracking-tight text-ink dark:border-line-escuro dark:text-bone;
+        @apply border-b border-hairline px-5 py-4 text-sm font-semibold text-ink dark:border-line-escuro dark:text-bone;
     }
 
-    .titulo-secao {
-        @apply mb-3 text-[15px] leading-6 font-semibold tracking-tight text-ink dark:text-bone;
+    .cabecalho-pagina {
+        @apply mb-7 flex flex-wrap items-center justify-between gap-x-5 gap-y-3;
     }
 
     .titulo-pagina {
-        @apply text-[28px] leading-9 font-semibold tracking-[-0.035em] text-ink dark:text-bone;
+        @apply text-[28px] leading-[1.3] text-ink dark:text-bone;
+        font-family: var(--font-display);
+        font-weight: 750;
+    }
+
+    .titulo-secao {
+        @apply mb-3 text-[15px] leading-6 text-ink dark:text-bone;
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+
+    /* Sobretítulo pequeno, em caixa alta, que fica acima do título ou de um campo. */
+    .etiqueta {
+        @apply text-[11px] font-semibold tracking-[0.05em] text-mid-gray uppercase dark:text-steel;
     }
 
     .legenda {
-        @apply block text-[13px] text-mid-gray dark:text-steel;
+        @apply block text-xs font-medium text-mid-gray dark:text-steel;
     }
 
     .rotulo {
-        @apply block text-sm font-medium text-ink dark:text-fog;
+        @apply block text-[13px] font-medium text-ink dark:text-fog;
     }
 
     .ajuda {
@@ -111,13 +151,12 @@
     }
 
     .erro-campo {
-        @apply mt-1.5 text-[13px] font-medium text-destrutivo;
+        @apply mt-1 text-[13px] font-medium text-destrutivo;
     }
 
-    /* Campo: fundo cinza claro, borda fina para ter contraste, anel escuro no foco.
-       16px/44px no celular evita zoom e garante alvo de toque confortável. */
+    /* Campo: no celular fica com 16px e 44px de altura para não dar zoom e ter alvo de toque. */
     .campo {
-        @apply block w-full rounded-xl border border-hairline bg-fundo px-3.5 py-2 text-sm text-ink shadow-none transition-colors placeholder:text-mid-gray/80 focus:border-ink/40 focus:bg-paper focus:ring-[3px] focus:ring-ink/8 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray dark:border-line-escuro-2 dark:bg-panel-escuro dark:text-bone dark:focus:border-bone;
+        @apply block w-full rounded-md border border-hairline-campo bg-paper px-3 py-2 text-sm text-ink shadow-none placeholder:text-mid-gray/80 focus:border-marca focus:ring-2 focus:ring-marca/20 focus:outline-none disabled:bg-surface-alt disabled:text-mid-gray dark:border-line-escuro-2 dark:bg-panel-escuro dark:text-bone;
 
         @media (width < 768px) {
             font-size: 16px;
@@ -126,19 +165,19 @@
     }
 
     .campo-erro {
-        @apply border-destrutivo bg-paper focus:border-destrutivo focus:ring-destrutivo/15;
+        @apply border-destrutivo ring-1 ring-destrutivo focus:border-destrutivo focus:ring-destrutivo;
     }
 
     .botao {
-        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent px-4 text-sm font-medium whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+        @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 text-[13px] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca disabled:cursor-not-allowed disabled:opacity-60;
     }
 
     .botao-primario {
-        @apply bg-ink text-white shadow-none hover:bg-neutral-700 dark:bg-white dark:text-ink dark:hover:bg-bone;
+        @apply bg-marca text-white shadow-none hover:bg-marca-escura;
     }
 
     .botao-secundario {
-        @apply border-hairline-campo bg-paper text-ink shadow-none hover:bg-fundo dark:border-line-escuro-2 dark:bg-transparent dark:text-fog dark:hover:bg-panel-escuro;
+        @apply border-hairline-campo bg-paper text-ink shadow-none hover:bg-surface-alt dark:border-line-escuro-2 dark:bg-transparent dark:text-fog dark:hover:bg-panel-escuro;
     }
 
     .botao-perigo {
@@ -146,24 +185,28 @@
     }
 
     .botao-perigo-contorno {
-        @apply border-destrutivo/35 bg-paper text-destrutivo shadow-none hover:bg-destrutivo/5;
+        @apply border-destrutivo/40 bg-transparent text-destrutivo shadow-none hover:bg-destrutivo/5;
     }
 
     .link {
-        @apply font-medium text-ink underline decoration-ink/25 underline-offset-[3px] transition-colors hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink dark:text-bone;
+        @apply font-medium text-ink underline decoration-hairline-campo underline-offset-2 hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca dark:text-copper;
     }
 
-    /* Tabela: direto sobre o fundo, uma linha fina entre linhas, cabeçalho em cinza e minúsculas. */
+    /* Tabela: cabeçalho em caixa alta sobre o fundo da página, linhas só com divisória. */
     .tabela {
-        @apply w-full border-collapse text-sm;
+        @apply w-full border-collapse text-[13px];
     }
 
     .tabela th {
-        @apply border-b border-hairline px-3 py-2 text-left text-[13px] font-medium whitespace-nowrap text-mid-gray dark:border-line-escuro dark:text-steel;
+        @apply border-y border-hairline bg-fundo px-5 py-3 text-left text-[11px] font-semibold tracking-[0.05em] whitespace-nowrap text-mid-gray uppercase dark:border-line-escuro dark:bg-transparent dark:text-steel;
     }
 
     .tabela td {
-        @apply border-b border-hairline px-3 py-3 align-top dark:border-line-escuro;
+        @apply border-b border-hairline px-5 py-4 align-middle dark:border-line-escuro;
+    }
+
+    .tabela tbody tr {
+        @apply transition-colors hover:bg-fundo;
     }
 
     .tabela tbody tr:last-child td {
@@ -171,40 +214,59 @@
     }
 
     .tabela tbody tr[data-href] {
-        @apply cursor-pointer transition-colors hover:bg-paper dark:hover:bg-panel-escuro;
+        @apply cursor-pointer transition-colors hover:bg-fundo dark:hover:bg-panel-escuro;
     }
 
     .num {
         @apply text-right tabular-nums;
     }
 
-    /* Selos: cinza suave, preto cheio ou contorno. Vermelho só no que deu errado. */
+    /* Situação e tipo: pastilha com um pontinho da mesma cor do texto. */
     .selo {
-        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap;
+        @apply inline-flex w-fit items-center gap-1.5 rounded-[4px] px-2 py-[5px] text-[11px] leading-none font-medium whitespace-nowrap;
     }
 
+    .selo-ok,
+    .selo-erro,
+    .selo-pendente,
+    .selo-info,
     .selo-neutro {
-        @apply bg-surface-alt text-ink-soft dark:bg-panel-escuro dark:text-steel;
-    }
-
-    .selo-forte {
-        @apply bg-ink text-white dark:bg-white dark:text-ink;
-    }
-
-    .selo-contorno {
-        @apply border border-hairline-campo bg-paper text-ink dark:border-line-escuro-2 dark:bg-transparent dark:text-fog;
-    }
-
-    .selo-erro {
-        @apply border border-destrutivo/35 bg-paper text-destrutivo;
+        &::before {
+            content: '';
+            @apply size-[5px] shrink-0 rounded-full bg-current;
+        }
     }
 
     .selo-ok {
-        @apply bg-surface-alt text-ink dark:bg-panel-escuro dark:text-bone;
+        @apply bg-sucesso-suave text-sucesso;
+    }
+
+    .selo-erro {
+        @apply bg-destrutivo-suave text-destrutivo;
     }
 
     .selo-pendente {
-        @apply border border-hairline-campo bg-paper text-ink dark:border-line-escuro-2 dark:bg-transparent dark:text-fog;
+        @apply bg-aviso-suave text-aviso;
+    }
+
+    .selo-info {
+        @apply bg-info-suave text-info;
+    }
+
+    .selo-neutro {
+        @apply bg-surface-alt text-mid-gray;
+    }
+
+    .selo-contorno {
+        @apply border border-hairline-campo bg-paper text-ink-soft;
+    }
+
+    .selo-forte {
+        @apply bg-ink text-white;
+    }
+
+    .avatar {
+        @apply inline-flex size-[35px] shrink-0 items-center justify-center rounded-full bg-marca-suave text-[11px] font-semibold text-marca;
     }
 
     .pulso-suave {

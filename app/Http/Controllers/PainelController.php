@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
@@ -33,8 +34,10 @@ class PainelController extends Controller
             'porSetor' => $this->porSetor(),
             'porSituacao' => $this->porSituacao($porGrupo),
             'porSolicitante' => $this->porSolicitante(),
-            'historico' => $this->historicoGeral($request)->groupBy(fn (RequisicaoEvento $e) => $e->created_at->toDateString()),
+            'historico' => $this->historicoGeral($request),
             'filtro' => $this->filtroAtivo($request),
+            'meses' => $this->mesesParaFiltro(),
+            'mes' => $this->mesEscolhido($request),
         ]);
     }
 
@@ -43,7 +46,7 @@ class PainelController extends Controller
      * aparece numa linha do histórico pra ver só aquilo (como o log de atividade do Linear/
      * GitHub). A data não filtra por intervalo — a lista já vem agrupada por dia.
      *
-     * @return \Illuminate\Support\Collection<int, RequisicaoEvento>
+     * @return \Illuminate\Pagination\LengthAwarePaginator<int, RequisicaoEvento>
      */
     private function historicoGeral(Request $request)
     {
@@ -61,9 +64,45 @@ class PainelController extends Controller
             ->when($request->filled('produto'), fn (Builder $q) => $q->whereHas(
                 'requisicao.itens', fn (Builder $i) => $i->where('descricao', $request->string('produto')),
             ))
+            ->when($this->mesEscolhido($request), function (Builder $q, string $mes) {
+                $inicio = Carbon::createFromFormat('Y-m-d', $mes.'-01')->startOfMonth();
+
+                $q->whereBetween('created_at', [$inicio, $inicio->copy()->endOfMonth()]);
+            })
             ->latest('id')
-            ->limit(80)
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
+    }
+
+    /**
+     * Mês marcado no filtro ("2026-09"), ou null para todos. Valor fora do formato é ignorado.
+     */
+    private function mesEscolhido(Request $request): ?string
+    {
+        $mes = $request->string('mes')->trim()->value();
+
+        return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $mes) === 1 ? $mes : null;
+    }
+
+    /**
+     * Os últimos 12 meses (o atual primeiro) para o filtro da atividade.
+     *
+     * @return list<array{valor: string, rotulo: string}>
+     */
+    private function mesesParaFiltro(): array
+    {
+        $atual = now()->startOfMonth();
+
+        return collect(range(0, 11))
+            ->map(function (int $atras) use ($atual) {
+                $mes = $atual->copy()->subMonthsNoOverflow($atras);
+
+                return [
+                    'valor' => $mes->format('Y-m'),
+                    'rotulo' => ucfirst($mes->locale('pt_BR')->translatedFormat('F \d\e Y')),
+                ];
+            })
+            ->all();
     }
 
     /**

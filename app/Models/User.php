@@ -54,6 +54,7 @@ class User extends Authenticatable
             'is_lider_estoque' => 'boolean',
             'is_responsavel_baixa' => 'boolean',
             'is_admin' => 'boolean',
+            'aprova_compras' => 'boolean',
         ];
     }
 
