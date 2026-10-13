@@ -13,7 +13,7 @@ enum TipoRequisicao: string
         return match ($this) {
             self::TESTE => 'TESTE',
             self::USO_CONSUMO => 'USO E CONSUMO',
-            self::COMPRA_FUNCIONARIO => 'COMPRA DE FUNCIONÁRIO',
+            self::COMPRA_FUNCIONARIO => 'PEDIDO DE COMPRA',
         };
     }
 

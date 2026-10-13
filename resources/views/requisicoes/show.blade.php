@@ -123,9 +123,15 @@
 
                 <dl class="space-y-5 border-t border-hairline p-5">
                     <div>
-                        <dt class="legenda">Finalidade</dt>
+                        <dt class="legenda">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</dt>
                         <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
                     </div>
+                    @if ($requisicao->forma_pagamento !== null)
+                        <div>
+                            <dt class="legenda">Forma de pagamento</dt>
+                            <dd class="mt-1">{{ $requisicao->forma_pagamento->rotulo() }}@if ($requisicao->parcelas) em <span class="tabular-nums">{{ $requisicao->parcelas }}</span>x @endif</dd>
+                        </div>
+                    @endif
                     @if (filled($requisicao->justificativa))
                         <div>
                             <dt class="legenda">Justificativa</dt>
@@ -584,12 +590,39 @@
 
         @can('decidirCompra', $requisicao)
             <x-modal nome="aprovar-compra" :titulo="'Aprovar compra '.$requisicao->numero" :abrir="old('_acao') === 'aprovar-compra' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}"
+                      x-data="{ enviando: false, forma: '{{ old('_acao') === 'aprovar-compra' && is_string(old('forma_pagamento')) ? old('forma_pagamento') : $requisicao->forma_pagamento?->value }}' }"
+                      x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="aprovar-compra">
                     <input type="hidden" name="decisao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois de aprovada, a compra está liberada e o status é atualizado para o solicitante.</p>
+                        <fieldset>
+                            <legend class="rotulo">Forma de pagamento</legend>
+                            <p class="ajuda">O solicitante pediu {{ mb_strtolower($requisicao->forma_pagamento?->rotulo() ?? 'sem forma definida') }}. Você pode trocar.</p>
+                            <div class="mt-2 flex flex-wrap gap-3">
+                                @foreach (\App\Enums\FormaPagamento::cases() as $forma)
+                                    <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-hairline bg-paper px-4 py-2.5 text-[13px] font-medium text-ink has-[:checked]:border-marca has-[:checked]:bg-marca-suave">
+                                        <input type="radio" name="forma_pagamento" value="{{ $forma->value }}" x-model="forma" required class="accent-marca">
+                                        {{ $forma->rotulo() }}
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('forma_pagamento')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </fieldset>
+                        <div x-show="forma === 'PARCELADO'" x-cloak>
+                            <label for="aprovar-compra-parcelas" class="rotulo">Número de parcelas</label>
+                            <input type="number" id="aprovar-compra-parcelas" name="parcelas" min="2" max="24" inputmode="numeric"
+                                   :required="forma === 'PARCELADO'" :disabled="forma !== 'PARCELADO'"
+                                   value="{{ old('_acao') === 'aprovar-compra' && is_scalar(old('parcelas')) ? old('parcelas') : $requisicao->parcelas }}"
+                                   class="campo mt-1.5 w-28 tabular-nums @error('parcelas') campo-erro @enderror">
+                            @error('parcelas')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
                         <div>
                             <label for="aprovar-compra-observacao" class="rotulo">Observação (opcional)</label>
                             <textarea id="aprovar-compra-observacao" name="observacao" rows="3" maxlength="1000"  data-foco

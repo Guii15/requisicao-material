@@ -39,6 +39,15 @@ class RequisicaoFactory extends Factory
         ]);
     }
 
+    public function compra(): static
+    {
+        return $this->state(fn () => [
+            'tipo' => TipoRequisicao::COMPRA_FUNCIONARIO,
+            'status' => StatusRequisicao::AGUARDANDO_COMPRA,
+            'data_prevista_devolucao' => null,
+        ]);
+    }
+
     public function status(StatusRequisicao $status): static
     {
         return $this->state(fn () => ['status' => $status]);

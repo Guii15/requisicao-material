@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AcaoEvento;
 use App\Enums\EtapaAssinatura;
+use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
 use App\Exceptions\RegraDeNegocioException;
@@ -59,6 +60,7 @@ class RequisicaoWorkflow
                 'justificativa' => $validado['justificativa'] ?? '',
                 'finalidade' => $validado['finalidade'],
                 'data_prevista_devolucao' => $tipo->exigeDevolucao() ? $validado['data_prevista_devolucao'] : null,
+                'forma_pagamento' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? $validado['forma_pagamento'] : null,
             ]);
 
             $requisicao->forceFill([
@@ -330,11 +332,18 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Compra de funcionário: a responsável pela baixa aprova ou reprova depois dos aprovadores.
-     * Reprovar exige motivo; aprovar aceita uma observação.
+     * Pedido de compra: a responsável pela baixa aprova ou reprova depois dos aprovadores.
+     * Reprovar exige motivo; aprovar aceita uma observação e grava a forma de pagamento (ela pode
+     * trocar a que o solicitante pediu) e, se for parcelado, o número de parcelas.
      */
-    public function decidirCompra(Requisicao $requisicao, User $por, bool $aprova, ?string $texto): Requisicao
-    {
+    public function decidirCompra(
+        Requisicao $requisicao,
+        User $por,
+        bool $aprova,
+        ?string $texto,
+        ?string $forma = null,
+        int|string|null $parcelas = null,
+    ): Requisicao {
         return $this->executar(
             $requisicao, $por,
             $aprova ? StatusRequisicao::COMPRA_APROVADA : StatusRequisicao::COMPRA_REPROVADA,
@@ -342,17 +351,54 @@ class RequisicaoWorkflow
             $aprova ? AcaoEvento::COMPRA_APROVADA : AcaoEvento::COMPRA_REPROVADA,
             $aprova ? EtapaAssinatura::COMPRA_APROVADA : EtapaAssinatura::COMPRA_REPROVADA,
             null,
-            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill(array_merge([
                 'compra_decidido_por_id' => $por->id,
                 'compra_decidido_em' => now(),
                 'compra_observacao' => $dados['observacao'],
-            ]),
-            validar: fn () => [
-                'observacao' => $aprova
-                    ? (is_string($texto) && trim($texto) !== '' ? trim($texto) : null)
-                    : $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao'),
-            ],
+            ], array_key_exists('forma_pagamento', $dados) ? [
+                'forma_pagamento' => $dados['forma_pagamento'],
+                'parcelas' => $dados['parcelas'],
+            ] : [])),
+            validar: fn () => $aprova
+                ? array_merge(
+                    ['observacao' => is_string($texto) && trim($texto) !== '' ? trim($texto) : null],
+                    $this->validarPagamento($requisicao, $forma, $parcelas),
+                )
+                : ['observacao' => $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao')],
         );
+    }
+
+    /**
+     * @return array{forma_pagamento: string, parcelas: int|null}
+     */
+    private function validarPagamento(Requisicao $requisicao, ?string $forma, int|string|null $parcelas): array
+    {
+        $dados = [
+            'forma_pagamento' => $forma !== null && $forma !== '' ? $forma : $requisicao->forma_pagamento?->value,
+            'parcelas' => $parcelas !== null && $parcelas !== '' ? $parcelas : $requisicao->parcelas,
+        ];
+
+        $validado = Validator::make($dados, [
+            'forma_pagamento' => ['required', Rule::enum(FormaPagamento::class)],
+            'parcelas' => [
+                Rule::requiredIf($dados['forma_pagamento'] === FormaPagamento::PARCELADO->value),
+                'nullable', 'integer', 'min:2', 'max:24',
+            ],
+        ], [
+            'forma_pagamento.required' => 'Escolha a forma de pagamento: à vista ou parcelado.',
+            'parcelas.required' => 'Informe em quantas parcelas.',
+            'parcelas.min' => 'Parcelado começa em 2 parcelas.',
+            'parcelas.max' => 'O máximo é 24 parcelas.',
+            'parcelas.integer' => 'Informe o número de parcelas.',
+        ], [
+            'forma_pagamento' => 'forma de pagamento',
+            'parcelas' => 'parcelas',
+        ])->validate();
+
+        return [
+            'forma_pagamento' => $validado['forma_pagamento'],
+            'parcelas' => $validado['forma_pagamento'] === FormaPagamento::PARCELADO->value ? (int) $validado['parcelas'] : null,
+        ];
     }
 
     public function cancelar(Requisicao $requisicao, User $por, ?string $motivo): Requisicao
@@ -500,6 +546,11 @@ class RequisicaoWorkflow
             'itens.*.unidade' => ['required', 'string', 'max:20'],
             'itens.*.quantidade' => ['required', 'numeric', 'gt:0', 'max:999999.999', 'decimal:0,3'],
             'justificativa' => ['nullable', 'string', 'max:2000'],
+            'forma_pagamento' => [
+                'exclude_unless:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
+                'required',
+                Rule::enum(FormaPagamento::class),
+            ],
             'finalidade' => ['required', 'string', 'min:5', 'max:2000'],
             'data_prevista_devolucao' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TESTE->value,
@@ -515,6 +566,7 @@ class RequisicaoWorkflow
             'itens.max' => 'Uma requisição pode ter no máximo 50 itens.',
             'itens.*.quantidade.gt' => 'A quantidade precisa ser maior que zero.',
             'itens.*.quantidade.decimal' => 'Use no máximo 3 casas decimais.',
+            'forma_pagamento.required' => 'Escolha a forma de pagamento: à vista ou parcelado.',
             'data_prevista_devolucao.required' => 'Informe a data prevista de devolução.',
             'data_prevista_devolucao.after_or_equal' => 'A devolução não pode ser antes de hoje.',
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",
@@ -527,6 +579,7 @@ class RequisicaoWorkflow
             'justificativa' => 'justificativa',
             'finalidade' => 'finalidade',
             'data_prevista_devolucao' => 'data prevista de devolução',
+            'forma_pagamento' => 'forma de pagamento',
         ])->validate();
     }
 }

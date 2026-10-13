@@ -150,7 +150,11 @@ class EstoqueController extends Controller
     {
         $aprova = $request->input('decisao') === 'aprovar';
 
-        $workflow->decidirCompra($requisicao, $request->user(), $aprova, $this->texto($request, 'observacao'));
+        $workflow->decidirCompra(
+            $requisicao, $request->user(), $aprova, $this->texto($request, 'observacao'),
+            $aprova ? $this->texto($request, 'forma_pagamento') : null,
+            $aprova ? $this->texto($request, 'parcelas') : null,
+        );
 
         return redirect()->route('compras.index')->with('sucesso', $aprova
             ? "Compra da requisição {$requisicao->numero} aprovada."

@@ -52,7 +52,7 @@ class RequisicaoController extends Controller
     {
         $requisicao = $workflow->criar(
             $request->user(),
-            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao']),
+            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento']),
             $this->texto($request, 'senha'),
         );
 
@@ -108,7 +108,7 @@ class RequisicaoController extends Controller
                 StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE->value => ['acessar-liberacao', 'liberacao.index', 'Liberação', 'liberacao'],
                 StatusRequisicao::PRONTA_PARA_RETIRADA->value => ['acessar-entrega', 'entrega.index', 'Entrega', 'entrega'],
                 StatusRequisicao::EM_POSSE->value => ['acessar-devolucao', 'devolucao.index', 'Devolução', 'devolucao'],
-                StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Compras de funcionários', 'compras'],
+                StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Pedidos de compra', 'compras'],
                 StatusRequisicao::AGUARDANDO_BAIXA->value => ['acessar-baixa', 'baixa.index', 'Baixa', 'baixa'],
             ];
 

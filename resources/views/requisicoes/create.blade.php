@@ -59,8 +59,8 @@
                            :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
                         <input type="radio" name="tipo" value="COMPRA_FUNCIONARIO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'COMPRA_FUNCIONARIO' && 'text-marca'"><x-phosphor-shopping-cart class="size-[21px]" aria-hidden="true" /></span>
-                        <span class="text-[13px] font-semibold text-ink">Compra de funcionário</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra para o próprio funcionário. Não passa pelo estoque: é aprovada por Kelber, Sérgio ou Miguel e depois pela Erica.</span>
+                        <span class="text-[13px] font-semibold text-ink">Pedido de compra</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque: é aprovada por Kelber, Sérgio ou Miguel e depois pela Erica.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -177,11 +177,11 @@
             <section aria-labelledby="motivo-titulo" class="border-b border-hairline pb-7">
                 <h2 id="motivo-titulo" class="mb-4 flex items-center gap-2.5">
                     <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">03</span>
-                    <span class="font-display text-[14px] font-bold text-ink">Finalidade</span>
+                    <span class="font-display text-[14px] font-bold text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</span>
                 </h2>
                 <div class="space-y-5">
                     <div>
-                        <label for="finalidade" class="rotulo">Finalidade</label>
+                        <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</label>
                         <p id="finalidade-ajuda" class="ajuda">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
                         <textarea id="finalidade" name="finalidade" rows="3" maxlength="2000" required
                                   aria-describedby="finalidade-ajuda"
@@ -191,6 +191,30 @@
                         @enderror
                     </div>
                 </div>
+            </section>
+
+            <section x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak aria-labelledby="pagamento-titulo">
+                <h2 id="pagamento-titulo" class="mb-4 flex items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Forma de pagamento</span>
+                </h2>
+                <fieldset>
+                    <legend class="sr-only">Forma de pagamento</legend>
+                    <p class="ajuda">Como você quer comprar. A Erica pode ajustar na hora da compra.</p>
+                    <div class="mt-3 flex flex-wrap gap-3">
+                        @foreach (\App\Enums\FormaPagamento::cases() as $forma)
+                            <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-hairline bg-paper px-4 py-3 text-[13px] font-medium text-ink transition-colors has-[:checked]:border-marca has-[:checked]:bg-marca-suave focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca">
+                                <input type="radio" name="forma_pagamento" value="{{ $forma->value }}" class="accent-marca"
+                                       :required="tipo === 'COMPRA_FUNCIONARIO'" :disabled="tipo !== 'COMPRA_FUNCIONARIO'"
+                                       @checked(old('forma_pagamento') === $forma->value)>
+                                {{ $forma->rotulo() }}
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('forma_pagamento')
+                        <p class="erro-campo pt-2">{{ $message }}</p>
+                    @enderror
+                </fieldset>
             </section>
 
             <section x-show="tipo === 'TESTE'" x-cloak aria-labelledby="devolucao-titulo">

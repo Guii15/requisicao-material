@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
 use App\Exceptions\RegistroProtegidoException;
@@ -30,6 +31,7 @@ class Requisicao extends Model
         'justificativa',
         'finalidade',
         'data_prevista_devolucao',
+        'forma_pagamento',
     ];
 
     private static int $alteracoesAutorizadas = 0;
@@ -46,6 +48,8 @@ class Requisicao extends Model
             'status' => StatusRequisicao::class,
             'status_alterado_em' => 'datetime',
             'data_prevista_devolucao' => 'date',
+            'forma_pagamento' => FormaPagamento::class,
+            'parcelas' => 'integer',
             'aprovado_em' => 'datetime',
             'reprovado_em' => 'datetime',
             'separado_em' => 'datetime',
