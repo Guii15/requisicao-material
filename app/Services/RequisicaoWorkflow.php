@@ -14,6 +14,7 @@ use App\Models\RequisicaoEvento;
 use App\Models\User;
 use App\Support\DiasUteis;
 use Closure;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -311,9 +312,9 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Baixa (Uso e Consumo): fecha a requisição com o documento do WinThor.
+     * Baixa (Uso e Consumo): fecha a requisição com o print do documento de baixa do WinThor.
      */
-    public function darBaixa(Requisicao $requisicao, User $por, string $documentoWinthor, ?string $observacao, ?string $senha): Requisicao
+    public function darBaixa(Requisicao $requisicao, User $por, ?UploadedFile $comprovante, ?string $observacao, ?string $senha): Requisicao
     {
         return $this->executar(
             $requisicao, $por, StatusRequisicao::BAIXADA, 'darBaixa', AcaoEvento::BAIXA,
@@ -321,13 +322,22 @@ class RequisicaoWorkflow
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'baixa_por_id' => $por->id,
                 'baixa_em' => now(),
-                'baixa_documento_winthor' => $dados['documento'],
+                'baixa_comprovante' => $comprovante->store('baixas', 'local'),
                 'baixa_observacao' => $dados['observacao'],
             ]),
-            validar: fn () => [
-                'documento' => $this->exigirMotivo($documentoWinthor, 'Informe o documento de baixa do WinThor', minimo: 2, campo: 'documento'),
-                'observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null,
-            ],
+            validar: function () use ($comprovante, $observacao) {
+                Validator::make(['comprovante' => $comprovante], [
+                    'comprovante' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+                ], [
+                    'comprovante.required' => 'Anexe o print do documento de baixa.',
+                    'comprovante.image' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+                    'comprovante.mimes' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+                    'comprovante.max' => 'O print pode ter no máximo 5 MB.',
+                    'comprovante.uploaded' => 'Não foi possível enviar o print. Tente de novo.',
+                ])->validate();
+
+                return ['observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null];
+            },
         );
     }
 

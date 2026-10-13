@@ -160,6 +160,24 @@
                 </td>
             </tr>
         @endif
+        @if (filled($requisicao->compra_observacao))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Observação da compra</div>
+                    <div class="valor">{!! nl2br(e($requisicao->compra_observacao)) !!}</div>
+                    <div class="pequeno">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</div>
+                </td>
+            </tr>
+        @endif
+        @if (filled($requisicao->baixa_observacao))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Observação da baixa</div>
+                    <div class="valor">{!! nl2br(e($requisicao->baixa_observacao)) !!}</div>
+                    <div class="pequeno">{{ $requisicao->baixaPor?->nome }}, {{ $dataHora($requisicao->baixa_em) }}</div>
+                </td>
+            </tr>
+        @endif
         @if ($requisicao->motivo_cancelamento)
             <tr>
                 <td colspan="3">

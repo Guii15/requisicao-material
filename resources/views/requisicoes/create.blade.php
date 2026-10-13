@@ -182,7 +182,7 @@
                 <div class="space-y-5">
                     <div>
                         <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</label>
-                        <p id="finalidade-ajuda" class="ajuda">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
+                        <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Por que precisa comprar? Ex.: SSD NVMe 1 TB para o notebook da montagem, o atual está com defeito.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
                         <textarea id="finalidade" name="finalidade" rows="3" maxlength="2000" required
                                   aria-describedby="finalidade-ajuda"
                                   class="campo mt-2 @error('finalidade') campo-erro @enderror">{{ old('finalidade') }}</textarea>

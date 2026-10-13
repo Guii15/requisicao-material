@@ -173,7 +173,7 @@ class EstoqueController extends Controller
         $workflow->darBaixa(
             $requisicao,
             $request->user(),
-            $this->texto($request, 'documento') ?? '',
+            $request->file('comprovante'),
             $this->texto($request, 'observacao'),
             $this->texto($request, 'senha'),
         );

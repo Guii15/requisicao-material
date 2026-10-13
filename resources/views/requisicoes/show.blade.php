@@ -172,6 +172,22 @@
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</dd>
                         </div>
                     @endif
+                    @if ($requisicao->baixa_por_id !== null)
+                        <div class="rounded-lg border border-hairline p-4">
+                            <dt class="text-[13px] font-medium text-ink">Baixa registrada</dt>
+                            @if (filled($requisicao->baixa_observacao))
+                                <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->baixa_observacao }}</dd>
+                            @endif
+                            @if ($requisicao->baixa_comprovante)
+                                <dd class="mt-2">
+                                    <a href="{{ route('requisicoes.comprovante-baixa', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                        <img src="{{ route('requisicoes.comprovante-baixa', $requisicao) }}" alt="Print do documento de baixa" loading="lazy" class="max-h-48 rounded border border-hairline">
+                                    </a>
+                                </dd>
+                            @endif
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->baixaPor?->nome }}, {{ $dataHora($requisicao->baixa_em) }}</dd>
+                        </div>
+                    @endif
                     @if ($requisicao->motivo_cancelamento)
                         <div class="rounded-lg border border-hairline bg-surface-alt p-4">
                             <dt class="text-[13px] font-medium text-mid-gray">Motivo do cancelamento</dt>
@@ -191,6 +207,9 @@
                             <span class="w-5 shrink-0 text-right text-mid-gray tabular-nums">{{ $loop->iteration }}</span>
                             <div class="min-w-0">
                                 <p>@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                @if (filled($item->observacao_devolucao))
+                                    <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
+                                @endif
                                 <p class="mt-0.5 flex flex-wrap gap-x-4 text-[13px] text-mid-gray">
                                     <span>Solicitada: <span class="font-medium text-ink tabular-nums">{{ \App\Support\Quantidade::formatar($item->qtd_solicitada) }}</span> {{ $item->unidade }}</span>
                                     <span>Separada: <span class="font-medium text-ink tabular-nums">{{ \App\Support\Quantidade::formatar($item->qtd_separada) }}</span></span>
@@ -216,7 +235,12 @@
                                 <tr>
                                     <td class="num text-mid-gray">{{ $loop->iteration }}</td>
                                     <td class="tabular-nums text-mid-gray">{{ $item->codigo ?? '—' }}</td>
-                                    <td>{{ $item->descricao }}</td>
+                                    <td>
+                                        {{ $item->descricao }}
+                                        @if (filled($item->observacao_devolucao))
+                                            <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
+                                        @endif
+                                    </td>
                                     <td class="text-mid-gray">{{ $item->unidade }}</td>
                                     <td class="num font-medium">{{ \App\Support\Quantidade::formatar($item->qtd_solicitada) }}</td>
                                     <td class="num text-mid-gray">{{ \App\Support\Quantidade::formatar($item->qtd_separada) }}</td>
@@ -673,17 +697,34 @@
 
         @can('darBaixa', $requisicao)
             <x-modal nome="baixa" :titulo="'Dar baixa '.$requisicao->numero" :abrir="old('_acao') === 'baixa' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.dar-baixa', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                <form method="POST" action="{{ route('requisicoes.dar-baixa', $requisicao) }}" enctype="multipart/form-data"
+                      x-data="{
+                          enviando: false,
+                          nome: '',
+                          colar(e) {
+                              const imagem = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+                              if (!imagem) return;
+                              const lista = new DataTransfer();
+                              lista.items.add(imagem);
+                              this.$refs.arquivo.files = lista.files;
+                              this.nome = imagem.name || 'Imagem colada';
+                          },
+                      }"
+                      x-on:paste.window="aberto && colar($event)"
+                      x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="baixa">
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois da baixa, a requisição está encerrada.</p>
                         <div>
-                            <label for="baixa-documento" class="rotulo">Documento de baixa no WinThor</label>
-                            <input id="baixa-documento" name="documento" type="text" required data-foco maxlength="40"
-                                   value="{{ old('documento') }}"
-                                   class="campo mt-1.5 @error('documento') campo-erro @enderror">
-                            @error('documento')
+                            <label for="baixa-comprovante" class="rotulo">Print do documento de baixa no WinThor</label>
+                            <p class="ajuda">Cole o print aqui (Ctrl+V) ou escolha o arquivo. PNG, JPG ou WEBP, até 5 MB.</p>
+                            <input id="baixa-comprovante" name="comprovante" type="file" x-ref="arquivo" required data-foco
+                                   accept="image/png,image/jpeg,image/webp"
+                                   x-on:change="nome = $event.target.files[0]?.name ?? ''"
+                                   class="campo mt-1.5 @error('comprovante') campo-erro @enderror">
+                            <p x-show="nome" x-cloak class="mt-1.5 text-[13px] text-ink-soft">Anexado: <span class="font-medium" x-text="nome"></span></p>
+                            @error('comprovante')
                                 <p class="erro-campo">{{ $message }}</p>
                             @enderror
                         </div>

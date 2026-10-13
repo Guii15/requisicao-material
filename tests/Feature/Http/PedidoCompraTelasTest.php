@@ -30,7 +30,8 @@ class PedidoCompraTelasTest extends TestCase
             ->assertSee('Forma de pagamento')
             ->assertSee('À vista')
             ->assertSee('Parcelado')
-            ->assertDontSee('Compra de funcionário');
+            ->assertDontSee('Compra de funcionário')
+            ->assertSee('Por que precisa comprar?');
     }
 
     public function test_abrir_pedido_de_compra_sem_forma_de_pagamento_volta_com_erro(): void

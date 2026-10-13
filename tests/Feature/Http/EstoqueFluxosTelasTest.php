@@ -7,6 +7,8 @@ use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
@@ -196,14 +198,94 @@ class EstoqueFluxosTelasTest extends TestCase
 
     public function test_dar_baixa_pela_tela(): void
     {
+        Storage::fake('local');
         $requisicao = $this->requisicaoAguardandoBaixa();
 
         $this->actingAs(User::factory()->responsavelBaixa()->create())
-            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['documento' => 'NF-123', 'senha' => 'password'])
+            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['comprovante' => UploadedFile::fake()->image('print.png'), 'senha' => 'password'])
             ->assertRedirect('/baixa')
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->fresh()->status);
+    }
+
+    public function test_dar_baixa_pela_tela_sem_print_volta_com_erro(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->actingAs(User::factory()->responsavelBaixa()->create())
+            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['senha' => 'password'])
+            ->assertSessionHasErrors('comprovante');
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
+    }
+
+    public function test_tela_da_baixa_pede_o_print_e_nao_o_numero_do_documento(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->actingAs(User::factory()->responsavelBaixa()->create())->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('name="comprovante"', false)
+            ->assertDontSee('name="documento"', false);
+    }
+
+    private function requisicaoBaixada(): Requisicao
+    {
+        Storage::fake('local');
+        $requisicao = $this->requisicaoAguardandoBaixa();
+        $this->workflow->darBaixa($requisicao, User::factory()->responsavelBaixa()->create(), UploadedFile::fake()->image('print.png'), 'Conferido no WinThor, NF ok.', 'password');
+
+        return $requisicao->fresh();
+    }
+
+    public function test_detalhe_mostra_a_observacao_e_o_print_da_baixa(): void
+    {
+        $requisicao = $this->requisicaoBaixada();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('Conferido no WinThor, NF ok.')
+            ->assertSee(route('requisicoes.comprovante-baixa', $requisicao), false);
+    }
+
+    public function test_print_da_baixa_so_abre_para_quem_pode_ver_a_requisicao(): void
+    {
+        $requisicao = $this->requisicaoBaixada();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-baixa', $requisicao))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('requisicoes.comprovante-baixa', $requisicao))->assertForbidden();
+    }
+
+    public function test_print_da_baixa_de_requisicao_sem_print_da_404(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-baixa', $requisicao))->assertNotFound();
+    }
+
+    public function test_pdf_traz_a_observacao_da_baixa(): void
+    {
+        $requisicao = $this->requisicaoBaixada();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.pdf', $requisicao))
+            ->assertOk();
+    }
+
+    public function test_detalhe_mostra_a_observacao_da_devolucao_de_cada_item(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+        $itens = $requisicao->itens->mapWithKeys(fn ($item) => [$item->id => [
+            'ok' => '0', 'defeito' => (string) $item->qtd_solicitada, 'nao_devolvida' => '0',
+            'observacao' => "Placa queimada no item {$item->id}",
+        ]])->all();
+        $this->workflow->devolver($requisicao, User::factory()->estoque()->create(), $itens, 'Maria da Silva');
+
+        $primeiro = $requisicao->itens->first();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee("Placa queimada no item {$primeiro->id}");
     }
 
     // ---- Botões condicionais no detalhe --------------------------------------------------------

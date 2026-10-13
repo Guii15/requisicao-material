@@ -14,7 +14,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RequisicaoController extends Controller
 {
@@ -74,6 +76,19 @@ class RequisicaoController extends Controller
      * Cópia em PDF para imprimir ou mostrar no estoque. Abre no navegador (inline);
      * o próprio leitor de PDF oferece imprimir e salvar.
      */
+    /**
+     * Print da baixa: fica no disco privado e só abre para quem pode ver a requisição.
+     */
+    public function comprovanteBaixa(Requisicao $requisicao): StreamedResponse
+    {
+        Gate::authorize('view', $requisicao);
+
+        $caminho = $requisicao->baixa_comprovante;
+        abort_if($caminho === null || ! Storage::disk('local')->exists($caminho), 404);
+
+        return Storage::disk('local')->response($caminho);
+    }
+
     public function pdf(Request $request, Requisicao $requisicao, FichaDaRequisicao $ficha): Response
     {
         Gate::authorize('view', $requisicao);
