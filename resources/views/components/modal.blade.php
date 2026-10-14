@@ -9,7 +9,7 @@
          role="dialog" aria-modal="true" aria-labelledby="modal-{{ $nome }}-titulo">
         <div class="w-full {{ $largura }} overflow-hidden rounded-lg bg-paper shadow-[0_24px_48px_-16px_rgba(0,0,0,0.25)] ring-1 ring-hairline" x-on:click.outside="aberto = false">
             @if ($subtitulo)
-                <div class="flex items-start justify-between gap-4 border-b border-hairline bg-fundo px-6 py-5">
+                <div class="flex items-start justify-between gap-4 border-b border-hairline bg-fundo px-4 py-4 sm:px-6 sm:py-5">
                     <div class="min-w-0">
                         <h2 id="modal-{{ $nome }}-titulo" class="text-lg font-semibold text-ink">{{ $titulo }}</h2>
                         <p class="mt-1 text-[13px] text-mid-gray">{{ $subtitulo }}</p>

@@ -511,18 +511,18 @@
                 <form method="POST" action="{{ route('requisicoes.devolver', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="devolver">
-                    <div class="grid gap-7 px-6 py-5 md:grid-cols-[1.3fr_1fr]">
-                        <div>
+                    <div class="grid grid-cols-1 gap-7 px-4 py-5 sm:px-6 md:grid-cols-[1.3fr_1fr]">
+                        <div class="min-w-0">
                             <p class="etiqueta mb-3.5 border-b border-hairline pb-1.5">Conferência</p>
                             <div class="space-y-3">
                                 @foreach ($requisicao->itens->reject->isRecusado() as $item)
                                     <div class="rounded-lg border border-hairline p-3.5" x-data="{ resultado: '{{ $divergenteAntes($item) ? 'divergente' : 'ok' }}' }">
-                                        <div class="flex items-start justify-between gap-3">
+                                        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                             <div class="min-w-0">
-                                                <p class="truncate text-sm font-medium text-ink">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                                <p class="text-sm font-medium break-words text-ink sm:truncate">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
                                                 <p class="text-[13px] text-mid-gray">Solicitada: {{ $semZerosDevolucao($item->qtd_solicitada) }} {{ $item->unidade }}</p>
                                             </div>
-                                            <div class="w-40 shrink-0">
+                                            <div class="w-full shrink-0 sm:w-40">
                                                 <label for="devolver-{{ $item->id }}-resultado" class="sr-only">Resultado de {{ $item->descricao }}</label>
                                                 <select id="devolver-{{ $item->id }}-resultado" x-model="resultado" @if ($loop->first) data-foco @endif class="campo h-9 py-0 text-[13px]">
                                                     <option value="ok">Voltou tudo OK</option>
@@ -580,7 +580,7 @@
                             </div>
                         </div>
 
-                        <div>
+                        <div class="min-w-0">
                             <p class="etiqueta mb-3.5 border-b border-hairline pb-1.5">Sobre a requisição</p>
                             <dl class="text-[13px]">
                                 <div class="flex justify-between gap-3 border-b border-hairline py-1.5"><dt class="text-mid-gray">Setor</dt><dd class="text-right">{{ $requisicao->setor->nome }}</dd></div>
@@ -593,7 +593,7 @@
                             <p class="text-[13px] whitespace-pre-line text-ink-soft">{{ $requisicao->finalidade }}</p>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-2 border-t border-hairline bg-fundo px-6 py-4">
+                    <div class="flex justify-end gap-2 border-t border-hairline bg-fundo px-4 py-4 sm:px-6">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Cancelar</button>
                         <button type="submit" class="botao botao-primario" :disabled="enviando">
                             <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />

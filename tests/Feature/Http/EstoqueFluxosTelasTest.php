@@ -238,6 +238,17 @@ class EstoqueFluxosTelasTest extends TestCase
             ->assertOk();
     }
 
+    public function test_modal_de_devolucao_empilha_no_celular(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+
+        $this->actingAs(User::factory()->estoque()->create())->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('grid grid-cols-1', false)
+            ->assertSee('flex flex-col', false)
+            ->assertSee('w-full shrink-0 sm:w-40', false);
+    }
+
     public function test_detalhe_mostra_a_observacao_da_devolucao_de_cada_item(): void
     {
         $requisicao = $this->requisicaoEmPosse();
