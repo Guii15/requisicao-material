@@ -47,7 +47,6 @@ class AppServiceProvider extends ServiceProvider
         // Liberação é só de Uso e Consumo, só líder do estoque.
         Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque);
 
-        Gate::define('acessar-entrega', fn (User $user) => $user->is_estoque);
 
         // Devolução é só de Teste.
         Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque);

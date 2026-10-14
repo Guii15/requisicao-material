@@ -6,7 +6,6 @@ use App\Services\FilaDeAprovacao;
 use App\Services\FilaDeBaixa;
 use App\Services\FilaDeCompras;
 use App\Services\FilaDeDevolucao;
-use App\Services\FilaDeEntrega;
 use App\Services\FilaDeLiberacao;
 use App\Services\FilaDeSeparacao;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +22,6 @@ class MenuComposer
         private readonly FilaDeAprovacao $fila,
         private readonly FilaDeSeparacao $filaSeparacao,
         private readonly FilaDeLiberacao $filaLiberacao,
-        private readonly FilaDeEntrega $filaEntrega,
         private readonly FilaDeDevolucao $filaDevolucao,
         private readonly FilaDeBaixa $filaBaixa,
         private readonly FilaDeCompras $filaCompras,
@@ -41,7 +39,6 @@ class MenuComposer
             'aprovacoes' => $contar('acessar-aprovacoes', $this->fila),
             'separacao' => $contar('acessar-separacao', $this->filaSeparacao),
             'liberacao' => $contar('acessar-liberacao', $this->filaLiberacao),
-            'entrega' => $contar('acessar-entrega', $this->filaEntrega),
             'devolucao' => $contar('acessar-devolucao', $this->filaDevolucao),
             'baixa' => $contar('acessar-baixa', $this->filaBaixa),
             'compras' => $contar('acessar-compras', $this->filaCompras),

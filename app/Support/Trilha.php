@@ -18,7 +18,7 @@ final class Trilha
         $teste = $tipo === TipoRequisicao::TESTE;
         $nomes = $teste
             ? ['Aprovação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
-            : ['Aprovação', 'Separação', 'Liberação', 'Retirada', 'Baixa'];
+            : ['Aprovação', 'Separação', 'Liberação', 'Baixa'];
 
         if ($status === S::CANCELADA) {
             return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'cancelada'], $nomes);
@@ -28,7 +28,7 @@ final class Trilha
             return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'feita'], $nomes);
         }
 
-        // Posição (0 a 4) da etapa em que a requisição está.
+        // Posição da etapa em que a requisição está.
         $posicao = $teste
             ? match ($status) {
                 S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
@@ -41,8 +41,7 @@ final class Trilha
                 S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
                 S::APROVADA, S::EM_SEPARACAO => 1,
                 S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE => 2,
-                S::PRONTA_PARA_RETIRADA => 3,
-                default => 4,
+                default => 3,
             };
 
         $falhou = in_array($status, [S::REPROVADA, S::REPROVADA_ESTOQUE, S::DEVOLUCAO_COM_PENDENCIA], true);

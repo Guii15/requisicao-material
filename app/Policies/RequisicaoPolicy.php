@@ -109,11 +109,14 @@ class RequisicaoPolicy
     }
 
     /**
-     * Qualquer um do estoque entrega (o desenho de quem retira não precisa de login).
+     * Só o Teste entrega (junto com a separação, na mesma tela); o Uso e Consumo não tem entrega.
      */
     public function entregar(User $user, Requisicao $requisicao): bool
     {
-        return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
+        return $user->ativo
+            && $user->is_estoque
+            && $requisicao->tipo === TipoRequisicao::TESTE
+            && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
     }
 
     /**

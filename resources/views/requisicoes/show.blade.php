@@ -58,11 +58,6 @@
                     <x-phosphor-lock-open class="size-[18px]" aria-hidden="true" />Liberar
                 </button>
             @endcan
-            @can('entregar', $requisicao)
-                <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'entregar')">
-                    <x-phosphor-package class="size-[18px]" aria-hidden="true" />Entregar
-                </button>
-            @endcan
             @can('devolver', $requisicao)
                 <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'devolver')">
                     <x-phosphor-arrow-counter-clockwise class="size-[18px]" aria-hidden="true" />Conferir devolução
@@ -206,7 +201,10 @@
                         <li class="flex gap-3 px-5 py-3 text-sm">
                             <span class="w-5 shrink-0 text-right text-mid-gray tabular-nums">{{ $loop->iteration }}</span>
                             <div class="min-w-0">
-                                <p>@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                <p @class(['line-through text-mid-gray' => $item->isRecusado()])>@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                @if ($item->isRecusado())
+                                    <p class="mt-0.5 text-[13px] text-destrutivo">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</p>
+                                @endif
                                 @if (filled($item->observacao_devolucao))
                                     <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
                                 @endif
@@ -236,7 +234,10 @@
                                     <td class="num text-mid-gray">{{ $loop->iteration }}</td>
                                     <td class="tabular-nums text-mid-gray">{{ $item->codigo ?? '—' }}</td>
                                     <td>
-                                        {{ $item->descricao }}
+                                        <span @class(['line-through text-mid-gray' => $item->isRecusado()])>{{ $item->descricao }}</span>
+                                        @if ($item->isRecusado())
+                                            <p class="mt-0.5 text-[13px] text-destrutivo">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</p>
+                                        @endif
                                         @if (filled($item->observacao_devolucao))
                                             <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
                                         @endif
@@ -350,6 +351,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
+                        <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar" />
                         <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a Erica decidir.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
@@ -404,7 +406,7 @@
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Confira a quantidade de cada item. O que não achar, deixe em 0. A requisição segue com o que foi separado.@if ($juntaEntrega) Informe quem está retirando: a entrega já fica registrada junto.@endif</p>
                         <div class="space-y-3">
-                            @foreach ($requisicao->itens as $item)
+                            @foreach ($requisicao->itens->reject->isRecusado()->values() as $item)
                                 <div class="flex items-center gap-3">
                                     <div class="min-w-0 flex-1">
                                         <p class="truncate text-sm font-medium text-ink">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
@@ -424,6 +426,8 @@
                         </div>
                         @if ($juntaEntrega)
                             <x-campo-pessoa nome="retirado_por_nome" id="separar-nome" rotulo="Quem está retirando" />
+                        @else
+                            <x-campo-pessoa nome="retirado_por_nome" id="separar-nome" rotulo="Quem vai retirar (opcional)" :obrigatorio="false" />
                         @endif
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
@@ -447,7 +451,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="liberar">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Depois de liberada, a requisição vai pra fila de entrega.</p>
+                        <p class="text-sm text-ink-soft">Depois de liberada, a requisição vai direto para a baixa.</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
@@ -485,25 +489,6 @@
             </x-modal>
         @endcan
 
-            @can('entregar', $requisicao)
-            <x-modal nome="entregar" :titulo="'Entregar '.$requisicao->numero" :abrir="old('_acao') === 'entregar' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.entregar', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
-                    @csrf
-                    <input type="hidden" name="_acao" value="entregar">
-                    <div class="space-y-4 px-5 py-4">
-                        <x-campo-pessoa nome="retirado_por_nome" id="entregar-nome" rotulo="Quem está retirando" data-foco />
-                    </div>
-                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
-                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
-                        <button type="submit" class="botao botao-primario" :disabled="enviando">
-                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
-                            <span x-text="enviando ? 'Enviando…' : 'Confirmar entrega'"></span>
-                        </button>
-                    </div>
-                </form>
-            </x-modal>
-        @endcan
-
             @can('devolver', $requisicao)
             @php
                 $semZerosDevolucao = fn ($valor) => rtrim(rtrim((string) $valor, '0'), '.') ?: '0';
@@ -523,7 +508,7 @@
                         <div>
                             <p class="etiqueta mb-3.5 border-b border-hairline pb-1.5">Conferência</p>
                             <div class="space-y-3">
-                                @foreach ($requisicao->itens as $item)
+                                @foreach ($requisicao->itens->reject->isRecusado() as $item)
                                     <div class="rounded-lg border border-hairline p-3.5" x-data="{ resultado: '{{ $divergenteAntes($item) ? 'divergente' : 'ok' }}' }">
                                         <div class="flex items-start justify-between gap-3">
                                             <div class="min-w-0">
@@ -622,6 +607,7 @@
                     <input type="hidden" name="decisao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois de aprovada, a compra está liberada e o status é atualizado para o solicitante.</p>
+                        <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar-compra" />
                         <fieldset>
                             <legend class="rotulo">Forma de pagamento</legend>
                             <p class="ajuda">O solicitante pediu {{ mb_strtolower($requisicao->forma_pagamento?->rotulo() ?? 'sem forma definida') }}. Você pode trocar.</p>

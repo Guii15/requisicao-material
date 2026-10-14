@@ -206,7 +206,14 @@
                 <tr>
                     <td class="num">{{ $loop->iteration }}</td>
                     <td>{{ $item->codigo }}</td>
-                    <td>{{ $item->descricao }}</td>
+                    <td>
+                        @if ($item->isRecusado())
+                            <s>{{ $item->descricao }}</s><br>
+                            <span class="pequeno">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</span>
+                        @else
+                            {{ $item->descricao }}
+                        @endif
+                    </td>
                     <td>{{ $item->unidade }}</td>
                     <td class="num">{{ Quantidade::formatar($item->qtd_solicitada) }}</td>
                     <td class="num">{{ Quantidade::formatar($item->qtd_separada) }}</td>

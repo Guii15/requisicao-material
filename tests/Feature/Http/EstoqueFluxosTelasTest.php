@@ -13,7 +13,7 @@ use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 /**
- * Wiring das telas de Separação+entrega (Teste), Liberação, Entrega, Devolução e Baixa (rota -> controller
+ * Wiring das telas de Separação+entrega (Teste), Liberação, Devolução e Baixa (rota -> controller
  * -> view -> redirect). As regras de negócio de cada uma já têm teste próprio e mais completo
  * em RequisicaoWorkflowTest e RequisicaoPolicyTest; aqui é só conferir que a tela funciona.
  */
@@ -64,7 +64,6 @@ class EstoqueFluxosTelasTest extends TestCase
         $requisicao = $this->requisicaoAguardandoLiberacao();
         $lider = User::factory()->liderEstoque()->create();
         $this->workflow->liberar($requisicao, $lider, 'password');
-        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Fulano');
 
         return $requisicao->fresh();
     }
@@ -90,35 +89,7 @@ class EstoqueFluxosTelasTest extends TestCase
             ->assertRedirect('/liberacao')
             ->assertSessionHas('sucesso');
 
-        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->fresh()->status);
-    }
-
-    // ---- Entrega ------------------------------------------------------------------------------
-
-    public function test_estoque_ve_a_fila_de_entrega(): void
-    {
-        $requisicao = $this->requisicaoProntaParaRetirada();
-
-        $this->actingAs(User::factory()->estoque()->create())->get('/entrega')
-            ->assertOk()
-            ->assertSee($requisicao->numero);
-    }
-
-    public function test_entregar_pela_tela(): void
-    {
-        $requisicao = $this->requisicaoProntaParaRetirada();
-
-        $this->actingAs(User::factory()->estoque()->create())
-            ->post("/requisicoes/{$requisicao->numero}/entregar", [
-                'retirado_por_nome' => 'Maria da Silva',
-                'senha' => 'password',
-            ])
-            ->assertRedirect('/entrega')
-            ->assertSessionHas('sucesso');
-
-        $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->status);
-        $this->assertSame('Maria da Silva', $requisicao->retirado_por_nome);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
     }
 
     // ---- Separar e entregar na mesma tela (Teste) -----------------------------------------------
@@ -293,14 +264,16 @@ class EstoqueFluxosTelasTest extends TestCase
     public function test_detalhe_mostra_botoes_certos_por_etapa(): void
     {
         $liberacao = $this->requisicaoAguardandoLiberacao('TI-A');
-        $entrega = $this->requisicaoProntaParaRetirada('TI-B');
+        $teste = Requisicao::factory()->status(StatusRequisicao::APROVADA)->create();
+        $teste->itens()->create(['descricao' => 'Mouse USB', 'unidade' => 'UN', 'qtd_solicitada' => 1]);
 
         $this->actingAs(User::factory()->liderEstoque()->create())
             ->get("/requisicoes/{$liberacao->numero}")
             ->assertSee('Liberar');
 
         $this->actingAs(User::factory()->estoque()->create())
-            ->get("/requisicoes/{$entrega->numero}")
-            ->assertSee('Entregar');
+            ->get("/requisicoes/{$teste->numero}")
+            ->assertSee('Separar e entregar')
+            ->assertDontSee('name="entregar"', false);
     }
 }

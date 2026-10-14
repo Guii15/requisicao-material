@@ -24,7 +24,7 @@ class SeparacaoTelasTest extends TestCase
     private function requisicaoAprovada(): Requisicao
     {
         [$ti, $lider] = $this->setorComAprovadores();
-        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         app(RequisicaoWorkflow::class)->aprovar($requisicao, $lider, 'password');
 
         return $requisicao->fresh();
@@ -63,8 +63,20 @@ class SeparacaoTelasTest extends TestCase
             ->assertSessionHas('sucesso');
 
         $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->status);
         $this->assertSame($estoquista->id, $requisicao->separado_por_id);
+    }
+
+    public function test_teste_nao_se_separa_sozinho_so_separa_e_entrega(): void
+    {
+        $requisicao = Requisicao::factory()->status(StatusRequisicao::APROVADA)->create();
+        $item = $requisicao->itens()->create(['descricao' => 'Mouse USB', 'unidade' => 'UN', 'qtd_solicitada' => 1]);
+
+        $this->actingAs(User::factory()->estoque()->create())
+            ->post("/requisicoes/{$requisicao->numero}/separar", ['itens' => [$item->id => '1']])
+            ->assertStatus(422);
+
+        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
     }
 
     public function test_separar_com_quantidade_maior_reabre_o_modal_com_erro(): void

@@ -55,6 +55,6 @@ enum EtapaAssinatura: string
 
         return $tipo === TipoRequisicao::TESTE
             ? [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::ENTREGA, self::DEVOLUCAO]
-            : [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::LIBERACAO_ESTOQUE, self::ENTREGA, self::BAIXA];
+            : [self::SOLICITACAO, self::APROVACAO_SETOR, self::SEPARACAO, self::LIBERACAO_ESTOQUE, self::BAIXA];
     }
 }

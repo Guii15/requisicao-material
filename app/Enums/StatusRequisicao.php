@@ -80,9 +80,10 @@ enum StatusRequisicao: string
             self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
             self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_LIBERACAO_ESTOQUE, self::CANCELADA],
             self::AGUARDANDO_LIBERACAO_ESTOQUE => $teste ? [] : [self::LIBERADA, self::REPROVADA_ESTOQUE, self::CANCELADA],
-            self::LIBERADA => $teste ? [] : [self::PRONTA_PARA_RETIRADA],
-            self::PRONTA_PARA_RETIRADA => [self::ENTREGUE, self::CANCELADA],
-            self::ENTREGUE => [$teste ? self::EM_POSSE : self::AGUARDANDO_BAIXA],
+            // Sem tela de entrega: o Uso e Consumo liberado vai direto para a baixa. Só o Teste passa por retirada/entrega.
+            self::LIBERADA => $teste ? [] : [self::AGUARDANDO_BAIXA],
+            self::PRONTA_PARA_RETIRADA => $teste ? [self::ENTREGUE, self::CANCELADA] : [],
+            self::ENTREGUE => $teste ? [self::EM_POSSE] : [],
             self::EM_POSSE => $teste ? [self::DEVOLVIDA, self::DEVOLUCAO_COM_PENDENCIA] : [],
             self::AGUARDANDO_BAIXA => $teste ? [] : [self::BAIXADA],
             default => [],

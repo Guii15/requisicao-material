@@ -7,13 +7,12 @@ use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\FilaDeBaixa;
 use App\Services\FilaDeDevolucao;
-use App\Services\FilaDeEntrega;
 use App\Services\FilaDeLiberacao;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * As filas de liberação, entrega, devolução e baixa. A de separação já tem teste próprio
+ * As filas de liberação, devolução e baixa. A de separação já tem teste próprio
  * (FilaDeSeparacaoTest) por ter sido a primeira; as outras seguem a mesma lógica.
  */
 class FilasDeEstoqueTest extends TestCase
@@ -33,16 +32,6 @@ class FilasDeEstoqueTest extends TestCase
         $this->assertContains($requisicao->numero, $fila->para(User::factory()->liderEstoque()->create())->pluck('numero')->all());
         $this->assertNotContains($requisicao->numero, $fila->para($aprovador)->pluck('numero')->all());
         $this->assertNotContains($requisicao->numero, $fila->para($separador)->pluck('numero')->all());
-    }
-
-    public function test_fila_de_entrega_mostra_prontas_para_retirada(): void
-    {
-        $pronta = Requisicao::factory()->status(StatusRequisicao::PRONTA_PARA_RETIRADA)->create();
-        Requisicao::factory()->status(StatusRequisicao::APROVADA)->create();
-
-        $numeros = app(FilaDeEntrega::class)->para(User::factory()->estoque()->create())->pluck('numero')->all();
-
-        $this->assertSame([$pronta->numero], $numeros);
     }
 
     public function test_fila_de_devolucao_so_mostra_teste_em_posse(): void

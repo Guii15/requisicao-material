@@ -8,7 +8,6 @@
         request()->routeIs('aprovacoes.*') => 'aprovacoes',
         request()->routeIs('separacao.*') => 'separacao',
         request()->routeIs('liberacao.*') => 'liberacao',
-        request()->routeIs('entrega.*') => 'entrega',
         request()->routeIs('devolucao.*') => 'devolucao',
         request()->routeIs('baixa.*') => 'baixa',
         request()->routeIs('compras.*') => 'compras',
@@ -65,9 +64,6 @@
             @endif
             @if ($menu['liberacao'] !== null)
                 <x-menu-link-lateral :href="route('liberacao.index')" :ativo="$secao === 'liberacao'" :contador="$menu['liberacao']" contador-nome="liberacao" icone="lock-key">Liberação</x-menu-link-lateral>
-            @endif
-            @if ($menu['entrega'] !== null)
-                <x-menu-link-lateral :href="route('entrega.index')" :ativo="$secao === 'entrega'" :contador="$menu['entrega']" contador-nome="entrega" icone="truck">Entrega</x-menu-link-lateral>
             @endif
             @if ($menu['devolucao'] !== null)
                 <x-menu-link-lateral :href="route('devolucao.index')" :ativo="$secao === 'devolucao'" :contador="$menu['devolucao']" contador-nome="devolucao" icone="arrow-counter-clockwise">Devolução</x-menu-link-lateral>

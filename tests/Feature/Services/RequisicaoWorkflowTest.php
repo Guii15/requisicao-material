@@ -500,15 +500,13 @@ class RequisicaoWorkflowTest extends TestCase
             User::find($requisicao->separado_por_id),
         );
         $this->workflow->liberar($requisicao, $lider, 'password');
-        $requisicao->refresh();
-        $this->workflow->entregar($requisicao, User::factory()->estoque()->create(), 'Fulano de Tal');
 
         return $requisicao->fresh();
     }
 
     // ---- Liberação (só Uso e Consumo) ----------------------------------------------------
 
-    public function test_lider_do_estoque_libera_e_avanca_pra_pronta_para_retirada(): void
+    public function test_lider_do_estoque_libera_e_a_requisicao_vai_direto_pra_baixa(): void
     {
         $requisicao = $this->requisicaoAguardandoLiberacao();
         $lider = $this->liderEstoqueDiferenteDe(
@@ -519,7 +517,7 @@ class RequisicaoWorkflowTest extends TestCase
         $this->workflow->liberar($requisicao, $lider, 'password');
 
         $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
         $this->assertSame($lider->id, $requisicao->liberado_por_id);
         $this->assertNotNull($requisicao->liberado_em);
     }
@@ -577,11 +575,12 @@ class RequisicaoWorkflowTest extends TestCase
         $this->assertNotContains(EtapaAssinatura::RETIRADA, $assinaturas, 'Não há mais assinatura desenhada de quem retira.');
     }
 
-    public function test_entregar_no_uso_e_consumo_avanca_pra_aguardando_baixa(): void
+    public function test_uso_e_consumo_nao_tem_assinatura_de_entrega(): void
     {
         $requisicao = $this->requisicaoAguardandoBaixa();
 
         $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
+        $this->assertNotContains(EtapaAssinatura::ENTREGA, $requisicao->assinaturas->pluck('etapa')->all());
     }
 
     public function test_entregar_sem_nome_de_quem_retira_e_recusado(): void
@@ -755,7 +754,6 @@ class RequisicaoWorkflowTest extends TestCase
         $requisicao->refresh();
         $outroLider = $this->liderEstoqueDiferenteDe(User::find($requisicao->separado_por_id));
         $this->workflow->liberar($requisicao, $outroLider, 'password');
-        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Erica');
         $requisicao->refresh();
 
         $this->expectException(AuthorizationException::class);

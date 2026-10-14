@@ -289,7 +289,8 @@ class AssinaturaService
             $exigidas[] = Etapa::REPROVACAO_ESTOQUE;
         }
 
-        if (in_array($status, $depoisDaEntrega, true)) {
+        // Só o Teste tem a etapa de entrega; no Uso e Consumo a liberação leva direto à baixa.
+        if ($requisicao->tipo === TipoRequisicao::TESTE && in_array($status, $depoisDaEntrega, true)) {
             $exigidas[] = Etapa::ENTREGA;
         }
 

@@ -33,7 +33,7 @@ class EtapaAssinaturaTest extends TestCase
             E::fluxo(TipoRequisicao::TESTE),
         );
         $this->assertSame(
-            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::LIBERACAO_ESTOQUE, E::ENTREGA, E::BAIXA],
+            [E::SOLICITACAO, E::APROVACAO_SETOR, E::SEPARACAO, E::LIBERACAO_ESTOQUE, E::BAIXA],
             E::fluxo(TipoRequisicao::USO_CONSUMO),
         );
     }
