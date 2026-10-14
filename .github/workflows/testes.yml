@@ -1,0 +1,42 @@
+# Roda a cada push e a cada PR: instala do zero (pega dependência ou extensão faltando),
+# gera o build do front e roda todos os testes. PR com isso vermelho não deve entrar no main.
+name: Testes
+
+on:
+  push:
+    branches: [main, visual/lovable]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, gd, intl, mbstring, pdo_sqlite, zip
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Dependências PHP
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Ambiente
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Build do front
+        run: |
+          npm ci
+          npm run build
+
+      - name: Testes
+        run: php artisan test
