@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/requisicoes/{requisicao}', [RequisicaoController::class, 'show'])->name('requisicoes.show');
             Route::get('/requisicoes/{requisicao}/pdf', [RequisicaoController::class, 'pdf'])->name('requisicoes.pdf');
             Route::get('/requisicoes/{requisicao}/comprovante-baixa', [RequisicaoController::class, 'comprovanteBaixa'])->name('requisicoes.comprovante-baixa');
+            Route::get('/requisicoes/{requisicao}/comprovante-compra', [RequisicaoController::class, 'comprovanteCompra'])->name('requisicoes.comprovante-compra');
             Route::post('/requisicoes/{requisicao}/cancelar', [RequisicaoController::class, 'cancelar'])->name('requisicoes.cancelar');
 
             Route::get('/aprovacoes', [AprovacaoController::class, 'index'])->name('aprovacoes.index');

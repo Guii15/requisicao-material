@@ -6,6 +6,8 @@ use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
@@ -17,6 +19,7 @@ class DecisaoPorItemTelasTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         $this->travelTo('2026-09-24 10:00:00');
     }
 
@@ -117,6 +120,7 @@ class DecisaoPorItemTelasTest extends TestCase
         $this->actingAs($erica)->post(route('requisicoes.decidir-compra', $requisicao), [
             'decisao' => 'aprovar',
             'forma_pagamento' => 'A_VISTA',
+            'comprovante' => UploadedFile::fake()->image('winthor.png'),
             'itens' => [
                 $a->id => ['decisao' => 'aprovar'],
                 $b->id => ['decisao' => 'recusar', 'motivo' => 'Já temos em estoque'],

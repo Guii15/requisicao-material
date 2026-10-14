@@ -7,6 +7,8 @@ use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
@@ -25,6 +27,7 @@ class DecisaoPorItemTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         $this->travelTo('2026-09-24 10:00:00');
         $this->workflow = app(RequisicaoWorkflow::class);
     }
@@ -119,6 +122,7 @@ class DecisaoPorItemTest extends TestCase
         $this->workflow->decidirCompra(
             $requisicao, $erica, true, null, 'A_VISTA', null,
             recusados: [$b->id => 'Já temos em estoque'],
+            comprovante: UploadedFile::fake()->image('winthor.png'),
         );
 
         $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->fresh()->status);

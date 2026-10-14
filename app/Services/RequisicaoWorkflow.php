@@ -415,9 +415,10 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Baixa (Uso e Consumo): fecha a requisição com o print do documento de baixa do WinThor.
+     * Baixa (Uso e Consumo): fecha a requisição. O print do WinThor agora fica no pedido de compra;
+     * a baixa só leva uma observação opcional.
      */
-    public function darBaixa(Requisicao $requisicao, User $por, ?UploadedFile $comprovante, ?string $observacao, ?string $senha): Requisicao
+    public function darBaixa(Requisicao $requisicao, User $por, ?string $observacao, ?string $senha): Requisicao
     {
         return $this->executar(
             $requisicao, $por, StatusRequisicao::BAIXADA, 'darBaixa', AcaoEvento::BAIXA,
@@ -425,23 +426,26 @@ class RequisicaoWorkflow
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'baixa_por_id' => $por->id,
                 'baixa_em' => now(),
-                'baixa_comprovante' => $comprovante->store('baixas', 'local'),
                 'baixa_observacao' => $dados['observacao'],
             ]),
-            validar: function () use ($comprovante, $observacao) {
-                Validator::make(['comprovante' => $comprovante], [
-                    'comprovante' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
-                ], [
-                    'comprovante.required' => 'Anexe o print do documento de baixa.',
-                    'comprovante.image' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
-                    'comprovante.mimes' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
-                    'comprovante.max' => 'O print pode ter no máximo 5 MB.',
-                    'comprovante.uploaded' => 'Não foi possível enviar o print. Tente de novo.',
-                ])->validate();
-
-                return ['observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null];
-            },
+            validar: fn () => ['observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null],
         );
+    }
+
+    /**
+     * Print do pedido de compra no WinThor: obrigatório para aprovar a compra.
+     */
+    private function validarPrint(?UploadedFile $comprovante): void
+    {
+        Validator::make(['comprovante' => $comprovante], [
+            'comprovante' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+        ], [
+            'comprovante.required' => 'Anexe o print do pedido de compra no WinThor.',
+            'comprovante.image' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'comprovante.mimes' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'comprovante.max' => 'O print pode ter no máximo 5 MB.',
+            'comprovante.uploaded' => 'Não foi possível enviar o print. Tente de novo.',
+        ])->validate();
     }
 
     /**
@@ -457,6 +461,7 @@ class RequisicaoWorkflow
         ?string $forma = null,
         int|string|null $parcelas = null,
         array $recusados = [],
+        ?UploadedFile $comprovante = null,
     ): Requisicao {
         $recusas = $aprova ? $this->normalizarRecusas($requisicao, $recusados) : [];
 
@@ -474,7 +479,7 @@ class RequisicaoWorkflow
             $aprova ? AcaoEvento::COMPRA_APROVADA : AcaoEvento::COMPRA_REPROVADA,
             $aprova ? EtapaAssinatura::COMPRA_APROVADA : EtapaAssinatura::COMPRA_REPROVADA,
             null,
-            alterar: function (Requisicao $r, array $dados) use ($por) {
+            alterar: function (Requisicao $r, array $dados) use ($por, $comprovante) {
                 $r->forceFill(array_merge([
                     'compra_decidido_por_id' => $por->id,
                     'compra_decidido_em' => now(),
@@ -482,16 +487,23 @@ class RequisicaoWorkflow
                 ], array_key_exists('forma_pagamento', $dados) ? [
                     'forma_pagamento' => $dados['forma_pagamento'],
                     'parcelas' => $dados['parcelas'],
+                    'compra_comprovante' => $comprovante?->store('compras', 'local'),
                 ] : []));
                 $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
             },
-            validar: fn () => $aprova
-                ? array_merge(
+            validar: function () use ($aprova, $texto, $requisicao, $forma, $parcelas, $recusas, $comprovante) {
+                if (! $aprova) {
+                    return ['observacao' => $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao')];
+                }
+
+                $this->validarPrint($comprovante);
+
+                return array_merge(
                     ['observacao' => is_string($texto) && trim($texto) !== '' ? trim($texto) : null],
                     $this->validarPagamento($requisicao, $forma, $parcelas),
                     $recusas === [] ? [] : ['recusas' => $recusas],
-                )
-                : ['observacao' => $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao')],
+                );
+            },
         );
     }
 

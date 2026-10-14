@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Services\FilaDeCompras;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
@@ -24,8 +26,15 @@ class CompraPagamentoTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         $this->travelTo('2026-09-24 10:00:00');
         $this->workflow = app(RequisicaoWorkflow::class);
+    }
+
+    /** Print do WinThor: obrigatório para aprovar a compra. */
+    private function print(): UploadedFile
+    {
+        return UploadedFile::fake()->image('winthor.png');
     }
 
     private function dadosCompra(array $sobrescrever = []): array
@@ -79,7 +88,7 @@ class CompraPagamentoTest extends TestCase
         $erica = User::factory()->responsavelBaixa()->create();
         $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::A_VISTA]);
 
-        $this->workflow->decidirCompra($requisicao, $erica, true, null);
+        $this->workflow->decidirCompra($requisicao, $erica, true, null, null, null, [], $this->print());
 
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->status);
@@ -93,7 +102,7 @@ class CompraPagamentoTest extends TestCase
         $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::PARCELADO]);
 
         try {
-            $this->workflow->decidirCompra($requisicao, $erica, true, null);
+            $this->workflow->decidirCompra($requisicao, $erica, true, null, null, null, [], $this->print());
             $this->fail('Devia exigir as parcelas.');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('parcelas', $e->errors());
@@ -110,7 +119,7 @@ class CompraPagamentoTest extends TestCase
             $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::PARCELADO]);
 
             try {
-                $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', $invalida);
+                $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', $invalida, [], $this->print());
                 $this->fail("Aceitou {$invalida} parcelas.");
             } catch (ValidationException $e) {
                 $this->assertArrayHasKey('parcelas', $e->errors(), "parcelas={$invalida}");
@@ -123,7 +132,7 @@ class CompraPagamentoTest extends TestCase
         $erica = User::factory()->responsavelBaixa()->create();
         $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::PARCELADO]);
 
-        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', 6);
+        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', 6, [], $this->print());
 
         $requisicao->refresh();
         $this->assertSame(FormaPagamento::PARCELADO, $requisicao->forma_pagamento);
@@ -135,7 +144,7 @@ class CompraPagamentoTest extends TestCase
         $erica = User::factory()->responsavelBaixa()->create();
         $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::A_VISTA]);
 
-        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', 3);
+        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'PARCELADO', 3, [], $this->print());
 
         $requisicao->refresh();
         $this->assertSame(FormaPagamento::PARCELADO, $requisicao->forma_pagamento);
@@ -147,7 +156,7 @@ class CompraPagamentoTest extends TestCase
         $erica = User::factory()->responsavelBaixa()->create();
         $requisicao = $this->compraAguardando(['forma_pagamento' => FormaPagamento::PARCELADO, 'parcelas' => 4]);
 
-        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'A_VISTA', 4);
+        $this->workflow->decidirCompra($requisicao, $erica, true, null, 'A_VISTA', 4, [], $this->print());
 
         $requisicao->refresh();
         $this->assertSame(FormaPagamento::A_VISTA, $requisicao->forma_pagamento);
@@ -174,7 +183,7 @@ class CompraPagamentoTest extends TestCase
 
         $this->assertTrue($erica->can('decidirCompra', $requisicao));
 
-        $this->workflow->decidirCompra($requisicao, $erica, true, null);
+        $this->workflow->decidirCompra($requisicao, $erica, true, null, null, null, [], $this->print());
 
         $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->fresh()->status);
     }

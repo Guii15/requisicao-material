@@ -169,50 +169,45 @@ class EstoqueFluxosTelasTest extends TestCase
 
     public function test_dar_baixa_pela_tela(): void
     {
-        Storage::fake('local');
         $requisicao = $this->requisicaoAguardandoBaixa();
 
         $this->actingAs(User::factory()->responsavelBaixa()->create())
-            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['comprovante' => UploadedFile::fake()->image('print.png'), 'senha' => 'password'])
+            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['senha' => 'password'])
             ->assertRedirect('/baixa')
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->fresh()->status);
     }
 
-    public function test_dar_baixa_pela_tela_sem_print_volta_com_erro(): void
-    {
-        $requisicao = $this->requisicaoAguardandoBaixa();
-
-        $this->actingAs(User::factory()->responsavelBaixa()->create())
-            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['senha' => 'password'])
-            ->assertSessionHasErrors('comprovante');
-
-        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
-    }
-
-    public function test_tela_da_baixa_pede_o_print_e_nao_o_numero_do_documento(): void
+    public function test_tela_da_baixa_nao_pede_mais_o_print(): void
     {
         $requisicao = $this->requisicaoAguardandoBaixa();
 
         $this->actingAs(User::factory()->responsavelBaixa()->create())->get(route('requisicoes.show', $requisicao))
             ->assertOk()
-            ->assertSee('name="comprovante"', false)
-            ->assertDontSee('name="documento"', false);
+            ->assertSee('Assinar e dar baixa')
+            ->assertDontSee('name="comprovante"', false)
+            ->assertDontSee('Print do documento de baixa');
     }
 
-    private function requisicaoBaixada(): Requisicao
+    private function requisicaoBaixada(bool $comPrintAntigo = false): Requisicao
     {
         Storage::fake('local');
         $requisicao = $this->requisicaoAguardandoBaixa();
-        $this->workflow->darBaixa($requisicao, User::factory()->responsavelBaixa()->create(), UploadedFile::fake()->image('print.png'), 'Conferido no WinThor, NF ok.', 'password');
+        $this->workflow->darBaixa($requisicao, User::factory()->responsavelBaixa()->create(), 'Conferido no WinThor, NF ok.', 'password');
+
+        if ($comPrintAntigo) {
+            // Baixas antigas guardaram o print aqui; o detalhe continua mostrando.
+            $caminho = UploadedFile::fake()->image('print.png')->store('baixas', 'local');
+            Requisicao::query()->whereKey($requisicao->id)->update(['baixa_comprovante' => $caminho]);
+        }
 
         return $requisicao->fresh();
     }
 
-    public function test_detalhe_mostra_a_observacao_e_o_print_da_baixa(): void
+    public function test_detalhe_mostra_a_observacao_da_baixa_e_o_print_antigo(): void
     {
-        $requisicao = $this->requisicaoBaixada();
+        $requisicao = $this->requisicaoBaixada(comPrintAntigo: true);
 
         $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
             ->assertOk()
@@ -220,9 +215,9 @@ class EstoqueFluxosTelasTest extends TestCase
             ->assertSee(route('requisicoes.comprovante-baixa', $requisicao), false);
     }
 
-    public function test_print_da_baixa_so_abre_para_quem_pode_ver_a_requisicao(): void
+    public function test_print_antigo_da_baixa_so_abre_para_quem_pode_ver_a_requisicao(): void
     {
-        $requisicao = $this->requisicaoBaixada();
+        $requisicao = $this->requisicaoBaixada(comPrintAntigo: true);
 
         $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-baixa', $requisicao))->assertOk();
         $this->actingAs(User::factory()->create())->get(route('requisicoes.comprovante-baixa', $requisicao))->assertForbidden();

@@ -164,6 +164,13 @@
                             @if (filled($requisicao->compra_observacao))
                                 <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->compra_observacao }}</dd>
                             @endif
+                            @if ($requisicao->compra_comprovante)
+                                <dd class="mt-2">
+                                    <a href="{{ route('requisicoes.comprovante-compra', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                        <img src="{{ route('requisicoes.comprovante-compra', $requisicao) }}" alt="Print do pedido de compra no WinThor" loading="lazy" class="max-h-48 rounded border border-hairline">
+                                    </a>
+                                </dd>
+                            @endif
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</dd>
                         </div>
                     @endif
@@ -599,7 +606,7 @@
 
         @can('decidirCompra', $requisicao)
             <x-modal nome="aprovar-compra" :titulo="'Aprovar compra '.$requisicao->numero" :abrir="old('_acao') === 'aprovar-compra' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}"
+                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}" enctype="multipart/form-data"
                       x-data="{ enviando: false, forma: '{{ old('_acao') === 'aprovar-compra' && is_string(old('forma_pagamento')) ? old('forma_pagamento') : $requisicao->forma_pagamento?->value }}' }"
                       x-on:submit="enviando = true">
                     @csrf
@@ -633,6 +640,7 @@
                                 <p class="erro-campo">{{ $message }}</p>
                             @enderror
                         </div>
+                        <x-campo-print id="aprovar-compra-comprovante" rotulo="Print do pedido de compra no WinThor" />
                         <div>
                             <label for="aprovar-compra-observacao" class="rotulo">Observação (opcional)</label>
                             <textarea id="aprovar-compra-observacao" name="observacao" rows="3" maxlength="1000"  data-foco
@@ -683,40 +691,14 @@
 
         @can('darBaixa', $requisicao)
             <x-modal nome="baixa" :titulo="'Dar baixa '.$requisicao->numero" :abrir="old('_acao') === 'baixa' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.dar-baixa', $requisicao) }}" enctype="multipart/form-data"
-                      x-data="{
-                          enviando: false,
-                          nome: '',
-                          colar(e) {
-                              const imagem = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
-                              if (!imagem) return;
-                              const lista = new DataTransfer();
-                              lista.items.add(imagem);
-                              this.$refs.arquivo.files = lista.files;
-                              this.nome = imagem.name || 'Imagem colada';
-                          },
-                      }"
-                      x-on:paste.window="aberto && colar($event)"
-                      x-on:submit="enviando = true">
+                <form method="POST" action="{{ route('requisicoes.dar-baixa', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="baixa">
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois da baixa, a requisição está encerrada.</p>
                         <div>
-                            <label for="baixa-comprovante" class="rotulo">Print do documento de baixa no WinThor</label>
-                            <p class="ajuda">Cole o print aqui (Ctrl+V) ou escolha o arquivo. PNG, JPG ou WEBP, até 5 MB.</p>
-                            <input id="baixa-comprovante" name="comprovante" type="file" x-ref="arquivo" required data-foco
-                                   accept="image/png,image/jpeg,image/webp"
-                                   x-on:change="nome = $event.target.files[0]?.name ?? ''"
-                                   class="campo mt-1.5 @error('comprovante') campo-erro @enderror">
-                            <p x-show="nome" x-cloak class="mt-1.5 text-[13px] text-ink-soft">Anexado: <span class="font-medium" x-text="nome"></span></p>
-                            @error('comprovante')
-                                <p class="erro-campo">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div>
                             <label for="baixa-observacao" class="rotulo">Observação (opcional)</label>
-                            <textarea id="baixa-observacao" name="observacao" rows="2" maxlength="1000"
+                            <textarea id="baixa-observacao" name="observacao" rows="2" maxlength="1000" data-foco
                                       class="campo mt-1.5">{{ old('observacao') }}</textarea>
                         </div>
                     </div>

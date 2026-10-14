@@ -89,6 +89,19 @@ class RequisicaoController extends Controller
         return Storage::disk('local')->response($caminho);
     }
 
+    /**
+     * Print do pedido de compra no WinThor: mesmo cuidado do print da baixa (disco privado, só quem vê a requisição).
+     */
+    public function comprovanteCompra(Requisicao $requisicao): StreamedResponse
+    {
+        Gate::authorize('view', $requisicao);
+
+        $caminho = $requisicao->compra_comprovante;
+        abort_if($caminho === null || ! Storage::disk('local')->exists($caminho), 404);
+
+        return Storage::disk('local')->response($caminho);
+    }
+
     public function pdf(Request $request, Requisicao $requisicao, FichaDaRequisicao $ficha): Response
     {
         Gate::authorize('view', $requisicao);

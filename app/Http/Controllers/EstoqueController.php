@@ -140,6 +140,7 @@ class EstoqueController extends Controller
             $aprova ? $this->texto($request, 'forma_pagamento') : null,
             $aprova ? $this->texto($request, 'parcelas') : null,
             $aprova ? $this->recusasDoFormulario($request) : [],
+            $aprova ? $request->file('comprovante') : null,
         );
 
         return redirect()->route('compras.index')->with('sucesso', $aprova
@@ -159,7 +160,6 @@ class EstoqueController extends Controller
         $workflow->darBaixa(
             $requisicao,
             $request->user(),
-            $request->file('comprovante'),
             $this->texto($request, 'observacao'),
             $this->texto($request, 'senha'),
         );

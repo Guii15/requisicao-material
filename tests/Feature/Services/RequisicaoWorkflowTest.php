@@ -13,8 +13,6 @@ use App\Models\User;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
@@ -729,16 +727,12 @@ class RequisicaoWorkflowTest extends TestCase
         $requisicao = $this->requisicaoAguardandoBaixa();
         $erica = User::factory()->responsavelBaixa()->create();
 
-        Storage::fake('local');
-
-        $this->workflow->darBaixa($requisicao, $erica, UploadedFile::fake()->image('print.png'), 'Conferido com o WinThor.', 'password');
+        $this->workflow->darBaixa($requisicao, $erica, 'Conferido com o WinThor.', 'password');
 
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->status);
         $this->assertSame($erica->id, $requisicao->baixa_por_id);
         $this->assertSame('Conferido com o WinThor.', $requisicao->baixa_observacao);
-        $this->assertNotNull($requisicao->baixa_comprovante);
-        Storage::disk('local')->assertExists($requisicao->baixa_comprovante);
     }
 
     public function test_responsavel_pela_baixa_nao_da_baixa_no_proprio_pedido(): void
@@ -758,43 +752,6 @@ class RequisicaoWorkflowTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
 
-        $this->workflow->darBaixa($requisicao, $erica, UploadedFile::fake()->image('print.png'), null, 'password');
-    }
-
-    public function test_baixa_sem_print_e_recusada(): void
-    {
-        $requisicao = $this->requisicaoAguardandoBaixa();
-        $erica = User::factory()->responsavelBaixa()->create();
-
-        $erros = $this->erroDeValidacao(fn () => $this->workflow->darBaixa($requisicao, $erica, null, null, 'password'));
-
-        $this->assertArrayHasKey('comprovante', $erros);
-        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
-    }
-
-    public function test_baixa_recusa_arquivo_que_nao_e_imagem(): void
-    {
-        Storage::fake('local');
-        $requisicao = $this->requisicaoAguardandoBaixa();
-        $erica = User::factory()->responsavelBaixa()->create();
-
-        $erros = $this->erroDeValidacao(fn () => $this->workflow->darBaixa(
-            $requisicao, $erica, UploadedFile::fake()->create('nota.pdf', 100, 'application/pdf'), null, 'password',
-        ));
-
-        $this->assertArrayHasKey('comprovante', $erros);
-    }
-
-    public function test_baixa_recusa_print_maior_que_5mb(): void
-    {
-        Storage::fake('local');
-        $requisicao = $this->requisicaoAguardandoBaixa();
-        $erica = User::factory()->responsavelBaixa()->create();
-
-        $erros = $this->erroDeValidacao(fn () => $this->workflow->darBaixa(
-            $requisicao, $erica, UploadedFile::fake()->create('grande.png', 6000, 'image/png'), null, 'password',
-        ));
-
-        $this->assertArrayHasKey('comprovante', $erros);
+        $this->workflow->darBaixa($requisicao, $erica, null, 'password');
     }
 }

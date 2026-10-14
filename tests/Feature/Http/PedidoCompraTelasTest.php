@@ -7,6 +7,8 @@ use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
@@ -18,6 +20,7 @@ class PedidoCompraTelasTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         $this->travelTo('2026-09-24 10:00:00');
     }
 
@@ -76,6 +79,7 @@ class PedidoCompraTelasTest extends TestCase
             'decisao' => 'aprovar',
             'forma_pagamento' => 'PARCELADO',
             'parcelas' => '5',
+            'comprovante' => UploadedFile::fake()->image('winthor.png'),
         ])->assertSessionHasNoErrors();
 
         $requisicao->refresh();
@@ -92,9 +96,59 @@ class PedidoCompraTelasTest extends TestCase
         $this->actingAs($erica)->post(route('requisicoes.decidir-compra', $requisicao), [
             'decisao' => 'aprovar',
             'forma_pagamento' => 'PARCELADO',
+            'comprovante' => UploadedFile::fake()->image('winthor.png'),
         ])->assertSessionHasErrors('parcelas');
 
         $this->assertSame(StatusRequisicao::AGUARDANDO_COMPRA, $requisicao->fresh()->status);
+    }
+
+    public function test_modal_da_compra_pede_o_print_do_winthor(): void
+    {
+        $erica = User::factory()->responsavelBaixa()->create();
+        $requisicao = Requisicao::factory()->compra()->create();
+
+        $this->actingAs($erica)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('Print do pedido de compra no WinThor')
+            ->assertSee('name="comprovante"', false);
+    }
+
+    public function test_aprovar_a_compra_sem_print_volta_com_erro(): void
+    {
+        $erica = User::factory()->responsavelBaixa()->create();
+        $requisicao = Requisicao::factory()->compra()->create(['forma_pagamento' => FormaPagamento::A_VISTA]);
+
+        $this->actingAs($erica)->post(route('requisicoes.decidir-compra', $requisicao), [
+            'decisao' => 'aprovar',
+            'forma_pagamento' => 'A_VISTA',
+        ])->assertSessionHasErrors('comprovante');
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_COMPRA, $requisicao->fresh()->status);
+    }
+
+    public function test_print_da_compra_aparece_no_detalhe_e_so_abre_para_quem_pode_ver(): void
+    {
+        $erica = User::factory()->responsavelBaixa()->create();
+        $requisicao = Requisicao::factory()->compra()->create(['forma_pagamento' => FormaPagamento::A_VISTA]);
+
+        $this->actingAs($erica)->post(route('requisicoes.decidir-compra', $requisicao), [
+            'decisao' => 'aprovar',
+            'forma_pagamento' => 'A_VISTA',
+            'comprovante' => UploadedFile::fake()->image('winthor.png'),
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee(route('requisicoes.comprovante-compra', $requisicao), false);
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-compra', $requisicao))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('requisicoes.comprovante-compra', $requisicao))->assertForbidden();
+    }
+
+    public function test_print_da_compra_de_pedido_sem_print_da_404(): void
+    {
+        $requisicao = Requisicao::factory()->compra()->create();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-compra', $requisicao))->assertNotFound();
     }
 
     public function test_menu_e_fila_usam_o_nome_novo(): void
