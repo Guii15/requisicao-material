@@ -9,6 +9,7 @@ use App\Models\RequisicaoEvento;
 use App\Models\RequisicaoItem;
 use App\Models\Setor;
 use App\Models\User;
+use App\Services\RequisicoesVisiveis;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -16,11 +17,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
- * Painel geral: números da empresa toda, não só do usuário logado. Qualquer usuário
- * autenticado pode ver (não expõe conteúdo sensível, só contagens agregadas).
+ * Painel geral: os números são da empresa toda (só contagens agregadas, qualquer usuário
+ * autenticado pode ver); a atividade recente mostra só as requisições que a pessoa pode abrir.
  */
 class PainelController extends Controller
 {
+    public function __construct(private readonly RequisicoesVisiveis $visiveis) {}
+
     public function index(Request $request): View
     {
         $porGrupo = $this->contagemPorGrupoDeStatus();
@@ -47,10 +50,13 @@ class PainelController extends Controller
      * muda, a requisição sobe para o topo (não vira uma linha nova por passo). O avanço automático
      * não conta, porque é só a passagem de um status para o outro.
      *
+     * Só entra o que a pessoa pode abrir (RequisicoesVisiveis): sem isso, qualquer um via o
+     * produto e o nome da compra pessoal de um colega.
+     *
      * Não tem formulário de filtro: a pessoa clica no nome, no setor ou no produto que já
      * aparece numa linha pra ver só aquilo.
      *
-     * @return \Illuminate\Pagination\LengthAwarePaginator<int, Requisicao>
+     * @return LengthAwarePaginator<int, Requisicao>
      */
     private function historicoGeral(Request $request)
     {
@@ -59,7 +65,7 @@ class PainelController extends Controller
             ->where('acao', '!=', AcaoEvento::AVANCO_AUTOMATICO->value)
             ->groupBy('requisicao_id');
 
-        $paginado = Requisicao::query()
+        $paginado = $this->visiveis->para($request->user())
             ->joinSub($ultimas, 'ultimas', 'ultimas.requisicao_id', '=', 'requisicoes.id')
             ->join('requisicao_eventos as ultimo', 'ultimo.id', '=', 'ultimas.ultimo_id')
             ->select('requisicoes.*', 'ultimas.ultimo_id as ultimo_evento_id', 'ultimo.created_at as ultima_alteracao_em')
