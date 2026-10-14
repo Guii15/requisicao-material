@@ -19,10 +19,10 @@ class FilasDeEstoqueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_fila_de_liberacao_exclui_quem_aprovou_ou_separou(): void
+    public function test_fila_de_liberacao_mostra_para_todo_lider_inclusive_quem_aprovou_ou_separou(): void
     {
-        $aprovador = User::factory()->create();
-        $separador = User::factory()->create();
+        $aprovador = User::factory()->liderEstoque()->create();
+        $separador = User::factory()->liderEstoque()->create();
         $requisicao = Requisicao::factory()->usoConsumo()->status(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE)->create([
             'aprovado_por_id' => $aprovador->id,
             'separado_por_id' => $separador->id,
@@ -30,8 +30,8 @@ class FilasDeEstoqueTest extends TestCase
         $fila = app(FilaDeLiberacao::class);
 
         $this->assertContains($requisicao->numero, $fila->para(User::factory()->liderEstoque()->create())->pluck('numero')->all());
-        $this->assertNotContains($requisicao->numero, $fila->para($aprovador)->pluck('numero')->all());
-        $this->assertNotContains($requisicao->numero, $fila->para($separador)->pluck('numero')->all());
+        $this->assertContains($requisicao->numero, $fila->para($aprovador)->pluck('numero')->all());
+        $this->assertContains($requisicao->numero, $fila->para($separador)->pluck('numero')->all());
     }
 
     public function test_fila_de_devolucao_so_mostra_teste_em_posse(): void
