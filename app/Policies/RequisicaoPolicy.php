@@ -109,11 +109,14 @@ class RequisicaoPolicy
     }
 
     /**
-     * Qualquer um do estoque entrega (o desenho de quem retira não precisa de login).
+     * Só o Teste entrega (junto com a separação, na mesma tela); o Uso e Consumo não tem entrega.
      */
     public function entregar(User $user, Requisicao $requisicao): bool
     {
-        return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
+        return $user->ativo
+            && $user->is_estoque
+            && $requisicao->tipo === TipoRequisicao::TESTE
+            && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
     }
 
     /**
@@ -148,23 +151,15 @@ class RequisicaoPolicy
     }
 
     /**
-     * Compra de funcionário, depois dos aprovadores: a responsável pela baixa (Erica) aprova ou
-     * reprova. Nunca o próprio pedido; se ela mesma abriu, quem decide é o Admin.
+     * Pedido de compra, depois dos aprovadores: a responsável pela baixa (Erica) aprova ou
+     * reprova, inclusive o que ela mesma pediu.
      */
     public function decidirCompra(User $user, Requisicao $requisicao): bool
     {
-        if (! $user->ativo
-            || $requisicao->tipo !== TipoRequisicao::COMPRA_FUNCIONARIO
-            || $requisicao->status !== StatusRequisicao::AGUARDANDO_COMPRA
-            || $requisicao->solicitante_id === $user->id) {
-            return false;
-        }
-
-        if ($user->is_responsavel_baixa) {
-            return true;
-        }
-
-        return $user->is_admin && $requisicao->loadMissing('solicitante')->solicitante->is_responsavel_baixa;
+        return $user->ativo
+            && $user->is_responsavel_baixa
+            && $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_COMPRA;
     }
 
     public function cancelar(User $user, Requisicao $requisicao): bool

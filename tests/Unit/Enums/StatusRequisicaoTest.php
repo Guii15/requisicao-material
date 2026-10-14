@@ -35,11 +35,11 @@ class StatusRequisicaoTest extends TestCase
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, T::USO_CONSUMO);
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::REPROVADA_ESTOQUE, T::USO_CONSUMO);
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::CANCELADA, T::USO_CONSUMO);
-        $add(S::LIBERADA, S::PRONTA_PARA_RETIRADA, T::USO_CONSUMO);
-        $add(S::PRONTA_PARA_RETIRADA, S::ENTREGUE, ...$ambos);
-        $add(S::PRONTA_PARA_RETIRADA, S::CANCELADA, ...$ambos);
+        // Sem tela de entrega: o Uso e Consumo liberado vai direto para a baixa.
+        $add(S::LIBERADA, S::AGUARDANDO_BAIXA, T::USO_CONSUMO);
+        $add(S::PRONTA_PARA_RETIRADA, S::ENTREGUE, T::TESTE);
+        $add(S::PRONTA_PARA_RETIRADA, S::CANCELADA, T::TESTE);
         $add(S::ENTREGUE, S::EM_POSSE, T::TESTE);
-        $add(S::ENTREGUE, S::AGUARDANDO_BAIXA, T::USO_CONSUMO);
         $add(S::EM_POSSE, S::DEVOLVIDA, T::TESTE);
         $add(S::EM_POSSE, S::DEVOLUCAO_COM_PENDENCIA, T::TESTE);
         $add(S::AGUARDANDO_BAIXA, S::BAIXADA, T::USO_CONSUMO);
@@ -105,9 +105,9 @@ class StatusRequisicaoTest extends TestCase
 
     public function test_status_de_passagem_seguem_automaticamente_conforme_o_tipo(): void
     {
-        $this->assertSame(S::PRONTA_PARA_RETIRADA, S::LIBERADA->proximoAutomatico(T::USO_CONSUMO));
+        $this->assertSame(S::AGUARDANDO_BAIXA, S::LIBERADA->proximoAutomatico(T::USO_CONSUMO));
         $this->assertSame(S::EM_POSSE, S::ENTREGUE->proximoAutomatico(T::TESTE));
-        $this->assertSame(S::AGUARDANDO_BAIXA, S::ENTREGUE->proximoAutomatico(T::USO_CONSUMO));
+        $this->assertNull(S::ENTREGUE->proximoAutomatico(T::USO_CONSUMO));
         $this->assertNull(S::APROVADA->proximoAutomatico(T::TESTE));
         $this->assertSame(S::AGUARDANDO_COMPRA, S::APROVADA->proximoAutomatico(T::COMPRA_FUNCIONARIO));
         $this->assertNull(S::EM_POSSE->proximoAutomatico(T::TESTE));

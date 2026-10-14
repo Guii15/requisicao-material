@@ -178,14 +178,16 @@ class RequisicaoPolicyTest extends TestCase
         $this->assertFalse(User::factory()->liderEstoque()->create()->can('liberar', $requisicao));
     }
 
-    public function test_entregar_e_qualquer_um_do_estoque_com_status_certo(): void
+    public function test_entregar_e_qualquer_um_do_estoque_so_no_teste_com_status_certo(): void
     {
         $pronta = Requisicao::factory()->status(S::PRONTA_PARA_RETIRADA)->create();
         $aprovada = Requisicao::factory()->status(S::APROVADA)->create();
+        $usoConsumo = Requisicao::factory()->usoConsumo()->status(S::PRONTA_PARA_RETIRADA)->create();
 
         $this->assertTrue(User::factory()->estoque()->create()->can('entregar', $pronta));
         $this->assertFalse(User::factory()->estoque()->create()->can('entregar', $aprovada));
         $this->assertFalse(User::factory()->create()->can('entregar', $pronta));
+        $this->assertFalse(User::factory()->estoque()->create()->can('entregar', $usoConsumo), 'uso e consumo não tem entrega');
     }
 
     public function test_separar_e_entregar_e_so_do_estoque_no_teste_aprovado(): void

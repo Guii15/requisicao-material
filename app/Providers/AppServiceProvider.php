@@ -47,7 +47,6 @@ class AppServiceProvider extends ServiceProvider
         // Liberação é só de Uso e Consumo, só líder do estoque.
         Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque);
 
-        Gate::define('acessar-entrega', fn (User $user) => $user->is_estoque);
 
         // Devolução é só de Teste.
         Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque);
@@ -55,8 +54,8 @@ class AppServiceProvider extends ServiceProvider
         // Baixa é só de Uso e Consumo: a responsável, ou o Admin (só vê o caso "própria responsável abriu o pedido").
         Gate::define('acessar-baixa', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
 
-        // Compras de funcionário: a responsável pela baixa decide (o Admin só vê o caso em que ela mesma pediu).
-        Gate::define('acessar-compras', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
+        // Pedidos de compra: a responsável pela baixa decide.
+        Gate::define('acessar-compras', fn (User $user) => $user->is_responsavel_baixa);
 
         View::composer('components.layouts.app', MenuComposer::class);
     }

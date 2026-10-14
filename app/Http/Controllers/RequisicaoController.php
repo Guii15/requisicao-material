@@ -14,7 +14,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RequisicaoController extends Controller
 {
@@ -52,7 +54,7 @@ class RequisicaoController extends Controller
     {
         $requisicao = $workflow->criar(
             $request->user(),
-            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao']),
+            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento']),
             $this->texto($request, 'senha'),
         );
 
@@ -74,6 +76,32 @@ class RequisicaoController extends Controller
      * Cópia em PDF para imprimir ou mostrar no estoque. Abre no navegador (inline);
      * o próprio leitor de PDF oferece imprimir e salvar.
      */
+    /**
+     * Print da baixa: fica no disco privado e só abre para quem pode ver a requisição.
+     */
+    public function comprovanteBaixa(Requisicao $requisicao): StreamedResponse
+    {
+        Gate::authorize('view', $requisicao);
+
+        $caminho = $requisicao->baixa_comprovante;
+        abort_if($caminho === null || ! Storage::disk('local')->exists($caminho), 404);
+
+        return Storage::disk('local')->response($caminho);
+    }
+
+    /**
+     * Print do pedido de compra no WinThor: mesmo cuidado do print da baixa (disco privado, só quem vê a requisição).
+     */
+    public function comprovanteCompra(Requisicao $requisicao): StreamedResponse
+    {
+        Gate::authorize('view', $requisicao);
+
+        $caminho = $requisicao->compra_comprovante;
+        abort_if($caminho === null || ! Storage::disk('local')->exists($caminho), 404);
+
+        return Storage::disk('local')->response($caminho);
+    }
+
     public function pdf(Request $request, Requisicao $requisicao, FichaDaRequisicao $ficha): Response
     {
         Gate::authorize('view', $requisicao);
@@ -106,9 +134,8 @@ class RequisicaoController extends Controller
                 StatusRequisicao::AGUARDANDO_APROVACAO->value => ['acessar-aprovacoes', 'aprovacoes.index', 'Aprovações', 'aprovacoes'],
                 StatusRequisicao::APROVADA->value => ['acessar-separacao', 'separacao.index', 'Separação', 'separacao'],
                 StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE->value => ['acessar-liberacao', 'liberacao.index', 'Liberação', 'liberacao'],
-                StatusRequisicao::PRONTA_PARA_RETIRADA->value => ['acessar-entrega', 'entrega.index', 'Entrega', 'entrega'],
                 StatusRequisicao::EM_POSSE->value => ['acessar-devolucao', 'devolucao.index', 'Devolução', 'devolucao'],
-                StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Compras de funcionários', 'compras'],
+                StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Pedidos de compra', 'compras'],
                 StatusRequisicao::AGUARDANDO_BAIXA->value => ['acessar-baixa', 'baixa.index', 'Baixa', 'baixa'],
             ];
 

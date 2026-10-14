@@ -170,7 +170,7 @@
         <div class="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-6">
             <div>
                 <h2 class="text-[14px] font-bold text-ink">Atividade recente</h2>
-                <p class="mt-1 text-[12px] text-mid-gray">Histórico de movimentações dos materiais. Clique num nome, setor ou produto para ver só aquilo.</p>
+                <p class="mt-1 text-[12px] text-mid-gray">Cada requisição aparece uma vez e sobe para o topo quando muda. Clique num nome, setor ou produto para ver só aquilo.</p>
             </div>
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <form method="GET" action="{{ route('painel.index') }}">
@@ -216,7 +216,7 @@
         @if ($eventos->isEmpty())
             <div class="border-t border-hairline px-5 py-14 text-center">
                 <p class="font-display text-[15px] font-bold text-ink">Nenhuma movimentação encontrada</p>
-                <p class="mt-2 text-[13px] text-mid-gray">Quando houver requisições, cada passo aparece aqui.</p>
+                <p class="mt-2 text-[13px] text-mid-gray">Quando houver requisições, elas aparecem aqui.</p>
             </div>
         @else
             {{-- Computador e tablet: tabela. --}}
@@ -224,72 +224,74 @@
                 <table class="tabela">
                     <thead>
                         <tr>
-                            <th scope="col" class="lg:pl-6">Evento</th>
+                            <th scope="col" class="lg:pl-6">Situação</th>
                             <th scope="col">Produto</th>
-                            <th scope="col">Responsável</th>
+                            <th scope="col">Alterado por</th>
                             <th scope="col">Setor</th>
                             <th scope="col">Requisição</th>
                             <th scope="col" class="lg:pr-6">Horário</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($eventos as $evento)
-                            @php($textoBusca = mb_strtolower($evento->acao->rotulo().' '.($evento->produto ?? '').' '.($evento->usuario?->nome ?? 'Sistema').' '.($evento->requisicao?->setor->nome ?? '').' '.($evento->requisicao?->numero ?? '')))
+                        @foreach ($eventos as $requisicao)
+                            @php
+                                $ultimo = $requisicao->ultimoEvento;
+                                $quando = \Illuminate\Support\Carbon::parse($requisicao->ultima_alteracao_em);
+                                $responsavel = $ultimo?->usuario?->nome ?? 'Sistema';
+                                $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo(), $ultimo?->acao->rotulo(), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
+                            @endphp
                             <tr x-show="@js($textoBusca).includes(busca.trim().toLowerCase())">
                                 <td class="lg:pl-6">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="grid size-[30px] shrink-0 place-items-center rounded-lg bg-marca-suave text-marca"><x-phosphor-arrow-right class="size-4" aria-hidden="true" /></span>
-                                        <div>
-                                            <strong class="block text-[13px] font-medium text-ink">{{ $evento->acao->rotulo() }}</strong>
-                                            <small class="mt-1 block text-[12px] text-mid-gray">{{ $rotuloData($evento->created_at->toDateString()) }}</small>
-                                        </div>
-                                    </div>
+                                    <x-selo-status :status="$requisicao->status" class="font-medium text-ink" />
+                                    <small class="mt-1 block text-[12px] text-mid-gray">{{ $ultimo?->acao->rotulo() }} · {{ $rotuloData($quando->toDateString()) }}</small>
                                 </td>
                                 <td class="max-w-[16rem]">
-                                    @if ($evento->requisicao && $evento->produto)
-                                        <a href="{{ $link(['produto' => $evento->produto]) }}" class="block truncate text-ink-soft hover:text-ink hover:underline" title="{{ $evento->produto }}">{{ $evento->produto }}</a>
+                                    @if ($requisicao->produto)
+                                        <a href="{{ $link(['produto' => $requisicao->produto]) }}" class="block truncate text-ink-soft hover:text-ink hover:underline" title="{{ $requisicao->produto }}">{{ $requisicao->produto }}</a>
+                                        @if ($requisicao->itens_count > 1)
+                                            <small class="block text-[12px] text-mid-gray">e mais {{ $requisicao->itens_count - 1 }} {{ $requisicao->itens_count - 1 === 1 ? 'item' : 'itens' }}</small>
+                                        @endif
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="{{ $link(['usuario_id' => $evento->user_id]) }}" class="flex items-center gap-2 whitespace-nowrap text-ink-soft hover:text-ink hover:underline">
-                                        <x-avatar :nome="$evento->usuario?->nome ?? 'Sistema'" class="size-[23px] bg-surface-alt text-[8px] text-mid-gray" />
-                                        {{ $evento->usuario?->nome ?? 'Sistema' }}
+                                    <a href="{{ $link(['usuario_id' => $ultimo?->user_id]) }}" class="flex items-center gap-2 whitespace-nowrap text-ink-soft hover:text-ink hover:underline">
+                                        <x-avatar :nome="$responsavel" class="size-[23px] bg-surface-alt text-[8px] text-mid-gray" />
+                                        {{ $responsavel }}
                                     </a>
                                 </td>
                                 <td>
-                                    @if ($evento->requisicao)
-                                        <a href="{{ $link(['setor_id' => $evento->requisicao->setor_id]) }}" class="rounded-[3px] bg-surface-alt px-1.5 py-1 text-[11px] text-mid-gray hover:text-ink">{{ $evento->requisicao->setor->nome }}</a>
-                                    @endif
+                                    <a href="{{ $link(['setor_id' => $requisicao->setor_id]) }}" class="rounded-[3px] bg-surface-alt px-1.5 py-1 text-[11px] text-mid-gray hover:text-ink">{{ $requisicao->setor->nome }}</a>
                                 </td>
                                 <td>
-                                    @if ($evento->requisicao)
-                                        <a href="{{ route('requisicoes.show', $evento->requisicao) }}" class="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink hover:underline">{{ $evento->requisicao->numero }}<x-phosphor-arrow-up-right class="size-3" aria-hidden="true" /></a>
-                                    @endif
+                                    <a href="{{ route('requisicoes.show', $requisicao) }}" class="inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink hover:underline">{{ $requisicao->numero }}<x-phosphor-arrow-up-right class="size-3 text-mid-gray" aria-hidden="true" /></a>
                                 </td>
-                                <td class="text-mid-gray tabular-nums lg:pr-6">{{ $evento->created_at->format('H:i') }}</td>
+                                <td class="text-mid-gray tabular-nums lg:pr-6">{{ $quando->format('H:i') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
 
-            {{-- Celular: uma linha corrida por evento. --}}
+            {{-- Celular: um cartão por requisição. --}}
             <ol class="divide-y divide-hairline border-t border-hairline md:hidden">
-                @foreach ($eventos as $evento)
-                    @php($textoBusca = mb_strtolower($evento->acao->rotulo().' '.($evento->produto ?? '').' '.($evento->usuario?->nome ?? 'Sistema').' '.($evento->requisicao?->setor->nome ?? '').' '.($evento->requisicao?->numero ?? '')))
+                @foreach ($eventos as $requisicao)
+                    @php
+                        $ultimo = $requisicao->ultimoEvento;
+                        $quando = \Illuminate\Support\Carbon::parse($requisicao->ultima_alteracao_em);
+                        $responsavel = $ultimo?->usuario?->nome ?? 'Sistema';
+                        $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo(), $ultimo?->acao->rotulo(), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
+                    @endphp
                     <li class="px-5 py-3.5" x-show="@js($textoBusca).includes(busca.trim().toLowerCase())">
                         <div class="flex items-baseline justify-between gap-3">
-                            <span class="font-medium text-ink">{{ $evento->acao->rotulo() }}</span>
-                            <span class="shrink-0 text-[12px] text-mid-gray tabular-nums">{{ $rotuloData($evento->created_at->toDateString()) }} · {{ $evento->created_at->format('H:i') }}</span>
+                            <a href="{{ route('requisicoes.show', $requisicao) }}" class="font-semibold text-ink hover:underline">{{ $requisicao->numero }}</a>
+                            <span class="shrink-0 text-[12px] text-mid-gray tabular-nums">{{ $rotuloData($quando->toDateString()) }} · {{ $quando->format('H:i') }}</span>
                         </div>
+                        <p class="mt-1.5"><x-selo-status :status="$requisicao->status" class="font-medium text-ink" /></p>
                         <p class="mt-1 text-[12px] text-mid-gray">
-                            <a href="{{ $link(['usuario_id' => $evento->user_id]) }}" class="text-ink-soft hover:underline">{{ $evento->usuario?->nome ?? 'Sistema' }}</a>
-                            @if ($evento->requisicao)
-                                em <a href="{{ $link(['setor_id' => $evento->requisicao->setor_id]) }}" class="text-ink-soft hover:underline">{{ $evento->requisicao->setor->nome }}</a>
-                                @if ($evento->produto)
-                                    <br><a href="{{ $link(['produto' => $evento->produto]) }}" class="text-ink-soft hover:underline">{{ $evento->produto }}</a>
-                                @endif
-                                <br><a href="{{ route('requisicoes.show', $evento->requisicao) }}" class="link text-[12px]">{{ $evento->requisicao->numero }}</a>
+                            {{ $ultimo?->acao->rotulo() }} por <a href="{{ $link(['usuario_id' => $ultimo?->user_id]) }}" class="text-ink-soft hover:underline">{{ $responsavel }}</a>
+                            em <a href="{{ $link(['setor_id' => $requisicao->setor_id]) }}" class="text-ink-soft hover:underline">{{ $requisicao->setor->nome }}</a>
+                            @if ($requisicao->produto)
+                                <br><a href="{{ $link(['produto' => $requisicao->produto]) }}" class="text-ink-soft hover:underline">{{ $requisicao->produto }}</a>@if ($requisicao->itens_count > 1) e mais {{ $requisicao->itens_count - 1 }}@endif
                             @endif
                         </p>
                     </li>
@@ -299,7 +301,7 @@
 
         @if ($historico->hasPages())
             <div class="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-5 py-3 text-[12px] text-mid-gray lg:px-6">
-                <span>Mostrando {{ $historico->firstItem() }}–{{ $historico->lastItem() }} de {{ $historico->total() }} movimentações</span>
+                <span>Mostrando {{ $historico->firstItem() }}–{{ $historico->lastItem() }} de {{ $historico->total() }} requisições</span>
                 <div class="flex items-center gap-2">
                     @if ($historico->onFirstPage())
                         <span class="botao botao-secundario h-8 opacity-50"><x-phosphor-caret-left class="size-3.5" aria-hidden="true" />Anterior</span>

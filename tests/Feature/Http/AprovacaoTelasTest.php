@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http;
 
 use App\Enums\StatusRequisicao;
+use App\Models\Requisicao;
 use App\Models\Setor;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
@@ -51,6 +52,15 @@ class AprovacaoTelasTest extends TestCase
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+    }
+
+    public function test_aprovar_pedido_de_compra_avisa_que_segue_para_a_erica_e_nao_para_o_estoque(): void
+    {
+        $kelber = User::factory()->estoque()->create(['aprova_compras' => true]);
+        $requisicao = Requisicao::factory()->compra()->create(['status' => StatusRequisicao::AGUARDANDO_APROVACAO]);
+
+        $this->actingAs($kelber)->post("/requisicoes/{$requisicao->numero}/aprovar", ['senha' => 'password'])
+            ->assertSessionHas('sucesso', fn (string $msg) => str_contains($msg, 'Erica') && ! str_contains($msg, 'separação'));
     }
 
     public function test_reprovar_exige_motivo(): void

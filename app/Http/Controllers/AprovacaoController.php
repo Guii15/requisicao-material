@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StatusRequisicao;
+use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
 use App\Services\FilaDeAprovacao;
@@ -39,11 +41,22 @@ class AprovacaoController extends Controller
 
     public function aprovar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
     {
-        $workflow->aprovar($requisicao, $request->user(), $this->texto($request, 'senha'));
+        $workflow->aprovar($requisicao, $request->user(), $this->texto($request, 'senha'), $this->recusasDoFormulario($request));
+
+        // Recusar todos os itens reprova a requisição inteira.
+        if ($requisicao->status === StatusRequisicao::REPROVADA) {
+            return redirect()
+                ->route('aprovacoes.index')
+                ->with('sucesso', "Requisição {$requisicao->numero} reprovada: todos os itens foram recusados.");
+        }
+
+        $destino = $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
+            ? 'a decisão da Erica'
+            : 'a separação no estoque';
 
         return redirect()
             ->route('aprovacoes.index')
-            ->with('sucesso', "Requisição {$requisicao->numero} aprovada. Ela segue para a separação no estoque.");
+            ->with('sucesso', "Requisição {$requisicao->numero} aprovada. Ela segue para {$destino}.");
     }
 
     public function reprovar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse

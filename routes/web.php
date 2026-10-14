@@ -30,6 +30,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/requisicoes', [RequisicaoController::class, 'store'])->name('requisicoes.store');
             Route::get('/requisicoes/{requisicao}', [RequisicaoController::class, 'show'])->name('requisicoes.show');
             Route::get('/requisicoes/{requisicao}/pdf', [RequisicaoController::class, 'pdf'])->name('requisicoes.pdf');
+            Route::get('/requisicoes/{requisicao}/comprovante-baixa', [RequisicaoController::class, 'comprovanteBaixa'])->name('requisicoes.comprovante-baixa');
+            Route::get('/requisicoes/{requisicao}/comprovante-compra', [RequisicaoController::class, 'comprovanteCompra'])->name('requisicoes.comprovante-compra');
             Route::post('/requisicoes/{requisicao}/cancelar', [RequisicaoController::class, 'cancelar'])->name('requisicoes.cancelar');
 
             Route::get('/aprovacoes', [AprovacaoController::class, 'index'])->name('aprovacoes.index');
@@ -43,9 +45,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/liberacao', [EstoqueController::class, 'liberacao'])->name('liberacao.index');
             Route::post('/requisicoes/{requisicao}/liberar', [EstoqueController::class, 'liberar'])->name('requisicoes.liberar');
             Route::post('/requisicoes/{requisicao}/reprovar-estoque', [EstoqueController::class, 'reprovarEstoque'])->name('requisicoes.reprovar-estoque');
-
-            Route::get('/entrega', [EstoqueController::class, 'entrega'])->name('entrega.index');
-            Route::post('/requisicoes/{requisicao}/entregar', [EstoqueController::class, 'entregar'])->name('requisicoes.entregar');
 
             Route::get('/devolucao', [EstoqueController::class, 'devolucao'])->name('devolucao.index');
             Route::post('/requisicoes/{requisicao}/devolver', [EstoqueController::class, 'devolver'])->name('requisicoes.devolver');

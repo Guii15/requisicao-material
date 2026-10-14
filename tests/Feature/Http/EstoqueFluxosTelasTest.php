@@ -7,11 +7,13 @@ use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 /**
- * Wiring das telas de Separação+entrega (Teste), Liberação, Entrega, Devolução e Baixa (rota -> controller
+ * Wiring das telas de Separação+entrega (Teste), Liberação, Devolução e Baixa (rota -> controller
  * -> view -> redirect). As regras de negócio de cada uma já têm teste próprio e mais completo
  * em RequisicaoWorkflowTest e RequisicaoPolicyTest; aqui é só conferir que a tela funciona.
  */
@@ -62,7 +64,6 @@ class EstoqueFluxosTelasTest extends TestCase
         $requisicao = $this->requisicaoAguardandoLiberacao();
         $lider = User::factory()->liderEstoque()->create();
         $this->workflow->liberar($requisicao, $lider, 'password');
-        $this->workflow->entregar($requisicao->fresh(), User::factory()->estoque()->create(), 'Fulano');
 
         return $requisicao->fresh();
     }
@@ -88,35 +89,7 @@ class EstoqueFluxosTelasTest extends TestCase
             ->assertRedirect('/liberacao')
             ->assertSessionHas('sucesso');
 
-        $this->assertSame(StatusRequisicao::PRONTA_PARA_RETIRADA, $requisicao->fresh()->status);
-    }
-
-    // ---- Entrega ------------------------------------------------------------------------------
-
-    public function test_estoque_ve_a_fila_de_entrega(): void
-    {
-        $requisicao = $this->requisicaoProntaParaRetirada();
-
-        $this->actingAs(User::factory()->estoque()->create())->get('/entrega')
-            ->assertOk()
-            ->assertSee($requisicao->numero);
-    }
-
-    public function test_entregar_pela_tela(): void
-    {
-        $requisicao = $this->requisicaoProntaParaRetirada();
-
-        $this->actingAs(User::factory()->estoque()->create())
-            ->post("/requisicoes/{$requisicao->numero}/entregar", [
-                'retirado_por_nome' => 'Maria da Silva',
-                'senha' => 'password',
-            ])
-            ->assertRedirect('/entrega')
-            ->assertSessionHas('sucesso');
-
-        $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::EM_POSSE, $requisicao->status);
-        $this->assertSame('Maria da Silva', $requisicao->retirado_por_nome);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
     }
 
     // ---- Separar e entregar na mesma tela (Teste) -----------------------------------------------
@@ -199,11 +172,97 @@ class EstoqueFluxosTelasTest extends TestCase
         $requisicao = $this->requisicaoAguardandoBaixa();
 
         $this->actingAs(User::factory()->responsavelBaixa()->create())
-            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['documento' => 'NF-123', 'senha' => 'password'])
+            ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['senha' => 'password'])
             ->assertRedirect('/baixa')
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->fresh()->status);
+    }
+
+    public function test_tela_da_baixa_nao_pede_mais_o_print(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->actingAs(User::factory()->responsavelBaixa()->create())->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('Assinar e dar baixa')
+            ->assertDontSee('name="comprovante"', false)
+            ->assertDontSee('Print do documento de baixa');
+    }
+
+    private function requisicaoBaixada(bool $comPrintAntigo = false): Requisicao
+    {
+        Storage::fake('local');
+        $requisicao = $this->requisicaoAguardandoBaixa();
+        $this->workflow->darBaixa($requisicao, User::factory()->responsavelBaixa()->create(), 'Conferido no WinThor, NF ok.', 'password');
+
+        if ($comPrintAntigo) {
+            // Baixas antigas guardaram o print aqui; o detalhe continua mostrando.
+            $caminho = UploadedFile::fake()->image('print.png')->store('baixas', 'local');
+            Requisicao::query()->whereKey($requisicao->id)->update(['baixa_comprovante' => $caminho]);
+        }
+
+        return $requisicao->fresh();
+    }
+
+    public function test_detalhe_mostra_a_observacao_da_baixa_e_o_print_antigo(): void
+    {
+        $requisicao = $this->requisicaoBaixada(comPrintAntigo: true);
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('Conferido no WinThor, NF ok.')
+            ->assertSee(route('requisicoes.comprovante-baixa', $requisicao), false);
+    }
+
+    public function test_print_antigo_da_baixa_so_abre_para_quem_pode_ver_a_requisicao(): void
+    {
+        $requisicao = $this->requisicaoBaixada(comPrintAntigo: true);
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-baixa', $requisicao))->assertOk();
+        $this->actingAs(User::factory()->create())->get(route('requisicoes.comprovante-baixa', $requisicao))->assertForbidden();
+    }
+
+    public function test_print_da_baixa_de_requisicao_sem_print_da_404(): void
+    {
+        $requisicao = $this->requisicaoAguardandoBaixa();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.comprovante-baixa', $requisicao))->assertNotFound();
+    }
+
+    public function test_pdf_traz_a_observacao_da_baixa(): void
+    {
+        $requisicao = $this->requisicaoBaixada();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.pdf', $requisicao))
+            ->assertOk();
+    }
+
+    public function test_modal_de_devolucao_empilha_no_celular(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+
+        $this->actingAs(User::factory()->estoque()->create())->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee('grid grid-cols-1', false)
+            ->assertSee('flex flex-col', false)
+            ->assertSee('w-full shrink-0 sm:w-40', false);
+    }
+
+    public function test_detalhe_mostra_a_observacao_da_devolucao_de_cada_item(): void
+    {
+        $requisicao = $this->requisicaoEmPosse();
+        $itens = $requisicao->itens->mapWithKeys(fn ($item) => [$item->id => [
+            'ok' => '0', 'defeito' => (string) $item->qtd_solicitada, 'nao_devolvida' => '0',
+            'observacao' => "Placa queimada no item {$item->id}",
+        ]])->all();
+        $this->workflow->devolver($requisicao, User::factory()->estoque()->create(), $itens, 'Maria da Silva');
+
+        $primeiro = $requisicao->itens->first();
+
+        $this->actingAs($requisicao->solicitante)->get(route('requisicoes.show', $requisicao))
+            ->assertOk()
+            ->assertSee("Placa queimada no item {$primeiro->id}");
     }
 
     // ---- Botões condicionais no detalhe --------------------------------------------------------
@@ -211,14 +270,16 @@ class EstoqueFluxosTelasTest extends TestCase
     public function test_detalhe_mostra_botoes_certos_por_etapa(): void
     {
         $liberacao = $this->requisicaoAguardandoLiberacao('TI-A');
-        $entrega = $this->requisicaoProntaParaRetirada('TI-B');
+        $teste = Requisicao::factory()->status(StatusRequisicao::APROVADA)->create();
+        $teste->itens()->create(['descricao' => 'Mouse USB', 'unidade' => 'UN', 'qtd_solicitada' => 1]);
 
         $this->actingAs(User::factory()->liderEstoque()->create())
             ->get("/requisicoes/{$liberacao->numero}")
             ->assertSee('Liberar');
 
         $this->actingAs(User::factory()->estoque()->create())
-            ->get("/requisicoes/{$entrega->numero}")
-            ->assertSee('Entregar');
+            ->get("/requisicoes/{$teste->numero}")
+            ->assertSee('Separar e entregar')
+            ->assertDontSee('name="entregar"', false);
     }
 }

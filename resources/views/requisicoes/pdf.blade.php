@@ -94,7 +94,7 @@
                     @if ($requisicao->tipo === TipoRequisicao::TESTE)
                         Devolução prevista: {{ $requisicao->data_prevista_devolucao?->format('d/m/Y') }}
                     @elseif ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO)
-                        Compra para funcionário, sem passar pelo estoque
+                        Pedido de compra, sem passar pelo estoque
                     @else
                         Material consumido, com baixa no WinThor
                     @endif
@@ -117,10 +117,18 @@
         </tr>
         <tr>
             <td colspan="3">
-                <div class="rotulo">Finalidade</div>
+                <div class="rotulo">{{ $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</div>
                 <div class="valor">{!! nl2br(e($requisicao->finalidade)) !!}</div>
             </td>
         </tr>
+        @if ($requisicao->forma_pagamento !== null)
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Forma de pagamento</div>
+                    <div class="valor">{{ $requisicao->forma_pagamento->rotulo() }}@if ($requisicao->parcelas) em {{ $requisicao->parcelas }}x @endif</div>
+                </td>
+            </tr>
+        @endif
         @if (filled($requisicao->justificativa))
             <tr>
                 <td colspan="3">
@@ -152,6 +160,24 @@
                 </td>
             </tr>
         @endif
+        @if (filled($requisicao->compra_observacao))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Observação da compra</div>
+                    <div class="valor">{!! nl2br(e($requisicao->compra_observacao)) !!}</div>
+                    <div class="pequeno">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</div>
+                </td>
+            </tr>
+        @endif
+        @if (filled($requisicao->baixa_observacao))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Observação da baixa</div>
+                    <div class="valor">{!! nl2br(e($requisicao->baixa_observacao)) !!}</div>
+                    <div class="pequeno">{{ $requisicao->baixaPor?->nome }}, {{ $dataHora($requisicao->baixa_em) }}</div>
+                </td>
+            </tr>
+        @endif
         @if ($requisicao->motivo_cancelamento)
             <tr>
                 <td colspan="3">
@@ -180,7 +206,14 @@
                 <tr>
                     <td class="num">{{ $loop->iteration }}</td>
                     <td>{{ $item->codigo }}</td>
-                    <td>{{ $item->descricao }}</td>
+                    <td>
+                        @if ($item->isRecusado())
+                            <s>{{ $item->descricao }}</s><br>
+                            <span class="pequeno">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</span>
+                        @else
+                            {{ $item->descricao }}
+                        @endif
+                    </td>
                     <td>{{ $item->unidade }}</td>
                     <td class="num">{{ Quantidade::formatar($item->qtd_solicitada) }}</td>
                     <td class="num">{{ Quantidade::formatar($item->qtd_separada) }}</td>

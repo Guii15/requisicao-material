@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AcaoEvento;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoEvento;
@@ -42,36 +43,58 @@ class PainelController extends Controller
     }
 
     /**
-     * Não tem formulário de filtro: a pessoa clica no nome, no setor ou no produto que já
-     * aparece numa linha do histórico pra ver só aquilo (como o log de atividade do Linear/
-     * GitHub). A data não filtra por intervalo — a lista já vem agrupada por dia.
+     * Uma linha por requisição, ordenada pela última alteração feita por uma pessoa: quando algo
+     * muda, a requisição sobe para o topo (não vira uma linha nova por passo). O avanço automático
+     * não conta, porque é só a passagem de um status para o outro.
      *
-     * @return \Illuminate\Pagination\LengthAwarePaginator<int, RequisicaoEvento>
+     * Não tem formulário de filtro: a pessoa clica no nome, no setor ou no produto que já
+     * aparece numa linha pra ver só aquilo.
+     *
+     * @return \Illuminate\Pagination\LengthAwarePaginator<int, Requisicao>
      */
     private function historicoGeral(Request $request)
     {
-        return RequisicaoEvento::query()
-            ->with(['usuario', 'requisicao.setor'])
+        $ultimas = RequisicaoEvento::query()
+            ->selectRaw('requisicao_id, max(id) as ultimo_id')
+            ->where('acao', '!=', AcaoEvento::AVANCO_AUTOMATICO->value)
+            ->groupBy('requisicao_id');
+
+        $paginado = Requisicao::query()
+            ->joinSub($ultimas, 'ultimas', 'ultimas.requisicao_id', '=', 'requisicoes.id')
+            ->join('requisicao_eventos as ultimo', 'ultimo.id', '=', 'ultimas.ultimo_id')
+            ->select('requisicoes.*', 'ultimas.ultimo_id as ultimo_evento_id', 'ultimo.created_at as ultima_alteracao_em')
             ->addSelect(['produto' => RequisicaoItem::query()
                 ->select('descricao')
-                ->whereColumn('requisicao_id', 'requisicao_eventos.requisicao_id')
+                ->whereColumn('requisicao_id', 'requisicoes.id')
                 ->orderBy('id')
                 ->limit(1)])
-            ->when($request->filled('usuario_id'), fn (Builder $q) => $q->where('user_id', $request->integer('usuario_id')))
-            ->when($request->filled('setor_id'), fn (Builder $q) => $q->whereHas(
-                'requisicao', fn (Builder $r) => $r->where('setor_id', $request->integer('setor_id')),
-            ))
+            ->withCount('itens')
+            ->with('setor')
+            ->when($request->filled('usuario_id'), fn (Builder $q) => $q->where('ultimo.user_id', $request->integer('usuario_id')))
+            ->when($request->filled('setor_id'), fn (Builder $q) => $q->where('requisicoes.setor_id', $request->integer('setor_id')))
             ->when($request->filled('produto'), fn (Builder $q) => $q->whereHas(
-                'requisicao.itens', fn (Builder $i) => $i->where('descricao', $request->string('produto')),
+                'itens', fn (Builder $i) => $i->where('descricao', $request->string('produto')),
             ))
             ->when($this->mesEscolhido($request), function (Builder $q, string $mes) {
                 $inicio = Carbon::createFromFormat('Y-m-d', $mes.'-01')->startOfMonth();
 
-                $q->whereBetween('created_at', [$inicio, $inicio->copy()->endOfMonth()]);
+                $q->whereBetween('ultimo.created_at', [$inicio, $inicio->copy()->endOfMonth()]);
             })
-            ->latest('id')
+            ->orderByDesc('ultimo.id')
             ->paginate(20)
             ->withQueryString();
+
+        $eventos = RequisicaoEvento::query()
+            ->with('usuario')
+            ->whereIn('id', $paginado->getCollection()->pluck('ultimo_evento_id'))
+            ->get()
+            ->keyBy('id');
+
+        $paginado->getCollection()->each(
+            fn (Requisicao $r) => $r->setRelation('ultimoEvento', $eventos->get($r->ultimo_evento_id)),
+        );
+
+        return $paginado;
     }
 
     /**

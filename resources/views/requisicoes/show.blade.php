@@ -58,11 +58,6 @@
                     <x-phosphor-lock-open class="size-[18px]" aria-hidden="true" />Liberar
                 </button>
             @endcan
-            @can('entregar', $requisicao)
-                <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'entregar')">
-                    <x-phosphor-package class="size-[18px]" aria-hidden="true" />Entregar
-                </button>
-            @endcan
             @can('devolver', $requisicao)
                 <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'devolver')">
                     <x-phosphor-arrow-counter-clockwise class="size-[18px]" aria-hidden="true" />Conferir devolução
@@ -123,9 +118,15 @@
 
                 <dl class="space-y-5 border-t border-hairline p-5">
                     <div>
-                        <dt class="legenda">Finalidade</dt>
+                        <dt class="legenda">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</dt>
                         <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
                     </div>
+                    @if ($requisicao->forma_pagamento !== null)
+                        <div>
+                            <dt class="legenda">Forma de pagamento</dt>
+                            <dd class="mt-1">{{ $requisicao->forma_pagamento->rotulo() }}@if ($requisicao->parcelas) em <span class="tabular-nums">{{ $requisicao->parcelas }}</span>x @endif</dd>
+                        </div>
+                    @endif
                     @if (filled($requisicao->justificativa))
                         <div>
                             <dt class="legenda">Justificativa</dt>
@@ -163,7 +164,30 @@
                             @if (filled($requisicao->compra_observacao))
                                 <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->compra_observacao }}</dd>
                             @endif
+                            @if ($requisicao->compra_comprovante)
+                                <dd class="mt-2">
+                                    <a href="{{ route('requisicoes.comprovante-compra', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                        <img src="{{ route('requisicoes.comprovante-compra', $requisicao) }}" alt="Print do pedido de compra no WinThor" loading="lazy" class="max-h-48 rounded border border-hairline">
+                                    </a>
+                                </dd>
+                            @endif
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->baixa_por_id !== null)
+                        <div class="rounded-lg border border-hairline p-4">
+                            <dt class="text-[13px] font-medium text-ink">Baixa registrada</dt>
+                            @if (filled($requisicao->baixa_observacao))
+                                <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->baixa_observacao }}</dd>
+                            @endif
+                            @if ($requisicao->baixa_comprovante)
+                                <dd class="mt-2">
+                                    <a href="{{ route('requisicoes.comprovante-baixa', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                        <img src="{{ route('requisicoes.comprovante-baixa', $requisicao) }}" alt="Print do documento de baixa" loading="lazy" class="max-h-48 rounded border border-hairline">
+                                    </a>
+                                </dd>
+                            @endif
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->baixaPor?->nome }}, {{ $dataHora($requisicao->baixa_em) }}</dd>
                         </div>
                     @endif
                     @if ($requisicao->motivo_cancelamento)
@@ -184,7 +208,13 @@
                         <li class="flex gap-3 px-5 py-3 text-sm">
                             <span class="w-5 shrink-0 text-right text-mid-gray tabular-nums">{{ $loop->iteration }}</span>
                             <div class="min-w-0">
-                                <p>@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                <p @class(['line-through text-mid-gray' => $item->isRecusado()])>@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                @if ($item->isRecusado())
+                                    <p class="mt-0.5 text-[13px] text-destrutivo">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</p>
+                                @endif
+                                @if (filled($item->observacao_devolucao))
+                                    <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
+                                @endif
                                 <p class="mt-0.5 flex flex-wrap gap-x-4 text-[13px] text-mid-gray">
                                     <span>Solicitada: <span class="font-medium text-ink tabular-nums">{{ \App\Support\Quantidade::formatar($item->qtd_solicitada) }}</span> {{ $item->unidade }}</span>
                                     <span>Separada: <span class="font-medium text-ink tabular-nums">{{ \App\Support\Quantidade::formatar($item->qtd_separada) }}</span></span>
@@ -210,7 +240,15 @@
                                 <tr>
                                     <td class="num text-mid-gray">{{ $loop->iteration }}</td>
                                     <td class="tabular-nums text-mid-gray">{{ $item->codigo ?? '—' }}</td>
-                                    <td>{{ $item->descricao }}</td>
+                                    <td>
+                                        <span @class(['line-through text-mid-gray' => $item->isRecusado()])>{{ $item->descricao }}</span>
+                                        @if ($item->isRecusado())
+                                            <p class="mt-0.5 text-[13px] text-destrutivo">Recusado por {{ $item->recusadoPor?->nome }}: {{ $item->motivo_recusa }}</p>
+                                        @endif
+                                        @if (filled($item->observacao_devolucao))
+                                            <p class="mt-0.5 text-[13px] whitespace-pre-line text-ink-soft">Devolução: {{ $item->observacao_devolucao }}</p>
+                                        @endif
+                                    </td>
                                     <td class="text-mid-gray">{{ $item->unidade }}</td>
                                     <td class="num font-medium">{{ \App\Support\Quantidade::formatar($item->qtd_solicitada) }}</td>
                                     <td class="num text-mid-gray">{{ \App\Support\Quantidade::formatar($item->qtd_separada) }}</td>
@@ -320,6 +358,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
+                        <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar" />
                         <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a Erica decidir.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
@@ -374,7 +413,7 @@
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Confira a quantidade de cada item. O que não achar, deixe em 0. A requisição segue com o que foi separado.@if ($juntaEntrega) Informe quem está retirando: a entrega já fica registrada junto.@endif</p>
                         <div class="space-y-3">
-                            @foreach ($requisicao->itens as $item)
+                            @foreach ($requisicao->itens->reject->isRecusado()->values() as $item)
                                 <div class="flex items-center gap-3">
                                     <div class="min-w-0 flex-1">
                                         <p class="truncate text-sm font-medium text-ink">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
@@ -394,6 +433,8 @@
                         </div>
                         @if ($juntaEntrega)
                             <x-campo-pessoa nome="retirado_por_nome" id="separar-nome" rotulo="Quem está retirando" />
+                        @else
+                            <x-campo-pessoa nome="retirado_por_nome" id="separar-nome" rotulo="Quem vai retirar (opcional)" :obrigatorio="false" />
                         @endif
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
@@ -417,7 +458,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="liberar">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Depois de liberada, a requisição vai pra fila de entrega.</p>
+                        <p class="text-sm text-ink-soft">Depois de liberada, a requisição vai direto para a baixa.</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
@@ -455,25 +496,6 @@
             </x-modal>
         @endcan
 
-            @can('entregar', $requisicao)
-            <x-modal nome="entregar" :titulo="'Entregar '.$requisicao->numero" :abrir="old('_acao') === 'entregar' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.entregar', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
-                    @csrf
-                    <input type="hidden" name="_acao" value="entregar">
-                    <div class="space-y-4 px-5 py-4">
-                        <x-campo-pessoa nome="retirado_por_nome" id="entregar-nome" rotulo="Quem está retirando" data-foco />
-                    </div>
-                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
-                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
-                        <button type="submit" class="botao botao-primario" :disabled="enviando">
-                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
-                            <span x-text="enviando ? 'Enviando…' : 'Confirmar entrega'"></span>
-                        </button>
-                    </div>
-                </form>
-            </x-modal>
-        @endcan
-
             @can('devolver', $requisicao)
             @php
                 $semZerosDevolucao = fn ($valor) => rtrim(rtrim((string) $valor, '0'), '.') ?: '0';
@@ -489,18 +511,18 @@
                 <form method="POST" action="{{ route('requisicoes.devolver', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="devolver">
-                    <div class="grid gap-7 px-6 py-5 md:grid-cols-[1.3fr_1fr]">
-                        <div>
+                    <div class="grid grid-cols-1 gap-7 px-4 py-5 sm:px-6 md:grid-cols-[1.3fr_1fr]">
+                        <div class="min-w-0">
                             <p class="etiqueta mb-3.5 border-b border-hairline pb-1.5">Conferência</p>
                             <div class="space-y-3">
-                                @foreach ($requisicao->itens as $item)
+                                @foreach ($requisicao->itens->reject->isRecusado() as $item)
                                     <div class="rounded-lg border border-hairline p-3.5" x-data="{ resultado: '{{ $divergenteAntes($item) ? 'divergente' : 'ok' }}' }">
-                                        <div class="flex items-start justify-between gap-3">
+                                        <div class="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                             <div class="min-w-0">
-                                                <p class="truncate text-sm font-medium text-ink">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
+                                                <p class="text-sm font-medium break-words text-ink sm:truncate">@if ($item->codigo)<span class="mr-1.5 font-medium tabular-nums text-mid-gray">{{ $item->codigo }}</span>@endif{{ $item->descricao }}</p>
                                                 <p class="text-[13px] text-mid-gray">Solicitada: {{ $semZerosDevolucao($item->qtd_solicitada) }} {{ $item->unidade }}</p>
                                             </div>
-                                            <div class="w-40 shrink-0">
+                                            <div class="w-full shrink-0 sm:w-40">
                                                 <label for="devolver-{{ $item->id }}-resultado" class="sr-only">Resultado de {{ $item->descricao }}</label>
                                                 <select id="devolver-{{ $item->id }}-resultado" x-model="resultado" @if ($loop->first) data-foco @endif class="campo h-9 py-0 text-[13px]">
                                                     <option value="ok">Voltou tudo OK</option>
@@ -558,7 +580,7 @@
                             </div>
                         </div>
 
-                        <div>
+                        <div class="min-w-0">
                             <p class="etiqueta mb-3.5 border-b border-hairline pb-1.5">Sobre a requisição</p>
                             <dl class="text-[13px]">
                                 <div class="flex justify-between gap-3 border-b border-hairline py-1.5"><dt class="text-mid-gray">Setor</dt><dd class="text-right">{{ $requisicao->setor->nome }}</dd></div>
@@ -571,7 +593,7 @@
                             <p class="text-[13px] whitespace-pre-line text-ink-soft">{{ $requisicao->finalidade }}</p>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-2 border-t border-hairline bg-fundo px-6 py-4">
+                    <div class="flex justify-end gap-2 border-t border-hairline bg-fundo px-4 py-4 sm:px-6">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Cancelar</button>
                         <button type="submit" class="botao botao-primario" :disabled="enviando">
                             <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
@@ -584,12 +606,41 @@
 
         @can('decidirCompra', $requisicao)
             <x-modal nome="aprovar-compra" :titulo="'Aprovar compra '.$requisicao->numero" :abrir="old('_acao') === 'aprovar-compra' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                <form method="POST" action="{{ route('requisicoes.decidir-compra', $requisicao) }}" enctype="multipart/form-data"
+                      x-data="{ enviando: false, forma: '{{ old('_acao') === 'aprovar-compra' && is_string(old('forma_pagamento')) ? old('forma_pagamento') : $requisicao->forma_pagamento?->value }}' }"
+                      x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="aprovar-compra">
                     <input type="hidden" name="decisao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois de aprovada, a compra está liberada e o status é atualizado para o solicitante.</p>
+                        <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar-compra" />
+                        <fieldset>
+                            <legend class="rotulo">Forma de pagamento</legend>
+                            <p class="ajuda">O solicitante pediu {{ mb_strtolower($requisicao->forma_pagamento?->rotulo() ?? 'sem forma definida') }}. Você pode trocar.</p>
+                            <div class="mt-2 flex flex-wrap gap-3">
+                                @foreach (\App\Enums\FormaPagamento::cases() as $forma)
+                                    <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-hairline bg-paper px-4 py-2.5 text-[13px] font-medium text-ink has-[:checked]:border-marca has-[:checked]:bg-marca-suave">
+                                        <input type="radio" name="forma_pagamento" value="{{ $forma->value }}" x-model="forma" required class="accent-marca">
+                                        {{ $forma->rotulo() }}
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('forma_pagamento')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </fieldset>
+                        <div x-show="forma === 'PARCELADO'" x-cloak>
+                            <label for="aprovar-compra-parcelas" class="rotulo">Número de parcelas</label>
+                            <input type="number" id="aprovar-compra-parcelas" name="parcelas" min="2" max="24" inputmode="numeric"
+                                   :required="forma === 'PARCELADO'" :disabled="forma !== 'PARCELADO'"
+                                   value="{{ old('_acao') === 'aprovar-compra' && is_scalar(old('parcelas')) ? old('parcelas') : $requisicao->parcelas }}"
+                                   class="campo mt-1.5 w-28 tabular-nums @error('parcelas') campo-erro @enderror">
+                            @error('parcelas')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <x-campo-print id="aprovar-compra-comprovante" rotulo="Print do pedido de compra no WinThor" />
                         <div>
                             <label for="aprovar-compra-observacao" class="rotulo">Observação (opcional)</label>
                             <textarea id="aprovar-compra-observacao" name="observacao" rows="3" maxlength="1000"  data-foco
@@ -646,17 +697,8 @@
                     <div class="space-y-4 px-5 py-4">
                         <p class="text-sm text-ink-soft">Depois da baixa, a requisição está encerrada.</p>
                         <div>
-                            <label for="baixa-documento" class="rotulo">Documento de baixa no WinThor</label>
-                            <input id="baixa-documento" name="documento" type="text" required data-foco maxlength="40"
-                                   value="{{ old('documento') }}"
-                                   class="campo mt-1.5 @error('documento') campo-erro @enderror">
-                            @error('documento')
-                                <p class="erro-campo">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div>
                             <label for="baixa-observacao" class="rotulo">Observação (opcional)</label>
-                            <textarea id="baixa-observacao" name="observacao" rows="2" maxlength="1000"
+                            <textarea id="baixa-observacao" name="observacao" rows="2" maxlength="1000" data-foco
                                       class="campo mt-1.5">{{ old('observacao') }}</textarea>
                         </div>
                     </div>

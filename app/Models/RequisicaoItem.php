@@ -35,7 +35,19 @@ class RequisicaoItem extends Model
             'qtd_devolvida_ok' => 'decimal:3',
             'qtd_devolvida_defeito' => 'decimal:3',
             'qtd_nao_devolvida' => 'decimal:3',
+            'recusado_em' => 'datetime',
         ];
+    }
+
+    public function isRecusado(): bool
+    {
+        return $this->recusado_em !== null;
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function recusadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recusado_por_id');
     }
 
     protected static function booted(): void

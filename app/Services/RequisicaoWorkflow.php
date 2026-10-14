@@ -4,15 +4,19 @@ namespace App\Services;
 
 use App\Enums\AcaoEvento;
 use App\Enums\EtapaAssinatura;
+use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
 use App\Exceptions\RegraDeNegocioException;
 use App\Models\Parametro;
 use App\Models\Requisicao;
 use App\Models\RequisicaoEvento;
+use App\Models\RequisicaoItem;
 use App\Models\User;
 use App\Support\DiasUteis;
 use Closure;
+use Illuminate\Support\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -59,6 +63,7 @@ class RequisicaoWorkflow
                 'justificativa' => $validado['justificativa'] ?? '',
                 'finalidade' => $validado['finalidade'],
                 'data_prevista_devolucao' => $tipo->exigeDevolucao() ? $validado['data_prevista_devolucao'] : null,
+                'forma_pagamento' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? $validado['forma_pagamento'] : null,
             ]);
 
             $requisicao->forceFill([
@@ -87,13 +92,103 @@ class RequisicaoWorkflow
         });
     }
 
-    public function aprovar(Requisicao $requisicao, User $por, ?string $senha): Requisicao
+    /**
+     * Aprova a requisição. $recusados (id do item => motivo) tira itens do fluxo: os outros seguem.
+     * Se todos os itens forem recusados, vira uma reprovação da requisição inteira.
+     *
+     * @param  array<int|string, mixed>  $recusados
+     */
+    public function aprovar(Requisicao $requisicao, User $por, ?string $senha, array $recusados = []): Requisicao
     {
+        $recusas = $this->normalizarRecusas($requisicao, $recusados);
+
+        if ($this->recusouTudo($requisicao, $recusas)) {
+            return $this->reprovar($requisicao, $por, $this->motivoDeTodosRecusados($requisicao, $recusas), $senha);
+        }
+
         return $this->executar(
             $requisicao, $por, StatusRequisicao::APROVADA, 'aprovar', AcaoEvento::APROVACAO,
             EtapaAssinatura::APROVACAO_SETOR, $senha,
-            alterar: fn (Requisicao $r) => $r->forceFill(['aprovado_por_id' => $por->id, 'aprovado_em' => now()]),
+            alterar: function (Requisicao $r, array $dados) use ($por) {
+                $r->forceFill(['aprovado_por_id' => $por->id, 'aprovado_em' => now()]);
+                $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
+            },
+            validar: fn () => $recusas === [] ? [] : ['recusas' => $recusas],
         );
+    }
+
+    /**
+     * Itens que ainda estão no fluxo (não foram recusados).
+     *
+     * @return Collection<int, RequisicaoItem>
+     */
+    private function itensAtivos(Requisicao $requisicao): Collection
+    {
+        return $requisicao->itens->reject(fn (RequisicaoItem $item) => $item->isRecusado())->values();
+    }
+
+    /**
+     * Só vale recusa de item ativo desta requisição; o motivo é obrigatório.
+     *
+     * @param  array<int|string, mixed>  $recusados
+     * @return array<int, string> motivo por id de item
+     */
+    private function normalizarRecusas(Requisicao $requisicao, array $recusados): array
+    {
+        $ativos = $this->itensAtivos($requisicao)->keyBy('id');
+        $recusas = [];
+
+        foreach ($recusados as $id => $motivo) {
+            $item = $ativos->get((int) $id);
+
+            if ($item === null) {
+                continue;
+            }
+
+            $recusas[$item->id] = $this->exigirMotivo(
+                is_string($motivo) ? $motivo : null,
+                "Informe o motivo da recusa de \"{$item->descricao}\"",
+                campo: "itens.{$item->id}.motivo",
+            );
+        }
+
+        return $recusas;
+    }
+
+    /**
+     * @param  array<int, string>  $recusas
+     */
+    private function recusouTudo(Requisicao $requisicao, array $recusas): bool
+    {
+        return $recusas !== [] && count($recusas) === $this->itensAtivos($requisicao)->count();
+    }
+
+    /**
+     * @param  array<int, string>  $recusas
+     */
+    private function motivoDeTodosRecusados(Requisicao $requisicao, array $recusas): string
+    {
+        $texto = $this->itensAtivos($requisicao)
+            ->map(fn (RequisicaoItem $item) => "{$item->descricao}: {$recusas[$item->id]}")
+            ->implode('; ');
+
+        return mb_substr("Todos os itens foram recusados. {$texto}", 0, 1000);
+    }
+
+    /**
+     * @param  array<int, string>  $recusas
+     */
+    private function gravarRecusas(Requisicao $requisicao, User $por, array $recusas): void
+    {
+        foreach ($requisicao->itens as $item) {
+            if (isset($recusas[$item->id])) {
+                $item->forceFill([
+                    'recusado_em' => now(),
+                    'recusado_por_id' => $por->id,
+                    'motivo_recusa' => $recusas[$item->id],
+                ])->save();
+            }
+        }
     }
 
     public function reprovar(Requisicao $requisicao, User $por, ?string $motivo, ?string $senha): Requisicao
@@ -113,12 +208,23 @@ class RequisicaoWorkflow
     /**
      * @param  array<int, mixed>  $itens  quantidade separada por id de item
      */
-    public function separar(Requisicao $requisicao, User $por, array $itens, ?string $senha): Requisicao
+    public function separar(Requisicao $requisicao, User $por, array $itens, ?string $senha, ?string $retiradoPorNome = null): Requisicao
     {
+        // No Uso e Consumo não há tela de entrega: quem vai retirar é anotado aqui (opcional).
+        $retirante = is_string($retiradoPorNome) && trim($retiradoPorNome) !== ''
+            ? $this->exigirMotivo($retiradoPorNome, 'Informe quem vai retirar', minimo: 2, campo: 'retirado_por_nome')
+            : null;
+
         return $this->executar(
             $requisicao, $por, StatusRequisicao::EM_SEPARACAO, 'separar', AcaoEvento::SEPARACAO,
             EtapaAssinatura::SEPARACAO, $senha,
-            alterar: fn (Requisicao $r, array $dados) => $this->gravarSeparacao($r, $por, $dados['itens']),
+            alterar: function (Requisicao $r, array $dados) use ($por, $retirante) {
+                $this->gravarSeparacao($r, $por, $dados['itens']);
+
+                if ($retirante !== null) {
+                    $r->forceFill(['retirado_por_nome' => $retirante]);
+                }
+            },
             validar: fn () => ['itens' => $this->validarSeparacao($requisicao, $itens)],
         );
     }
@@ -133,7 +239,7 @@ class RequisicaoWorkflow
         $nomes = [];
         $normalizado = [];
 
-        foreach ($requisicao->itens as $item) {
+        foreach ($this->itensAtivos($requisicao) as $item) {
             $bruto = $itens[$item->id] ?? null;
             $normalizado[$item->id] = is_string($bruto) ? str_replace(',', '.', trim($bruto)) : $bruto;
             // Não separa mais do que foi pedido: quem digitar mais que qtd_solicitada está com o número errado.
@@ -149,7 +255,7 @@ class RequisicaoWorkflow
      */
     private function gravarSeparacao(Requisicao $requisicao, User $por, array $quantidades): void
     {
-        foreach ($requisicao->itens as $item) {
+        foreach ($this->itensAtivos($requisicao) as $item) {
             $item->forceFill(['qtd_separada' => $quantidades[$item->id]])->save();
         }
 
@@ -258,7 +364,7 @@ class RequisicaoWorkflow
         $nomes = [];
         $normalizado = [];
 
-        foreach ($requisicao->itens as $item) {
+        foreach ($this->itensAtivos($requisicao) as $item) {
             $linha = $itens[$item->id] ?? [];
             $normalizado[$item->id] = [
                 'ok' => $norm($linha['ok'] ?? null),
@@ -276,7 +382,7 @@ class RequisicaoWorkflow
 
         $validado = Validator::make(['itens' => $normalizado], $regras, [], $nomes)->validate()['itens'];
 
-        foreach ($requisicao->itens as $item) {
+        foreach ($this->itensAtivos($requisicao) as $item) {
             $linha = $validado[$item->id];
             $soma = bcadd(bcadd($linha['ok'], $linha['defeito'], 3), $linha['nao_devolvida'], 3);
 
@@ -295,7 +401,7 @@ class RequisicaoWorkflow
      */
     private function gravarDevolucao(Requisicao $requisicao, User $por, array $itens): void
     {
-        foreach ($requisicao->itens as $item) {
+        foreach ($this->itensAtivos($requisicao) as $item) {
             $linha = $itens[$item->id];
             $item->forceFill([
                 'qtd_devolvida_ok' => $linha['ok'],
@@ -309,9 +415,10 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Baixa (Uso e Consumo): fecha a requisição com o documento do WinThor.
+     * Baixa (Uso e Consumo): fecha a requisição. O print do WinThor agora fica no pedido de compra;
+     * a baixa só leva uma observação opcional.
      */
-    public function darBaixa(Requisicao $requisicao, User $por, string $documentoWinthor, ?string $observacao, ?string $senha): Requisicao
+    public function darBaixa(Requisicao $requisicao, User $por, ?string $observacao, ?string $senha): Requisicao
     {
         return $this->executar(
             $requisicao, $por, StatusRequisicao::BAIXADA, 'darBaixa', AcaoEvento::BAIXA,
@@ -319,22 +426,52 @@ class RequisicaoWorkflow
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'baixa_por_id' => $por->id,
                 'baixa_em' => now(),
-                'baixa_documento_winthor' => $dados['documento'],
                 'baixa_observacao' => $dados['observacao'],
             ]),
-            validar: fn () => [
-                'documento' => $this->exigirMotivo($documentoWinthor, 'Informe o documento de baixa do WinThor', minimo: 2, campo: 'documento'),
-                'observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null,
-            ],
+            validar: fn () => ['observacao' => is_string($observacao) && trim($observacao) !== '' ? trim($observacao) : null],
         );
     }
 
     /**
-     * Compra de funcionário: a responsável pela baixa aprova ou reprova depois dos aprovadores.
-     * Reprovar exige motivo; aprovar aceita uma observação.
+     * Print do pedido de compra no WinThor: obrigatório para aprovar a compra.
      */
-    public function decidirCompra(Requisicao $requisicao, User $por, bool $aprova, ?string $texto): Requisicao
+    private function validarPrint(?UploadedFile $comprovante): void
     {
+        Validator::make(['comprovante' => $comprovante], [
+            'comprovante' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+        ], [
+            'comprovante.required' => 'Anexe o print do pedido de compra no WinThor.',
+            'comprovante.image' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'comprovante.mimes' => 'O print precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'comprovante.max' => 'O print pode ter no máximo 5 MB.',
+            'comprovante.uploaded' => 'Não foi possível enviar o print. Tente de novo.',
+        ])->validate();
+    }
+
+    /**
+     * Pedido de compra: a responsável pela baixa aprova ou reprova depois dos aprovadores.
+     * Reprovar exige motivo; aprovar aceita uma observação e grava a forma de pagamento (ela pode
+     * trocar a que o solicitante pediu) e, se for parcelado, o número de parcelas.
+     */
+    public function decidirCompra(
+        Requisicao $requisicao,
+        User $por,
+        bool $aprova,
+        ?string $texto,
+        ?string $forma = null,
+        int|string|null $parcelas = null,
+        array $recusados = [],
+        ?UploadedFile $comprovante = null,
+    ): Requisicao {
+        $recusas = $aprova ? $this->normalizarRecusas($requisicao, $recusados) : [];
+
+        // Recusou todos os itens: é o mesmo que reprovar o pedido inteiro.
+        if ($this->recusouTudo($requisicao, $recusas)) {
+            $aprova = false;
+            $texto = $this->motivoDeTodosRecusados($requisicao, $recusas);
+            $recusas = [];
+        }
+
         return $this->executar(
             $requisicao, $por,
             $aprova ? StatusRequisicao::COMPRA_APROVADA : StatusRequisicao::COMPRA_REPROVADA,
@@ -342,17 +479,65 @@ class RequisicaoWorkflow
             $aprova ? AcaoEvento::COMPRA_APROVADA : AcaoEvento::COMPRA_REPROVADA,
             $aprova ? EtapaAssinatura::COMPRA_APROVADA : EtapaAssinatura::COMPRA_REPROVADA,
             null,
-            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
-                'compra_decidido_por_id' => $por->id,
-                'compra_decidido_em' => now(),
-                'compra_observacao' => $dados['observacao'],
-            ]),
-            validar: fn () => [
-                'observacao' => $aprova
-                    ? (is_string($texto) && trim($texto) !== '' ? trim($texto) : null)
-                    : $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao'),
-            ],
+            alterar: function (Requisicao $r, array $dados) use ($por, $comprovante) {
+                $r->forceFill(array_merge([
+                    'compra_decidido_por_id' => $por->id,
+                    'compra_decidido_em' => now(),
+                    'compra_observacao' => $dados['observacao'],
+                ], array_key_exists('forma_pagamento', $dados) ? [
+                    'forma_pagamento' => $dados['forma_pagamento'],
+                    'parcelas' => $dados['parcelas'],
+                    'compra_comprovante' => $comprovante?->store('compras', 'local'),
+                ] : []));
+                $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
+            },
+            validar: function () use ($aprova, $texto, $requisicao, $forma, $parcelas, $recusas, $comprovante) {
+                if (! $aprova) {
+                    return ['observacao' => $this->exigirMotivo($texto, 'Informe o motivo da reprovação da compra', campo: 'observacao')];
+                }
+
+                $this->validarPrint($comprovante);
+
+                return array_merge(
+                    ['observacao' => is_string($texto) && trim($texto) !== '' ? trim($texto) : null],
+                    $this->validarPagamento($requisicao, $forma, $parcelas),
+                    $recusas === [] ? [] : ['recusas' => $recusas],
+                );
+            },
         );
+    }
+
+    /**
+     * @return array{forma_pagamento: string, parcelas: int|null}
+     */
+    private function validarPagamento(Requisicao $requisicao, ?string $forma, int|string|null $parcelas): array
+    {
+        $dados = [
+            'forma_pagamento' => $forma !== null && $forma !== '' ? $forma : $requisicao->forma_pagamento?->value,
+            'parcelas' => $parcelas !== null && $parcelas !== '' ? $parcelas : $requisicao->parcelas,
+        ];
+
+        $validado = Validator::make($dados, [
+            'forma_pagamento' => ['required', Rule::enum(FormaPagamento::class)],
+            'parcelas' => [
+                Rule::requiredIf($dados['forma_pagamento'] === FormaPagamento::PARCELADO->value),
+                'nullable', 'integer', 'min:2', 'max:24',
+            ],
+        ], [
+            'forma_pagamento.required' => 'Escolha a forma de pagamento: à vista ou parcelado.',
+            'parcelas.required' => 'Informe em quantas parcelas.',
+            'parcelas.min' => 'Parcelado começa em 2 parcelas.',
+            'parcelas.max' => 'O máximo é 24 parcelas.',
+            'parcelas.integer' => 'Informe o número de parcelas.',
+        ], [
+            'forma_pagamento' => 'forma de pagamento',
+            'parcelas' => 'parcelas',
+        ])->validate();
+
+        return [
+            'forma_pagamento' => $validado['forma_pagamento'],
+            'parcelas' => $validado['forma_pagamento'] === FormaPagamento::PARCELADO->value ? (int) $validado['parcelas'] : null,
+        ];
     }
 
     public function cancelar(Requisicao $requisicao, User $por, ?string $motivo): Requisicao
@@ -500,6 +685,11 @@ class RequisicaoWorkflow
             'itens.*.unidade' => ['required', 'string', 'max:20'],
             'itens.*.quantidade' => ['required', 'numeric', 'gt:0', 'max:999999.999', 'decimal:0,3'],
             'justificativa' => ['nullable', 'string', 'max:2000'],
+            'forma_pagamento' => [
+                'exclude_unless:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
+                'required',
+                Rule::enum(FormaPagamento::class),
+            ],
             'finalidade' => ['required', 'string', 'min:5', 'max:2000'],
             'data_prevista_devolucao' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TESTE->value,
@@ -515,6 +705,7 @@ class RequisicaoWorkflow
             'itens.max' => 'Uma requisição pode ter no máximo 50 itens.',
             'itens.*.quantidade.gt' => 'A quantidade precisa ser maior que zero.',
             'itens.*.quantidade.decimal' => 'Use no máximo 3 casas decimais.',
+            'forma_pagamento.required' => 'Escolha a forma de pagamento: à vista ou parcelado.',
             'data_prevista_devolucao.required' => 'Informe a data prevista de devolução.',
             'data_prevista_devolucao.after_or_equal' => 'A devolução não pode ser antes de hoje.',
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",
@@ -527,6 +718,7 @@ class RequisicaoWorkflow
             'justificativa' => 'justificativa',
             'finalidade' => 'finalidade',
             'data_prevista_devolucao' => 'data prevista de devolução',
+            'forma_pagamento' => 'forma de pagamento',
         ])->validate();
     }
 }

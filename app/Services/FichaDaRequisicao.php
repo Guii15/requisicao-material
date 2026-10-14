@@ -34,7 +34,7 @@ class FichaDaRequisicao
      */
     public function dados(Requisicao $requisicao): array
     {
-        $requisicao->loadMissing(['itens', 'assinaturas', 'eventos.usuario', 'solicitante', 'setor', 'reprovadoPor', 'canceladoPor', 'compraDecididaPor']);
+        $requisicao->loadMissing(['itens.recusadoPor', 'assinaturas', 'eventos.usuario', 'solicitante', 'setor', 'reprovadoPor', 'canceladoPor', 'compraDecididaPor']);
 
         $assinadas = $requisicao->assinaturas->pluck('etapa');
         $pendentes = $requisicao->status->isFinal()

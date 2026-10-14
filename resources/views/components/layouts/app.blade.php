@@ -8,7 +8,6 @@
         request()->routeIs('aprovacoes.*') => 'aprovacoes',
         request()->routeIs('separacao.*') => 'separacao',
         request()->routeIs('liberacao.*') => 'liberacao',
-        request()->routeIs('entrega.*') => 'entrega',
         request()->routeIs('devolucao.*') => 'devolucao',
         request()->routeIs('baixa.*') => 'baixa',
         request()->routeIs('compras.*') => 'compras',
@@ -66,14 +65,11 @@
             @if ($menu['liberacao'] !== null)
                 <x-menu-link-lateral :href="route('liberacao.index')" :ativo="$secao === 'liberacao'" :contador="$menu['liberacao']" contador-nome="liberacao" icone="lock-key">Liberação</x-menu-link-lateral>
             @endif
-            @if ($menu['entrega'] !== null)
-                <x-menu-link-lateral :href="route('entrega.index')" :ativo="$secao === 'entrega'" :contador="$menu['entrega']" contador-nome="entrega" icone="truck">Entrega</x-menu-link-lateral>
-            @endif
             @if ($menu['devolucao'] !== null)
                 <x-menu-link-lateral :href="route('devolucao.index')" :ativo="$secao === 'devolucao'" :contador="$menu['devolucao']" contador-nome="devolucao" icone="arrow-counter-clockwise">Devolução</x-menu-link-lateral>
             @endif
             @if ($menu['compras'] !== null)
-                <x-menu-link-lateral :href="route('compras.index')" :ativo="$secao === 'compras'" :contador="$menu['compras']" contador-nome="compras" icone="shopping-cart">Compras de funcionários</x-menu-link-lateral>
+                <x-menu-link-lateral :href="route('compras.index')" :ativo="$secao === 'compras'" :contador="$menu['compras']" contador-nome="compras" icone="shopping-cart">Pedidos de compra</x-menu-link-lateral>
             @endif
             @if ($menu['baixa'] !== null)
                 <x-menu-link-lateral :href="route('baixa.index')" :ativo="$secao === 'baixa'" :contador="$menu['baixa']" contador-nome="baixa" icone="list-checks">Baixa</x-menu-link-lateral>
