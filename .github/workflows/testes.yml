@@ -1,0 +1,46 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sqlite3, zip
+          coverage: none
+
+      - name: Instalar dependências do PHP
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Preparar o .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Rodar os testes
+        run: php artisan test
+
+  front:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compilar o front
+        run: npm run build
