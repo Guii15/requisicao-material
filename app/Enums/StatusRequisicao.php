@@ -124,6 +124,16 @@ enum StatusRequisicao: string
 
     public function visivelParaEstoque(): bool
     {
-        return ! in_array($this, [self::AGUARDANDO_APROVACAO, self::REPROVADA, self::CANCELADA, self::AGUARDANDO_COMPRA, self::COMPRA_APROVADA, self::COMPRA_REPROVADA], true);
+        return ! in_array($this, self::ocultosDoEstoque(), true);
+    }
+
+    /**
+     * Status que o estoque nunca vê: o que não foi aprovado e as compras de funcionário.
+     *
+     * @return list<self>
+     */
+    public static function ocultosDoEstoque(): array
+    {
+        return [self::AGUARDANDO_APROVACAO, self::REPROVADA, self::CANCELADA, self::AGUARDANDO_COMPRA, self::COMPRA_APROVADA, self::COMPRA_REPROVADA];
     }
 }

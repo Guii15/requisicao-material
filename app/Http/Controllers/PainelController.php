@@ -9,6 +9,7 @@ use App\Models\RequisicaoEvento;
 use App\Models\RequisicaoItem;
 use App\Models\Setor;
 use App\Models\User;
+use App\Services\RequisicoesVisiveis;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -16,12 +17,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
- * Painel geral: números da empresa toda, não só do usuário logado. Qualquer usuário
- * autenticado pode ver (não expõe conteúdo sensível, só contagens agregadas).
+ * Painel geral: os números são da empresa toda (só contagens agregadas). A atividade
+ * recente, que mostra requisição por requisição, só lista o que o usuário pode abrir.
  */
 class PainelController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, RequisicoesVisiveis $visiveis): View
     {
         $porGrupo = $this->contagemPorGrupoDeStatus();
 
@@ -35,7 +36,7 @@ class PainelController extends Controller
             'porSetor' => $this->porSetor(),
             'porSituacao' => $this->porSituacao($porGrupo),
             'porSolicitante' => $this->porSolicitante(),
-            'historico' => $this->historicoGeral($request),
+            'historico' => $this->historicoGeral($request, $visiveis),
             'filtro' => $this->filtroAtivo($request),
             'meses' => $this->mesesParaFiltro(),
             'mes' => $this->mesEscolhido($request),
@@ -52,7 +53,7 @@ class PainelController extends Controller
      *
      * @return \Illuminate\Pagination\LengthAwarePaginator<int, Requisicao>
      */
-    private function historicoGeral(Request $request)
+    private function historicoGeral(Request $request, RequisicoesVisiveis $visiveis)
     {
         $ultimas = RequisicaoEvento::query()
             ->selectRaw('requisicao_id, max(id) as ultimo_id')
@@ -70,6 +71,7 @@ class PainelController extends Controller
                 ->limit(1)])
             ->withCount('itens')
             ->with('setor')
+            ->tap(fn (Builder $q) => $visiveis->aplicar($q, $request->user()))
             ->when($request->filled('usuario_id'), fn (Builder $q) => $q->where('ultimo.user_id', $request->integer('usuario_id')))
             ->when($request->filled('setor_id'), fn (Builder $q) => $q->where('requisicoes.setor_id', $request->integer('setor_id')))
             ->when($request->filled('produto'), fn (Builder $q) => $q->whereHas(

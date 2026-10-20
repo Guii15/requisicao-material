@@ -125,4 +125,32 @@ class PainelTelasTest extends TestCase
         $this->assertSame([$doTi->numero], $numeros);
         $this->assertNotContains($doRh->numero, $numeros);
     }
+
+    public function test_atividade_recente_so_mostra_o_que_a_pessoa_pode_abrir(): void
+    {
+        [$setor] = $this->setorComAprovadores();
+        $comprador = User::factory()->for($setor)->create();
+        $colega = User::factory()->for($setor)->create();
+        $compra = $this->abrirRequisicao($comprador, [
+            'tipo' => 'COMPRA_FUNCIONARIO',
+            'forma_pagamento' => 'A_VISTA',
+            'data_prevista_devolucao' => null,
+        ]);
+        $doColega = $this->abrirRequisicao($colega, ['data_prevista_devolucao' => '2026-10-12']);
+
+        $this->actingAs($colega)->get('/painel')
+            ->assertOk()
+            ->assertSee($doColega->numero)
+            ->assertDontSee($compra->numero);
+
+        $this->actingAs($comprador)->get('/painel')
+            ->assertOk()
+            ->assertSee($compra->numero)
+            ->assertDontSee($doColega->numero);
+
+        $this->actingAs(User::factory()->admin()->create())->get('/painel')
+            ->assertOk()
+            ->assertSee($compra->numero)
+            ->assertSee($doColega->numero);
+    }
 }
