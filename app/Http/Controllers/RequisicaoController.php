@@ -6,6 +6,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\Parametro;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
+use App\Models\Setor;
 use App\Models\User;
 use App\Services\FichaDaRequisicao;
 use App\Services\RequisicaoWorkflow;
@@ -45,6 +46,8 @@ class RequisicaoController extends Controller
         $prazoDias = Parametro::inteiro('prazo_max_devolucao_dias');
 
         return view('requisicoes.create', [
+            'setores' => Setor::query()->where('ativo', true)->orderBy('nome')->get(),
+            'estoqueId' => Setor::idDoEstoque(),
             'prazoDias' => $prazoDias,
             'limiteDevolucao' => DiasUteis::doBanco()->somar(now(), $prazoDias),
         ]);
@@ -54,7 +57,7 @@ class RequisicaoController extends Controller
     {
         $requisicao = $workflow->criar(
             $request->user(),
-            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento']),
+            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento', 'setor_destino_id']),
             $this->texto($request, 'senha'),
         );
 

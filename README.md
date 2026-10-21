@@ -88,6 +88,8 @@ Ninguém aprova o próprio pedido. Quem pode fazer o quê fica em `app/Policies/
 - **Uso e Consumo**: aprovação do setor, separação, liberação do líder do estoque e baixa.
 - **Pedido de compra de funcionário**: aprovação de quem aprova compras e decisão da responsável pela baixa, com a forma de pagamento e o print do pedido no WinThor.
 
+No Teste e no Uso e Consumo, quem pede escolhe para qual setor é o pedido; o Estoque já vem marcado. Quem aprova continua sendo o setor de quem pediu.
+
 Toda mudança de status passa por `app/Services/RequisicaoWorkflow.php`. Cada etapa grava uma assinatura com hash encadeado (`app/Services/AssinaturaService.php`), e qualquer alteração depois disso aparece como divergência na ficha da requisição.
 
 ## Testes
