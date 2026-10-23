@@ -115,6 +115,14 @@
                 <div class="valor">{{ $requisicao->setor->nome }}</div>
             </td>
         </tr>
+        @if ($requisicao->setorDestino)
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">Pedido para o setor</div>
+                    <div class="valor">{{ $requisicao->setorDestino->nome }}</div>
+                </td>
+            </tr>
+        @endif
         <tr>
             <td colspan="3">
                 <div class="rotulo">{{ $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</div>

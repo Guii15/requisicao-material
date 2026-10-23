@@ -162,4 +162,27 @@ class FilaDeAprovacaoTest extends TestCase
         $this->assertSame([$doShowroom->numero], $this->numerosNaFila($geisla));
         $this->assertSame([], $this->numerosNaFila($admin));
     }
+
+    public function test_lideres_do_estoque_aprovam_junto_nos_setores_marcados(): void
+    {
+        $liderEstoque = User::factory()->liderEstoque()->create(['nome' => 'Geisla Luiz']);
+        [$showroom, $osmar] = $this->setorComAprovadores('SHOWROOM');
+        $showroom->forceFill(['lideres_estoque_aprovam' => true])->save();
+        [$ti, $liderTi] = $this->setorComAprovadores('TI');
+        $doShowroom = $this->abrirRequisicao(User::factory()->for($showroom)->create());
+        $doTi = $this->abrirRequisicao(User::factory()->for($ti)->create());
+
+        $this->assertSame([$doShowroom->numero], $this->numerosNaFila($liderEstoque));
+        $this->assertSame([$doShowroom->numero], $this->numerosNaFila($osmar));
+        $this->assertTrue($liderEstoque->can('aprovar', $doShowroom));
+        $this->assertTrue($osmar->can('aprovar', $doShowroom));
+        $this->assertFalse($liderEstoque->can('aprovar', $doTi));
+        $this->assertContains('Geisla Luiz', $this->fila->aprovadoresElegiveis($doShowroom)->pluck('nome')->all());
+        $this->assertContains($osmar->nome, $this->fila->aprovadoresElegiveis($doShowroom)->pluck('nome')->all());
+        $this->assertNotContains('Geisla Luiz', $this->fila->aprovadoresElegiveis($doTi)->pluck('nome')->all());
+        $this->assertContains($liderTi->nome, $this->fila->aprovadoresElegiveis($doTi)->pluck('nome')->all());
+
+        app(RequisicaoWorkflow::class)->aprovar($doShowroom, $liderEstoque, 'password');
+        $this->assertSame([], $this->numerosNaFila($osmar));
+    }
 }

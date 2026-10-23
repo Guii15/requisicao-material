@@ -98,6 +98,12 @@
                         <dt class="legenda">Setor</dt>
                         <dd class="mt-1 font-medium">{{ $requisicao->setor->nome }}</dd>
                     </div>
+                    @if ($requisicao->setorDestino)
+                        <div>
+                            <dt class="legenda">Pedido para</dt>
+                            <dd class="mt-1 font-medium">{{ $requisicao->setorDestino->nome }}</dd>
+                        </div>
+                    @endif
                     <div>
                         <dt class="legenda">Aberta em</dt>
                         <dd class="mt-1 tabular-nums">{{ $dataHora($requisicao->created_at) }}</dd>

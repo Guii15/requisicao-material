@@ -19,6 +19,7 @@ class SetorFactory extends Factory
             'nome' => 'SETOR '.fake()->unique()->numberBetween(1, 99999),
             'ativo' => true,
             'sem_sublider_definido' => false,
+            'lideres_estoque_aprovam' => false,
         ];
     }
 }

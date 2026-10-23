@@ -16,7 +16,7 @@ class ImportarUsuariosTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO'];
+    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO', 'APROVA_SETORES'];
 
     /** @var list<string> */
     private array $arquivos = [];
@@ -235,6 +235,71 @@ class ImportarUsuariosTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
+    public function test_senha_padrao_vale_em_producao_e_obriga_a_troca(): void
+    {
+        $this->app['env'] = 'production';
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao()), '--senha-padrao' => 'Bin@2026'])
+            ->expectsOutputToContain('pede a troca no primeiro acesso')
+            ->assertSuccessful();
+
+        $this->assertSame(7, User::count());
+        foreach (User::all() as $user) {
+            $this->assertTrue(Hash::check('Bin@2026', $user->password), $user->login);
+            $this->assertTrue($user->deve_trocar_senha, $user->login);
+        }
+    }
+
+    public function test_senha_padrao_nao_troca_a_senha_de_quem_ja_existe(): void
+    {
+        $arquivo = $this->planilha($this->linhasPadrao());
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--senha-de-teste' => 'antiga123'])->assertSuccessful();
+
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--senha-padrao' => 'Bin@2026'])->assertSuccessful();
+
+        $this->assertTrue(Hash::check('antiga123', User::where('login', 'geisla.luiz')->value('password')));
+    }
+
+    public function test_senha_padrao_fraca_e_recusada(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao()), '--senha-padrao' => '123'])
+            ->expectsOutputToContain('pelo menos 8 caracteres')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_lider_do_estoque_tambem_aprova_outros_setores(): void
+    {
+        $linhas = $this->linhasPadrao();
+        $linhas[0][] = 'SHOWROOM; ninja place';
+        $linhas[] = [130, 'Osmar Pereira', 'osmar.pereira', '', 'Gerente', 'SHOWROOM', 'LÍDER', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', ''];
+        $linhas[] = [131, 'Gustavo Lima', 'gustavo.lima', '', 'Gerente', 'NINJA PLACE', 'LÍDER', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', ''];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--senha-padrao' => 'Bin@2026'])->assertSuccessful();
+
+        $aprovadores = fn (string $setor) => Setor::where('nome', $setor)->firstOrFail()->aprovadores()->orderBy('login')->pluck('login')->all();
+        $this->assertSame(['geisla.luiz', 'osmar.pereira'], $aprovadores('SHOWROOM'));
+        $this->assertSame(['geisla.luiz', 'gustavo.lima'], $aprovadores('NINJA PLACE'));
+        $this->assertSame(['geisla.luiz'], $aprovadores('ESTOQUE'));
+
+        // Importar de novo com a mesma planilha não muda os aprovadores.
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas)])->assertSuccessful();
+        $this->assertSame(['geisla.luiz', 'osmar.pereira'], $aprovadores('SHOWROOM'));
+    }
+
+    public function test_aprova_setores_com_setor_que_nao_existe_barra_a_importacao(): void
+    {
+        $linhas = $this->linhasPadrao();
+        $linhas[0][] = 'LOJA INEXISTENTE';
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas)])
+            ->expectsOutputToContain('LOJA INEXISTENTE')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
     public function test_le_csv_do_excel_com_ponto_e_virgula_e_acentos_ansi(): void
     {
         $caminho = sys_get_temp_dir().DIRECTORY_SEPARATOR.'carga-'.uniqid().'.csv';
@@ -252,6 +317,100 @@ class ImportarUsuariosTest extends TestCase
     {
         $this->artisan('usuarios:importar', ['arquivo' => 'nao-existe.xlsx'])
             ->expectsOutputToContain('Arquivo não encontrado')
+            ->assertFailed();
+    }
+
+    public function test_so_incluir_cria_quem_falta_e_nao_mexe_em_quem_existe(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+        $geisla = User::where('login', 'geisla.luiz')->firstOrFail();
+        $senha = $geisla->password;
+
+        // O WinThor traz a Geisla em outro setor, sem papel nenhum, e um funcionário novo.
+        $linhas = [
+            [48, 'GEISLA FELIX LUIZ', 'geisla.felix', '', 'Conferente', 'RECEBIMENTO', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', ''],
+            [36, 'Gustavo Almeida Lapa', 'gustavo.lapa', '', '', 'RECEBIMENTO', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', 'SHOWROOM'],
+        ];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true, '--senha-padrao' => 'Bin@2026'])
+            ->expectsOutputToContain('criadas: 1, já cadastradas (ficaram como estavam): 1')
+            ->expectsOutputToContain('Aprovadores somados:')
+            ->assertSuccessful();
+
+        $geisla->refresh();
+        $this->assertSame(['geisla.luiz', 'Geisla Felix Luiz', 'ESTOQUE', $senha], [$geisla->login, $geisla->nome, $geisla->setor()->value('nome'), $geisla->password]);
+        $this->assertTrue($geisla->is_lider_estoque);
+        $this->assertSame(['geisla.luiz'], Setor::where('nome', 'ESTOQUE')->firstOrFail()->aprovadores()->pluck('login')->all());
+        $this->assertEqualsCanonicalizing(['matheus.luiz', 'cesar.marcelino'], Setor::where('nome', 'TI')->firstOrFail()->aprovadores()->pluck('login')->all());
+
+        $gustavo = User::where('login', 'gustavo.lapa')->firstOrFail();
+        $this->assertTrue(Hash::check('Bin@2026', $gustavo->password));
+        $this->assertTrue($gustavo->deve_trocar_senha);
+        $this->assertSame('RECEBIMENTO', $gustavo->setor()->value('nome'));
+        $this->assertSame(['gustavo.lapa'], Setor::where('nome', 'SHOWROOM')->firstOrFail()->aprovadores()->pluck('login')->all());
+    }
+
+    public function test_so_incluir_soma_aprovador_para_quem_ja_existe_sem_tirar_os_outros(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+
+        $linhas = [[118, 'Luis Felipe Cunha de Souza', 'luis.souza', '', '', 'SHOWROOM', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', 'TI']];
+        $arquivo = $this->planilha($linhas);
+
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--so-incluir' => true])->assertSuccessful();
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--so-incluir' => true])
+            ->expectsOutputToContain('Aprovadores somados: nenhum')
+            ->assertSuccessful();
+
+        $this->assertEqualsCanonicalizing(['matheus.luiz', 'cesar.marcelino', 'luis.souza'], Setor::where('nome', 'TI')->firstOrFail()->aprovadores()->pluck('login')->all());
+    }
+
+    public function test_so_incluir_faz_lider_quem_ja_existe_sem_mudar_o_setor_dele(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+        $linhas = [[128, 'Bruno Henrique Silva', 'bruno.silva', '', '', 'SHOWROOM', 'LÍDER', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '']];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true])->assertSuccessful();
+
+        $bruno = User::where('login', 'bruno.silva')->firstOrFail();
+        $this->assertSame('ESTOQUE', $bruno->setor()->value('nome'));
+        $this->assertTrue($bruno->is_estoque);
+        $this->assertSame(['bruno.silva'], Setor::where('nome', 'SHOWROOM')->firstOrFail()->aprovadores()->pluck('login')->all());
+    }
+
+    public function test_so_incluir_nao_desativa_ninguem(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+        $linhas = [[48, 'Geisla Felix Luiz', 'geisla.luiz', '', '', 'ESTOQUE', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'NÃO', '']];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true])
+            ->expectsOutputToContain('ignorada')
+            ->assertSuccessful();
+        $this->assertTrue(User::where('login', 'geisla.luiz')->value('ativo'));
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true, '--desativar-ausentes' => true])
+            ->expectsOutputToContain('não as duas')
+            ->assertFailed();
+    }
+
+    public function test_so_incluir_barra_setor_de_aprovacao_que_nao_existe(): void
+    {
+        $linhas = [[36, 'Gustavo Almeida Lapa', 'gustavo.lapa', '', '', 'RECEBIMENTO', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', 'NINJA PLACE']];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true])
+            ->expectsOutputToContain('nem existe no sistema')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_so_incluir_barra_login_novo_que_ja_e_de_outra_pessoa(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+        $linhas = [[999, 'Bruno Souza', 'bruno.silva', '', '', 'ESTOQUE', '', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '']];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true])
+            ->expectsOutputToContain('já é de Bruno Henrique Silva')
             ->assertFailed();
     }
 }

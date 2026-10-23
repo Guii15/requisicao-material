@@ -12,6 +12,7 @@ use App\Models\Parametro;
 use App\Models\Requisicao;
 use App\Models\RequisicaoEvento;
 use App\Models\RequisicaoItem;
+use App\Models\Setor;
 use App\Models\User;
 use App\Support\DiasUteis;
 use Closure;
@@ -72,6 +73,7 @@ class RequisicaoWorkflow
                 'status_alterado_em' => now(),
                 'solicitante_id' => $solicitante->id,
                 'setor_id' => $solicitante->setor_id,
+                'setor_destino_id' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? null : ((int) ($validado['setor_destino_id'] ?? 0) ?: Setor::idDoEstoque()),
             ])->save();
 
             foreach ($validado['itens'] as $item) {
@@ -691,6 +693,13 @@ class RequisicaoWorkflow
                 Rule::enum(FormaPagamento::class),
             ],
             'finalidade' => ['required', 'string', 'min:5', 'max:2000'],
+            // Para qual setor é o pedido. Vazio vale Estoque; compra de funcionário não passa por setor nenhum.
+            'setor_destino_id' => [
+                'exclude_if:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
+                'nullable',
+                'integer',
+                Rule::exists('setores', 'id')->where('ativo', true),
+            ],
             'data_prevista_devolucao' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TESTE->value,
                 'required',
@@ -719,6 +728,7 @@ class RequisicaoWorkflow
             'finalidade' => 'finalidade',
             'data_prevista_devolucao' => 'data prevista de devolução',
             'forma_pagamento' => 'forma de pagamento',
+            'setor_destino_id' => 'setor de destino',
         ])->validate();
     }
 }

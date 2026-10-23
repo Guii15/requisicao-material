@@ -15,6 +15,7 @@
             ->filter(fn (array $mensagens, string $campo) => str_starts_with($campo, 'itens.'))
             ->map(fn (array $mensagens) => $mensagens[0])
             ->all();
+        $destinoAnterior = (int) (is_numeric(old('setor_destino_id')) ? old('setor_destino_id') : $estoqueId);
         $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO'], true) ? old('tipo') : null;
     @endphp
 
@@ -24,6 +25,8 @@
           class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_295px] lg:items-start xl:gap-10"
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
+              'destino' => (string) $destinoAnterior,
+              'nomesDosSetores' => $setores->mapWithKeys(fn ($setor) => [$setor->id => \App\Support\Texto::setor($setor->nome)]),
               'itens' => $itensAnteriores,
               'erros' => (object) $errosDosItens,
           ]))"
@@ -180,6 +183,20 @@
                     <span class="font-display text-[14px] font-bold text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</span>
                 </h2>
                 <div class="space-y-5">
+                    <div x-show="tipo !== 'COMPRA_FUNCIONARIO'">
+                        <label for="setor_destino_id" class="rotulo">Pedido para o setor</label>
+                        <p id="destino-ajuda" class="ajuda">Quase sempre é o Estoque. Mude só se o material vai ser pedido a outro setor.</p>
+                        <select id="setor_destino_id" name="setor_destino_id" aria-describedby="destino-ajuda"
+                                x-model="destino" :disabled="tipo === 'COMPRA_FUNCIONARIO'"
+                                class="campo mt-2 sm:w-72 @error('setor_destino_id') campo-erro @enderror">
+                            @foreach ($setores as $setor)
+                                <option value="{{ $setor->id }}">{{ \App\Support\Texto::setor($setor->nome) }}</option>
+                            @endforeach
+                        </select>
+                        @error('setor_destino_id')
+                            <p class="erro-campo">{{ $message }}</p>
+                        @enderror
+                    </div>
                     <div>
                         <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</label>
                         <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Por que precisa comprar? Ex.: SSD NVMe 1 TB para o notebook da montagem, o atual está com defeito.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
@@ -256,6 +273,10 @@
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Itens preenchidos</dt>
                     <dd class="font-medium tabular-nums" x-text="itens.filter((item) => item.descricao.trim() !== '').length"></dd>
+                </div>
+                <div class="flex items-center justify-between gap-3" x-show="tipo !== 'COMPRA_FUNCIONARIO'">
+                    <dt class="text-mid-gray">Pedido para</dt>
+                    <dd class="font-medium" x-text="nomesDosSetores[destino] ?? ''"></dd>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Setor</dt>
