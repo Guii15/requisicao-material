@@ -64,6 +64,7 @@ php artisan usuarios:importar caminho/planilha.xlsx             # grava
 - Colunas obrigatórias: `MATRICULA`, `NOME`, `LOGIN`, `SETOR`. Opcionais: `CARGO`, `PAPEL_SETOR` (`LIDER` ou `SUBLIDER`), `INCLUIR` (`SIM`/`NÃO`) e as marcações `ESTOQUE`, `LIDER_ESTOQUE`, `RESP_BAIXA` e `ADMIN` (`SIM`/`NÃO`).
 - `APROVA_SETORES` (opcional): outros setores que a pessoa também aprova, separados por `;`. Por exemplo, os líderes do estoque com `SHOWROOM; NINJA PLACE`.
 - `--desativar-ausentes` desativa quem está ativo no sistema mas saiu da planilha.
+- `--so-incluir` só acrescenta: cria quem ainda não existe e soma os aprovadores marcados em `PAPEL_SETOR` e `APROVA_SETORES`. Quem já está no sistema fica com os dados, o setor, os papéis e a senha que tem, e nenhum aprovador sai. É o modo para carregar a lista do WinThor.
 - `--senha-padrao='Bin@2026'` faz as pessoas novas entrarem com essa senha. O sistema pede a troca no primeiro acesso. Quem já existe continua com a senha que tem.
 - A lista de funcionários sai do WinThor com a consulta `database/winthor/funcionarios.sql`, já no formato da planilha.
 - Se uma linha tiver erro, nada é gravado.
@@ -78,7 +79,7 @@ Quem aprova pedido de compra de funcionário (`aprova_compras`) é marcado diret
 | Qualquer pessoa ativa | Abre requisições e acompanha as próprias |
 | Líder / sublíder do setor | Aprova ou reprova as requisições do setor, item por item |
 | Estoque | Separa o que foi aprovado e confere a devolução do Teste |
-| Líder do estoque | Libera o Uso e Consumo depois da separação e aprova os pedidos de setores sem aprovador |
+| Líder do estoque | Libera o Uso e Consumo depois da separação, aprova os pedidos de setores sem aprovador e aprova junto os setores marcados com `lideres_estoque_aprovam` (Showroom e Ninja Place) |
 | Responsável pela baixa | Dá baixa no Uso e Consumo e decide os pedidos de compra |
 | Aprovador de compras | Aprova os pedidos de compra de funcionário, de qualquer setor |
 | Admin | Vê tudo, cancela antes da entrega e dá baixa quando a própria responsável abriu o pedido |

@@ -16,6 +16,10 @@ use Throwable;
  * A planilha manda: quem está com INCLUIR = SIM fica ativo com os dados e papéis dela;
  * INCLUIR = NÃO desativa. Qualquer erro em qualquer linha barra tudo (nada é gravado).
  * Rodar de novo com a mesma planilha não muda nada e nunca troca a senha de ninguém.
+ *
+ * Com $soIncluir a planilha só acrescenta: cria quem ainda não está no sistema e soma os
+ * aprovadores marcados nela (PAPEL_SETOR e APROVA_SETORES). Quem já existe fica com os
+ * dados, o setor e a senha que tem, e nenhum aprovador sai.
  */
 class ImportacaoUsuarios
 {
@@ -29,12 +33,19 @@ class ImportacaoUsuarios
      * @param  bool  $desativarAusentes  desativa quem está ativo no sistema e não aparece na planilha
      * @param  ?string  $senhaDeTeste  fora de produção: todos com esta senha, sem troca obrigatória
      * @param  ?string  $senhaPadrao  pessoas novas entram com esta senha e trocam no primeiro acesso
+     * @param  bool  $soIncluir  só cria quem falta e soma aprovadores; não mexe em quem já existe
      */
-    public function executar(array $linhas, bool $simular = false, bool $desativarAusentes = false, ?string $senhaDeTeste = null, ?string $senhaPadrao = null): ResultadoImportacao
+    public function executar(array $linhas, bool $simular = false, bool $desativarAusentes = false, ?string $senhaDeTeste = null, ?string $senhaPadrao = null, bool $soIncluir = false): ResultadoImportacao
     {
         $resultado = new ResultadoImportacao;
-        [$incluir, $desativar] = $this->interpretar($linhas, $resultado);
-        $this->conferirLogins($incluir, $resultado);
+        [$incluir, $desativar] = $this->interpretar($linhas, $resultado, $soIncluir);
+
+        if ($soIncluir && $desativar !== []) {
+            $resultado->avisos[] = count($desativar).' linha(s) com INCLUIR = NÃO ignorada(s): só incluindo, ninguém é desativado.';
+        }
+
+        $existentes = $soIncluir ? User::query()->whereIn('matricula', array_column($incluir, 'matricula'))->pluck('id', 'matricula')->all() : [];
+        $this->conferirLogins(array_values(array_filter($incluir, fn (array $p) => ! isset($existentes[$p['matricula']]))), $resultado);
 
         if ($resultado->falhou()) {
             return $resultado;
@@ -43,7 +54,9 @@ class ImportacaoUsuarios
         DB::beginTransaction();
 
         try {
-            $this->aplicar($incluir, $desativar, $desativarAusentes, $senhaDeTeste, $senhaPadrao, $resultado);
+            $soIncluir
+                ? $this->incluirNovos($incluir, $senhaDeTeste, $senhaPadrao, $resultado)
+                : $this->aplicar($incluir, $desativar, $desativarAusentes, $senhaDeTeste, $senhaPadrao, $resultado);
             $simular ? DB::rollBack() : DB::commit();
         } catch (Throwable $erro) {
             DB::rollBack();
@@ -60,7 +73,7 @@ class ImportacaoUsuarios
      * @param  list<array{linha: int, colunas: array<string, string>}>  $linhas
      * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
      */
-    private function interpretar(array $linhas, ResultadoImportacao $resultado): array
+    private function interpretar(array $linhas, ResultadoImportacao $resultado, bool $soIncluir): array
     {
         if ($linhas === []) {
             $resultado->erros[] = 'A aba USUARIOS não tem nenhuma pessoa.';
@@ -159,14 +172,19 @@ class ImportacaoUsuarios
             $incluir[] = $pessoa;
         }
 
-        // APROVA_SETORES só vale para setor que aparece na planilha, e não para o próprio (esse é o PAPEL_SETOR).
+        // APROVA_SETORES só vale para setor que aparece na planilha (ou, só incluindo, que já existe
+        // no sistema), e não para o próprio (esse é o PAPEL_SETOR).
         $setoresDaPlanilha = array_flip(array_column($incluir, 'setor'));
+        if ($soIncluir) {
+            $setoresDaPlanilha += array_flip(Setor::query()->pluck('nome')->map(fn (string $nome) => mb_strtoupper($nome))->all());
+        }
         foreach ($incluir as $pessoa) {
             foreach ($pessoa['aprova_setores'] as $outro) {
                 if ($outro === $pessoa['setor']) {
                     $resultado->erros[] = "Linha {$pessoa['linha']}: APROVA_SETORES tem o próprio setor ({$outro}); para isso use PAPEL_SETOR";
                 } elseif (! isset($setoresDaPlanilha[$outro])) {
-                    $resultado->erros[] = "Linha {$pessoa['linha']}: APROVA_SETORES tem o setor {$outro}, que não é de ninguém na planilha";
+                    $resultado->erros[] = "Linha {$pessoa['linha']}: APROVA_SETORES tem o setor {$outro}, que não é de ninguém na planilha"
+                        .($soIncluir ? ' nem existe no sistema' : '');
                 }
             }
         }
@@ -322,6 +340,72 @@ class ImportacaoUsuarios
                 ? $this->desativar($ausente, $resultado)
                 : $resultado->foraDaPlanilha[] = "{$ausente->nome} ({$ausente->login})";
         }
+
+        $resultado->temLiderDoEstoqueAtivo = User::query()->where('ativo', true)->where('is_lider_estoque', true)->exists();
+    }
+
+    /**
+     * Só incluindo: cria quem não existe e soma os aprovadores da planilha, sem tirar nenhum.
+     *
+     * @param  list<array<string, mixed>>  $incluir
+     */
+    private function incluirNovos(array $incluir, ?string $senhaDeTeste, ?string $senhaPadrao, ResultadoImportacao $resultado): void
+    {
+        $setores = [];
+        $setor = function (string $nome) use (&$setores, $resultado): Setor {
+            if (! isset($setores[$nome])) {
+                $setores[$nome] = Setor::query()->firstOrCreate(['nome' => $nome]);
+                if ($setores[$nome]->wasRecentlyCreated) {
+                    $resultado->setoresCriados[] = $nome;
+                }
+            }
+
+            return $setores[$nome];
+        };
+        $existentes = User::query()->whereIn('matricula', array_column($incluir, 'matricula'))->get()->keyBy('matricula');
+        $somar = function (User $user, string $nome, PapelSetor $papel, string $rotulo) use ($setor, $resultado): void {
+            $alvo = $setor($nome);
+            if (! $alvo->aprovadores()->whereKey($user->id)->exists()) {
+                $alvo->aprovadores()->attach($user->id, ['papel' => $papel]);
+                $resultado->aprovadores[$nome][] = "{$user->nome} ({$rotulo})";
+            }
+        };
+
+        foreach ($incluir as $pessoa) {
+            $user = $existentes->get($pessoa['matricula']);
+
+            if ($user === null) {
+                $senha = $senhaDeTeste ?? $senhaPadrao ?? $this->senhaProvisoria();
+                $user = (new User)->forceFill([
+                    'matricula' => $pessoa['matricula'],
+                    'nome' => $pessoa['nome'],
+                    'login' => $pessoa['login'],
+                    'cargo' => $pessoa['cargo'],
+                    'setor_id' => $setor($pessoa['setor'])->id,
+                    'is_estoque' => $pessoa['ESTOQUE'],
+                    'is_lider_estoque' => $pessoa['LIDER_ESTOQUE'],
+                    'is_responsavel_baixa' => $pessoa['RESP_BAIXA'],
+                    'is_admin' => $pessoa['ADMIN'],
+                    'ativo' => true,
+                    'password' => $senha,
+                    'deve_trocar_senha' => $senhaDeTeste === null,
+                ]);
+                $user->save();
+                $resultado->criados[$pessoa['login']] = ['nome' => $pessoa['nome'], 'senha' => $senhaDeTeste === null && $senhaPadrao === null ? $senha : null];
+            } else {
+                $resultado->semMudanca++;
+            }
+
+            // O papel vale também para quem já existe: soma o aprovador, sem mudar o setor da pessoa.
+            if ($pessoa['papel'] !== null) {
+                $somar($user, $pessoa['setor'], $pessoa['papel'], mb_strtolower($pessoa['papel']->rotulo()));
+            }
+
+            foreach ($pessoa['aprova_setores'] as $outro) {
+                $somar($user, $outro, PapelSetor::LIDER, 'líder, do setor '.mb_strtolower($user->setor()->value('nome') ?? $pessoa['setor']));
+            }
+        }
+        ksort($resultado->aprovadores);
 
         $resultado->temLiderDoEstoqueAtivo = User::query()->where('ativo', true)->where('is_lider_estoque', true)->exists();
     }

@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * Todos os aprovadores do setor (líder e sublíder valem igual) veem a fila; ninguém vê o
  * próprio pedido. Quando o setor não tem outro aprovador ativo além do solicitante, a
  * requisição cai para os líderes do estoque (decisão de 24/09/2026: o Admin fica fora
- * da aprovação por enquanto).
+ * da aprovação por enquanto). Nos setores marcados com lideres_estoque_aprovam (Showroom e
+ * Ninja Place, decisão de 23/10/2026) os líderes do estoque aprovam sempre, junto com o setor.
  */
 class FilaDeAprovacao
 {
@@ -30,16 +31,17 @@ class FilaDeAprovacao
             ->where('status', StatusRequisicao::AGUARDANDO_APROVACAO)
             ->where('solicitante_id', '!=', $user->id)
             ->where(function (Builder $fila) use ($user) {
-                // Fluxo normal: aprovadores do setor (ou líder do estoque, se o setor não tem).
+                // Fluxo normal: aprovadores do setor (e o líder do estoque, se o setor não tem ou pede).
                 $fila->where(function (Builder $normal) use ($user) {
                     $normal->where('tipo', '!=', TipoRequisicao::COMPRA_FUNCIONARIO->value)
                         ->where(function (Builder $query) use ($user) {
                             $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
 
                             if ($user->is_lider_estoque) {
-                                $query->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
-                                    ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
-                                    ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
+                                $query->orWhereIn('setor_id', DB::table('setores')->select('id')->where('lideres_estoque_aprovam', true))
+                                    ->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
+                                        ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
+                                        ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
                             }
                         });
                 });
@@ -49,6 +51,14 @@ class FilaDeAprovacao
                     $fila->orWhere('tipo', TipoRequisicao::COMPRA_FUNCIONARIO->value);
                 }
             });
+    }
+
+    /**
+     * Os líderes do estoque podem aprovar esta requisição (fora a compra de funcionário).
+     */
+    public function lideresDoEstoqueAprovam(Requisicao $requisicao): bool
+    {
+        return (bool) $requisicao->setor()->value('lideres_estoque_aprovam') || $this->semAprovadorElegivel($requisicao);
     }
 
     public function semAprovadorElegivel(Requisicao $requisicao): bool
@@ -61,7 +71,8 @@ class FilaDeAprovacao
 
     /**
      * Quem pode aprovar a requisição agora, em ordem alfabética: os aprovadores ativos do
-     * setor ou, se não houver, os líderes do estoque ativos. Nunca o próprio solicitante.
+     * setor ou, se não houver, os líderes do estoque ativos (nos setores marcados, os dois
+     * juntos). Nunca o próprio solicitante.
      *
      * @return Collection<int, User>
      */
@@ -76,9 +87,15 @@ class FilaDeAprovacao
             return $query->where('aprova_compras', true)->get();
         }
 
-        return $this->semAprovadorElegivel($requisicao)
-            ? $query->where('is_lider_estoque', true)->get()
-            : $query->whereIn('id', DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id))->get();
+        if ($this->semAprovadorElegivel($requisicao)) {
+            return $query->where('is_lider_estoque', true)->get();
+        }
+
+        $doSetor = DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id);
+
+        return $requisicao->setor()->value('lideres_estoque_aprovam')
+            ? $query->where(fn (Builder $q) => $q->whereIn('id', $doSetor)->orWhere('is_lider_estoque', true))->get()
+            : $query->whereIn('id', $doSetor)->get();
     }
 
     /**

@@ -20,6 +20,7 @@ class Setor extends Model
         'nome',
         'ativo',
         'sem_sublider_definido',
+        'lideres_estoque_aprovam',
     ];
 
     protected function casts(): array
@@ -27,6 +28,7 @@ class Setor extends Model
         return [
             'ativo' => 'boolean',
             'sem_sublider_definido' => 'boolean',
+            'lideres_estoque_aprovam' => 'boolean',
         ];
     }
 

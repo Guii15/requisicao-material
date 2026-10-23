@@ -15,7 +15,8 @@ class ImportarUsuarios extends Command
         {--dry-run : Só mostra o que mudaria, sem gravar nada}
         {--desativar-ausentes : Desativa quem está ativo no sistema e não está na planilha}
         {--senha-de-teste= : Fora de produção: todos entram com esta senha, sem troca obrigatória}
-        {--senha-padrao= : Pessoas novas entram com esta senha e o sistema pede a troca no primeiro acesso}';
+        {--senha-padrao= : Pessoas novas entram com esta senha e o sistema pede a troca no primeiro acesso}
+        {--so-incluir : Só cria quem falta e soma aprovadores; quem já existe fica como está}';
 
     protected $description = 'Cria e atualiza pessoas, setores e aprovadores a partir da planilha de carga';
 
@@ -30,6 +31,13 @@ class ImportarUsuarios extends Command
         }
 
         $senhaPadrao = $this->option('senha-padrao');
+        $soIncluir = (bool) $this->option('so-incluir');
+
+        if ($soIncluir && $this->option('desativar-ausentes')) {
+            $this->error('Use --so-incluir ou --desativar-ausentes, não as duas: só incluindo, ninguém é desativado.');
+
+            return self::FAILURE;
+        }
 
         if ($senhaPadrao !== null && $senhaDeTeste !== null) {
             $this->error('Use --senha-padrao ou --senha-de-teste, não as duas.');
@@ -52,7 +60,7 @@ class ImportarUsuarios extends Command
         }
 
         $simular = (bool) $this->option('dry-run');
-        $resultado = $importacao->executar($linhas, $simular, (bool) $this->option('desativar-ausentes'), $senhaDeTeste, $senhaPadrao);
+        $resultado = $importacao->executar($linhas, $simular, (bool) $this->option('desativar-ausentes'), $senhaDeTeste, $senhaPadrao, $soIncluir);
 
         foreach ($resultado->avisos as $aviso) {
             $this->warn($aviso);
@@ -67,12 +75,12 @@ class ImportarUsuarios extends Command
             return self::FAILURE;
         }
 
-        $this->relatorio($resultado, $simular, $senhaDeTeste !== null, $senhaPadrao !== null);
+        $this->relatorio($resultado, $simular, $senhaDeTeste !== null, $senhaPadrao !== null, $soIncluir);
 
         return self::SUCCESS;
     }
 
-    private function relatorio(ResultadoImportacao $resultado, bool $simular, bool $comSenhaDeTeste, bool $comSenhaPadrao = false): void
+    private function relatorio(ResultadoImportacao $resultado, bool $simular, bool $comSenhaDeTeste, bool $comSenhaPadrao = false, bool $soIncluir = false): void
     {
         if ($simular) {
             $this->warn('Simulação: nada foi gravado. Rode sem --dry-run para importar.');
@@ -80,7 +88,11 @@ class ImportarUsuarios extends Command
 
         $this->newLine();
         $this->line('Setores novos: '.($resultado->setoresCriados === [] ? 'nenhum' : implode(', ', $resultado->setoresCriados)));
-        $this->line(sprintf(
+        $this->line($soIncluir ? sprintf(
+            'Pessoas: criadas: %d, já cadastradas (ficaram como estavam): %d',
+            count($resultado->criados),
+            $resultado->semMudanca,
+        ) : sprintf(
             'Pessoas: criadas: %d, atualizadas: %d, sem mudança: %d, reativadas: %d, desativadas: %d',
             count($resultado->criados),
             count($resultado->atualizados),
@@ -100,7 +112,7 @@ class ImportarUsuarios extends Command
         }
 
         $this->newLine();
-        $this->line('Aprovadores por setor:');
+        $this->line($soIncluir ? 'Aprovadores somados:'.($resultado->aprovadores === [] ? ' nenhum' : '') : 'Aprovadores por setor:');
         foreach ($resultado->aprovadores as $setor => $nomes) {
             $this->line("  {$setor}: ".($nomes === [] ? 'nenhum. Os pedidos vão para os líderes do estoque.' : implode(', ', $nomes)));
         }

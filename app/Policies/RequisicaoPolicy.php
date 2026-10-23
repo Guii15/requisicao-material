@@ -65,8 +65,9 @@ class RequisicaoPolicy
             return true;
         }
 
-        // Setor sem outro aprovador ativo: decidem os líderes do estoque. O Admin fica fora por enquanto.
-        return $user->is_lider_estoque && $this->fila->semAprovadorElegivel($requisicao);
+        // Setor sem outro aprovador ativo, ou marcado para o estoque aprovar junto (Showroom e Ninja
+        // Place): decidem os líderes do estoque. O Admin fica fora por enquanto.
+        return $user->is_lider_estoque && $this->fila->lideresDoEstoqueAprovam($requisicao);
     }
 
     public function reprovar(User $user, Requisicao $requisicao): bool
