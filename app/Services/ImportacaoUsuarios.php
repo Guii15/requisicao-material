@@ -28,8 +28,9 @@ class ImportacaoUsuarios
      * @param  bool  $simular  faz tudo numa transação desfeita no fim: o relatório sai igual, o banco não muda
      * @param  bool  $desativarAusentes  desativa quem está ativo no sistema e não aparece na planilha
      * @param  ?string  $senhaDeTeste  fora de produção: todos com esta senha, sem troca obrigatória
+     * @param  ?string  $senhaPadrao  pessoas novas entram com esta senha e trocam no primeiro acesso
      */
-    public function executar(array $linhas, bool $simular = false, bool $desativarAusentes = false, ?string $senhaDeTeste = null): ResultadoImportacao
+    public function executar(array $linhas, bool $simular = false, bool $desativarAusentes = false, ?string $senhaDeTeste = null, ?string $senhaPadrao = null): ResultadoImportacao
     {
         $resultado = new ResultadoImportacao;
         [$incluir, $desativar] = $this->interpretar($linhas, $resultado);
@@ -42,7 +43,7 @@ class ImportacaoUsuarios
         DB::beginTransaction();
 
         try {
-            $this->aplicar($incluir, $desativar, $desativarAusentes, $senhaDeTeste, $resultado);
+            $this->aplicar($incluir, $desativar, $desativarAusentes, $senhaDeTeste, $senhaPadrao, $resultado);
             $simular ? DB::rollBack() : DB::commit();
         } catch (Throwable $erro) {
             DB::rollBack();
@@ -117,6 +118,11 @@ class ImportacaoUsuarios
                 'cargo' => ($c['CARGO'] ?? '') !== '' ? $c['CARGO'] : null,
                 'setor' => mb_strtoupper($c['SETOR']),
                 'papel' => $this->papel($c['PAPEL_SETOR'] ?? '', $erro),
+                // Outros setores que a pessoa também aprova, como líder (ex.: líder do estoque aprovando o Showroom).
+                'aprova_setores' => array_values(array_unique(array_filter(array_map(
+                    fn (string $nome) => mb_strtoupper(trim($nome)),
+                    preg_split('/[;,]/', $c['APROVA_SETORES'] ?? '') ?: [],
+                ), fn (string $nome) => $nome !== ''))),
             ];
             foreach (self::MARCACOES as $marcacao) {
                 $pessoa[$marcacao] = $this->simOuNao($marcacao, $c[$marcacao] ?? '', $erro);
@@ -151,6 +157,18 @@ class ImportacaoUsuarios
             }
 
             $incluir[] = $pessoa;
+        }
+
+        // APROVA_SETORES só vale para setor que aparece na planilha, e não para o próprio (esse é o PAPEL_SETOR).
+        $setoresDaPlanilha = array_flip(array_column($incluir, 'setor'));
+        foreach ($incluir as $pessoa) {
+            foreach ($pessoa['aprova_setores'] as $outro) {
+                if ($outro === $pessoa['setor']) {
+                    $resultado->erros[] = "Linha {$pessoa['linha']}: APROVA_SETORES tem o próprio setor ({$outro}); para isso use PAPEL_SETOR";
+                } elseif (! isset($setoresDaPlanilha[$outro])) {
+                    $resultado->erros[] = "Linha {$pessoa['linha']}: APROVA_SETORES tem o setor {$outro}, que não é de ninguém na planilha";
+                }
+            }
         }
 
         return [$incluir, $desativar];
@@ -217,7 +235,7 @@ class ImportacaoUsuarios
      * @param  list<array<string, mixed>>  $incluir
      * @param  list<array<string, mixed>>  $desativar
      */
-    private function aplicar(array $incluir, array $desativar, bool $desativarAusentes, ?string $senhaDeTeste, ResultadoImportacao $resultado): void
+    private function aplicar(array $incluir, array $desativar, bool $desativarAusentes, ?string $senhaDeTeste, ?string $senhaPadrao, ResultadoImportacao $resultado): void
     {
         $setores = [];
         foreach (array_unique(array_column($incluir, 'setor')) as $nome) {
@@ -250,9 +268,9 @@ class ImportacaoUsuarios
             $mudou = array_keys($user->getDirty());
 
             if ($novo) {
-                $senha = $senhaDeTeste ?? $this->senhaProvisoria();
+                $senha = $senhaDeTeste ?? $senhaPadrao ?? $this->senhaProvisoria();
                 $user->forceFill(['password' => $senha, 'deve_trocar_senha' => $senhaDeTeste === null]);
-                $resultado->criados[$pessoa['login']] = ['nome' => $pessoa['nome'], 'senha' => $senhaDeTeste === null ? $senha : null];
+                $resultado->criados[$pessoa['login']] = ['nome' => $pessoa['nome'], 'senha' => $senhaDeTeste === null && $senhaPadrao === null ? $senha : null];
             } elseif ($senhaDeTeste !== null) {
                 $user->forceFill(['password' => $senhaDeTeste, 'deve_trocar_senha' => false]);
             }
@@ -273,6 +291,11 @@ class ImportacaoUsuarios
             if ($pessoa['papel'] !== null) {
                 $aprovadores[$pessoa['setor']][$user->id] = ['papel' => $pessoa['papel']];
                 $resultado->aprovadores[$pessoa['setor']][] = "{$pessoa['nome']} (".mb_strtolower($pessoa['papel']->rotulo()).')';
+            }
+
+            foreach ($pessoa['aprova_setores'] as $outro) {
+                $aprovadores[$outro][$user->id] = ['papel' => PapelSetor::LIDER];
+                $resultado->aprovadores[$outro][] = "{$pessoa['nome']} (líder, do setor ".mb_strtolower($pessoa['setor']).')';
             }
         }
 

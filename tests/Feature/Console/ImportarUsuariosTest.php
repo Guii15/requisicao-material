@@ -16,7 +16,7 @@ class ImportarUsuariosTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO'];
+    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO', 'APROVA_SETORES'];
 
     /** @var list<string> */
     private array $arquivos = [];
@@ -230,6 +230,71 @@ class ImportarUsuariosTest extends TestCase
 
         $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao()), '--senha-de-teste' => 'teste123'])
             ->expectsOutputToContain('não pode ser usada em produção')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_senha_padrao_vale_em_producao_e_obriga_a_troca(): void
+    {
+        $this->app['env'] = 'production';
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao()), '--senha-padrao' => 'Bin@2026'])
+            ->expectsOutputToContain('pede a troca no primeiro acesso')
+            ->assertSuccessful();
+
+        $this->assertSame(7, User::count());
+        foreach (User::all() as $user) {
+            $this->assertTrue(Hash::check('Bin@2026', $user->password), $user->login);
+            $this->assertTrue($user->deve_trocar_senha, $user->login);
+        }
+    }
+
+    public function test_senha_padrao_nao_troca_a_senha_de_quem_ja_existe(): void
+    {
+        $arquivo = $this->planilha($this->linhasPadrao());
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--senha-de-teste' => 'antiga123'])->assertSuccessful();
+
+        $this->artisan('usuarios:importar', ['arquivo' => $arquivo, '--senha-padrao' => 'Bin@2026'])->assertSuccessful();
+
+        $this->assertTrue(Hash::check('antiga123', User::where('login', 'geisla.luiz')->value('password')));
+    }
+
+    public function test_senha_padrao_fraca_e_recusada(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao()), '--senha-padrao' => '123'])
+            ->expectsOutputToContain('pelo menos 8 caracteres')
+            ->assertFailed();
+
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_lider_do_estoque_tambem_aprova_outros_setores(): void
+    {
+        $linhas = $this->linhasPadrao();
+        $linhas[0][] = 'SHOWROOM; ninja place';
+        $linhas[] = [130, 'Osmar Pereira', 'osmar.pereira', '', 'Gerente', 'SHOWROOM', 'LÍDER', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', ''];
+        $linhas[] = [131, 'Gustavo Lima', 'gustavo.lima', '', 'Gerente', 'NINJA PLACE', 'LÍDER', 'NÃO', 'NÃO', 'NÃO', 'NÃO', 'SIM', '', ''];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--senha-padrao' => 'Bin@2026'])->assertSuccessful();
+
+        $aprovadores = fn (string $setor) => Setor::where('nome', $setor)->firstOrFail()->aprovadores()->orderBy('login')->pluck('login')->all();
+        $this->assertSame(['geisla.luiz', 'osmar.pereira'], $aprovadores('SHOWROOM'));
+        $this->assertSame(['geisla.luiz', 'gustavo.lima'], $aprovadores('NINJA PLACE'));
+        $this->assertSame(['geisla.luiz'], $aprovadores('ESTOQUE'));
+
+        // Importar de novo com a mesma planilha não muda os aprovadores.
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas)])->assertSuccessful();
+        $this->assertSame(['geisla.luiz', 'osmar.pereira'], $aprovadores('SHOWROOM'));
+    }
+
+    public function test_aprova_setores_com_setor_que_nao_existe_barra_a_importacao(): void
+    {
+        $linhas = $this->linhasPadrao();
+        $linhas[0][] = 'LOJA INEXISTENTE';
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas)])
+            ->expectsOutputToContain('LOJA INEXISTENTE')
             ->assertFailed();
 
         $this->assertSame(0, User::count());
