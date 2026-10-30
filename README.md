@@ -38,6 +38,16 @@ APP_DEBUG=false
 APP_URL=https://endereco-do-sistema
 SESSION_SECURE_COOKIE=true   # se o site roda em HTTPS
 SESSION_ENCRYPT=true
+LOG_STACK=daily              # um arquivo de log por dia, guardados por 14 dias
+LOG_LEVEL=warning
+```
+
+O servidor web aponta para a pasta `public/` (nunca para a raiz do projeto), e o usuário do servidor web precisa poder gravar em `storage/` e `bootstrap/cache/`.
+
+No cron do servidor, uma linha para as tarefas agendadas (hoje, o backup):
+
+```cron
+* * * * * cd /caminho/do/sistema && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 Depois de cada atualização:
@@ -50,6 +60,14 @@ php artisan optimize
 ```
 
 Em produção, comandos destrutivos como `migrate:fresh` e `db:wipe` ficam bloqueados.
+
+### Backup
+
+Todo dia às 20h o `php artisan backup:fazer` gera um `.zip` em `storage/app/backups` com o banco (`database.sqlite`) e a pasta `storage/app/private` (desenhos das assinaturas e prints da baixa e da compra). Ficam os 30 mais recentes. Dá para rodar na mão antes de qualquer atualização.
+
+O backup no mesmo disco do servidor não protege contra perda do disco: copie essa pasta para outro lugar (outro computador, um HD externo ou uma pasta na nuvem) pelo menos uma vez por semana.
+
+Para voltar um backup: pare o site (`php artisan down`), troque o `database/database.sqlite` pelo `database.sqlite` do zip, copie a pasta `private` do zip para `storage/app/private` e suba de novo (`php artisan up`).
 
 ## Usuários
 
