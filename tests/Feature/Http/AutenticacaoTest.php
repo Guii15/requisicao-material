@@ -75,6 +75,28 @@ class AutenticacaoTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_mesmo_ip_errando_a_senha_em_varios_logins_e_barrado(): void
+    {
+        User::factory()->create(['login' => 'alvo']);
+
+        foreach (range(1, 30) as $tentativa) {
+            $this->post('/entrar', ['login' => "pessoa{$tentativa}", 'senha' => 'Bin@2026']);
+        }
+
+        $this->post('/entrar', ['login' => 'alvo', 'senha' => 'password'])->assertStatus(429);
+        $this->assertGuest();
+    }
+
+    public function test_logins_certos_do_mesmo_ip_nao_contam_para_o_bloqueio(): void
+    {
+        foreach (range(1, 40) as $pessoa) {
+            User::factory()->create(['login' => "pessoa{$pessoa}"]);
+
+            $this->post('/entrar', ['login' => "pessoa{$pessoa}", 'senha' => 'password'])->assertRedirect();
+            $this->post('/sair');
+        }
+    }
+
     public function test_primeiro_acesso_exige_troca_de_senha(): void
     {
         $this->actingAs(User::factory()->create(['deve_trocar_senha' => true]));
