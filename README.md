@@ -1,59 +1,105 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Requisição de Material
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema interno para pedir, aprovar, separar e dar baixa em material do estoque, com assinatura eletrônica em cada etapa e PDF da requisição para imprimir.
 
-## About Laravel
+Feito em Laravel 12 (PHP 8.4), Blade, Tailwind 4 e Alpine.js.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requisitos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP 8.4 com as extensões `bcmath`, `dom`, `fileinfo`, `gd`, `intl`, `mbstring`, `pdo_sqlite` (ou `pdo_mysql`) e `zip`
+- Composer 2
+- Node 22 e npm (só para compilar o front)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Instalação
 
-## Learning Laravel
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite   # se usar SQLite, que é o padrão do .env.example
+php artisan migrate --seed       # cria as tabelas e carrega os feriados nacionais
+npm ci
+npm run build
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Para desenvolver, `composer dev` sobe o servidor, a fila, os logs e o Vite juntos.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Dados de demonstração
 
-## Laravel Sponsors
+Em ambiente local (`APP_ENV=local`), o `php artisan migrate --seed` também cria setores, pessoas e requisições fictícias. Todos entram com a senha `demo1234`, por exemplo `demo.solicitante`, `demo.lider`, `demo.liderestoque`, `demo.estoque`, `demo.baixa` e `demo.admin`. A demonstração nunca roda em produção.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Produção
 
-### Premium Partners
+No `.env` do servidor:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://endereco-do-sistema
+SESSION_SECURE_COOKIE=true   # se o site roda em HTTPS
+SESSION_ENCRYPT=true
+```
 
-## Contributing
+Depois de cada atualização:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+npm ci && npm run build
+php artisan optimize
+```
 
-## Code of Conduct
+Em produção, comandos destrutivos como `migrate:fresh` e `db:wipe` ficam bloqueados.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Usuários
 
-## Security Vulnerabilities
+As pessoas, os setores e os aprovadores vêm da planilha de carga:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan usuarios:importar caminho/planilha.xlsx --dry-run   # só mostra o que mudaria
+php artisan usuarios:importar caminho/planilha.xlsx             # grava
+```
 
-## License
+- Aceita `.xlsx` (aba `USUARIOS`) ou `.csv` exportado do Excel.
+- Colunas obrigatórias: `MATRICULA`, `NOME`, `LOGIN`, `SETOR`. Opcionais: `CARGO`, `PAPEL_SETOR` (`LIDER` ou `SUBLIDER`), `INCLUIR` (`SIM`/`NÃO`) e as marcações `ESTOQUE`, `LIDER_ESTOQUE`, `RESP_BAIXA` e `ADMIN` (`SIM`/`NÃO`).
+- `APROVA_SETORES` (opcional): outros setores que a pessoa também aprova, separados por `;`. Por exemplo, os líderes do estoque com `SHOWROOM; NINJA PLACE`.
+- `--desativar-ausentes` desativa quem está ativo no sistema mas saiu da planilha.
+- `--so-incluir` só acrescenta: cria quem ainda não existe e soma os aprovadores marcados em `PAPEL_SETOR` e `APROVA_SETORES`. Quem já está no sistema fica com os dados, o setor, os papéis e a senha que tem, e nenhum aprovador sai. É o modo para carregar a lista do WinThor.
+- `--senha-padrao='Bin@2026'` faz as pessoas novas entrarem com essa senha. O sistema pede a troca no primeiro acesso. Quem já existe continua com a senha que tem.
+- A lista de funcionários sai do WinThor com a consulta `database/winthor/funcionarios.sql`, já no formato da planilha.
+- Se uma linha tiver erro, nada é gravado.
+- Sem `--senha-padrao`, cada pessoa nova recebe uma senha provisória, listada no fim do comando para entregar a ela. O sistema pede a troca no primeiro acesso.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Quem aprova pedido de compra de funcionário (`aprova_compras`) é marcado direto no banco, porque a planilha ainda não tem essa coluna.
+
+## Papéis
+
+| Papel | O que faz |
+|---|---|
+| Qualquer pessoa ativa | Abre requisições e acompanha as próprias |
+| Líder / sublíder do setor | Aprova ou reprova as requisições do setor, item por item |
+| Estoque | Separa o que foi aprovado e confere a devolução do Teste |
+| Líder do estoque | Libera o Uso e Consumo depois da separação, aprova os pedidos de setores sem aprovador e aprova junto os setores marcados com `lideres_estoque_aprovam` (Showroom e Ninja Place) |
+| Responsável pela baixa | Dá baixa no Uso e Consumo e decide os pedidos de compra |
+| Aprovador de compras | Aprova os pedidos de compra de funcionário, de qualquer setor |
+| Admin | Vê tudo, cancela antes da entrega e dá baixa quando a própria responsável abriu o pedido |
+
+Ninguém aprova o próprio pedido. Quem pode fazer o quê fica em `app/Policies/RequisicaoPolicy.php`; as telas só escondem os botões.
+
+## Fluxo de cada tipo
+
+- **Teste** (material emprestado para testar): aprovação do setor, depois separação e entrega na mesma tela, e por fim a devolução conferida item a item. O prazo máximo de devolução está na tabela `parametros` (`prazo_max_devolucao_dias`, em dias úteis).
+- **Uso e Consumo**: aprovação do setor, separação, liberação do líder do estoque e baixa.
+- **Pedido de compra de funcionário**: aprovação de quem aprova compras e decisão da responsável pela baixa, com a forma de pagamento e o print do pedido no WinThor.
+
+No Teste e no Uso e Consumo, quem pede escolhe para qual setor é o pedido; o Estoque já vem marcado. Quem aprova continua sendo o setor de quem pediu.
+
+Toda mudança de status passa por `app/Services/RequisicaoWorkflow.php`. Cada etapa grava uma assinatura com hash encadeado (`app/Services/AssinaturaService.php`), e qualquer alteração depois disso aparece como divergência na ficha da requisição.
+
+## Testes
+
+```bash
+php artisan test
+```
+
+O GitHub roda os testes e o build do front em cada pull request e em cada push no `main` (`.github/workflows/testes.yml`).

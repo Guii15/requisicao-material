@@ -20,6 +20,7 @@ class Setor extends Model
         'nome',
         'ativo',
         'sem_sublider_definido',
+        'lideres_estoque_aprovam',
     ];
 
     protected function casts(): array
@@ -27,7 +28,16 @@ class Setor extends Model
         return [
             'ativo' => 'boolean',
             'sem_sublider_definido' => 'boolean',
+            'lideres_estoque_aprovam' => 'boolean',
         ];
+    }
+
+    /**
+     * O setor que quase todo pedido tem como destino. Nulo se o cadastro não tem o Estoque.
+     */
+    public static function idDoEstoque(): ?int
+    {
+        return static::query()->where('nome', 'ESTOQUE')->value('id');
     }
 
     /** @return HasMany<User, $this> */
