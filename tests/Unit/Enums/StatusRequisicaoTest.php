@@ -61,7 +61,9 @@ class StatusRequisicaoTest extends TestCase
         $add(S::AGUARDANDO_APROVACAO, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
         $add(S::APROVADA, S::AGUARDANDO_TRANSFERENCIA, T::TRANSFERENCIA_FILIAL);
         $add(S::APROVADA, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
-        $add(S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_RECEBIMENTO, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_ENVIO, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_ENVIO, S::AGUARDANDO_RECEBIMENTO, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_ENVIO, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
         $add(S::AGUARDANDO_TRANSFERENCIA, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
         $add(S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA, T::TRANSFERENCIA_FILIAL);
         $add(S::AGUARDANDO_RECEBIMENTO, S::REPROVADA_ESTOQUE, T::TRANSFERENCIA_FILIAL);
@@ -87,7 +89,7 @@ class StatusRequisicaoTest extends TestCase
                         continue;
                     }
                     // Transferência de filial nunca chega nos status do fluxo de estoque nem da compra.
-                    if ($tipo === T::TRANSFERENCIA_FILIAL && ! in_array($de, [S::AGUARDANDO_APROVACAO, S::APROVADA, S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_RECEBIMENTO], true)) {
+                    if ($tipo === T::TRANSFERENCIA_FILIAL && ! in_array($de, [S::AGUARDANDO_APROVACAO, S::APROVADA, S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_ENVIO, S::AGUARDANDO_RECEBIMENTO], true)) {
                         continue;
                     }
                     // Aguardando compra só existe para compra de funcionário.

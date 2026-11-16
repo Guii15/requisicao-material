@@ -19,6 +19,7 @@ enum AcaoEvento: string
     case COMPRA_APROVADA = 'COMPRA_APROVADA';
     case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
     case TRANSFERENCIA = 'TRANSFERENCIA';
+    case ENVIO = 'ENVIO';
 
     /**
      * Texto da linha do tempo da requisição.
@@ -40,7 +41,8 @@ enum AcaoEvento: string
             self::AVANCO_AUTOMATICO => 'Avançou automaticamente',
             self::COMPRA_APROVADA => 'Compra aprovada',
             self::COMPRA_REPROVADA => 'Compra reprovada',
-            self::TRANSFERENCIA => 'Transferida entre filiais',
+            self::TRANSFERENCIA => 'Transferida no WinThor',
+            self::ENVIO => 'Produto enviado',
         };
     }
 }

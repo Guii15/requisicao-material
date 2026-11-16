@@ -68,6 +68,11 @@
                     <x-phosphor-arrows-left-right class="size-[18px]" aria-hidden="true" />Transferência feita
                 </button>
             @endcan
+            @can('enviarTransferencia', $requisicao)
+                <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'enviar')">
+                    <x-phosphor-package class="size-[18px]" aria-hidden="true" />Enviar produto
+                </button>
+            @endcan
             @can('recusarRecebimento', $requisicao)
                 <button type="button" class="botao botao-perigo-contorno" x-data x-on:click="$dispatch('abrir-modal', 'recusar-recebimento')">Recusar recebimento</button>
             @endcan
@@ -113,8 +118,8 @@
                     </div>
                     @if ($requisicao->filial_destino)
                         <div>
-                            <dt class="legenda">Vai para a filial</dt>
-                            <dd class="mt-1 font-medium">{{ $requisicao->filial_destino->rotulo() }}</dd>
+                            <dt class="legenda">Filiais</dt>
+                            <dd class="mt-1 font-medium">{{ $requisicao->filial_origem?->rotulo() }} <span class="text-mid-gray">→</span> {{ $requisicao->filial_destino->rotulo() }}</dd>
                         </div>
                     @endif
                     @if ($requisicao->setorDestino)
@@ -150,14 +155,20 @@
                             <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
                         </div>
                     @endif
-                    @if ($requisicao->foto_produto)
-                        <div>
-                            <dt class="legenda">Foto do produto</dt>
-                            <dd class="mt-2">
-                                <a href="{{ route('requisicoes.foto-produto', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
-                                    <img src="{{ route('requisicoes.foto-produto', $requisicao) }}" alt="Foto do produto da transferência" loading="lazy" class="max-h-64 rounded border border-hairline">
-                                </a>
-                            </dd>
+                    @if ($requisicao->foto_saida || $requisicao->foto_chegada)
+                        <div class="grid gap-5 sm:grid-cols-2">
+                            @foreach (['saida' => ['Foto na saída', $requisicao->foto_saida], 'chegada' => ['Foto na chegada', $requisicao->foto_chegada]] as $momento => [$titulo, $caminho])
+                                @if ($caminho)
+                                    <div>
+                                        <dt class="legenda">{{ $titulo }}</dt>
+                                        <dd class="mt-2">
+                                            <a href="{{ route('requisicoes.foto-transferencia', [$requisicao, $momento]) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                                <img src="{{ route('requisicoes.foto-transferencia', [$requisicao, $momento]) }}" alt="{{ $titulo }} do produto" loading="lazy" class="max-h-64 rounded border border-hairline">
+                                            </a>
+                                        </dd>
+                                    </div>
+                                @endif
+                            @endforeach
                         </div>
                     @endif
                     @if ($requisicao->forma_pagamento !== null)
@@ -220,6 +231,15 @@
                                 <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->transferencia_observacao }}</dd>
                             @endif
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->transferidoPor?->nome }}, {{ $dataHora($requisicao->transferido_em) }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->enviado_por_id !== null)
+                        <div class="rounded-lg border border-hairline p-4">
+                            <dt class="text-[13px] font-medium text-ink">Produto enviado pelo estoque</dt>
+                            @if (filled($requisicao->envio_observacao))
+                                <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->envio_observacao }}</dd>
+                            @endif
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->enviadoPor?->nome }}, {{ $dataHora($requisicao->enviado_em) }}</dd>
                         </div>
                     @endif
                     @if ($requisicao->recebido_por_id !== null)
@@ -752,7 +772,7 @@
                     @csrf
                     <input type="hidden" name="_acao" value="transferir">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Confirme que o produto já foi transferido no WinThor para a filial <strong>{{ $requisicao->filial_destino?->rotulo() }}</strong>. Depois, um líder do estoque confirma o recebimento.</p>
+                        <p class="text-sm text-ink-soft">Confirme que o produto já foi transferido no WinThor de <strong>{{ $requisicao->filial_origem?->rotulo() }}</strong> para <strong>{{ $requisicao->filial_destino?->rotulo() }}</strong>. Depois, o estoque envia o produto com a foto da saída.</p>
                         <div>
                             <label for="transferir-observacao" class="rotulo">Observação (opcional)</label>
                             <p class="ajuda">Ex.: número da nota de transferência.</p>
@@ -774,13 +794,42 @@
             </x-modal>
         @endcan
 
+        @can('enviarTransferencia', $requisicao)
+            <x-modal nome="enviar" :titulo="'Enviar '.$requisicao->numero" :abrir="old('_acao') === 'enviar' && $errors->any()">
+                <form method="POST" action="{{ route('requisicoes.enviar', $requisicao) }}" enctype="multipart/form-data" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                    @csrf
+                    <input type="hidden" name="_acao" value="enviar">
+                    <div class="space-y-4 px-5 py-4">
+                        <p class="text-sm text-ink-soft">Tire a foto do produto saindo de <strong>{{ $requisicao->filial_origem?->rotulo() }}</strong> para <strong>{{ $requisicao->filial_destino?->rotulo() }}</strong>. Depois, um líder do estoque confirma a chegada.</p>
+                        <x-campo-foto id="enviar-foto" rotulo="Foto do produto na saída" />
+                        <div>
+                            <label for="enviar-observacao" class="rotulo">Observação (opcional)</label>
+                            <textarea id="enviar-observacao" name="observacao" rows="2" maxlength="1000"
+                                      class="campo mt-1.5 @error('observacao') campo-erro @enderror">{{ old('_acao') === 'enviar' && is_string(old('observacao')) ? old('observacao') : '' }}</textarea>
+                            @error('observacao')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
+                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
+                        <button type="submit" class="botao botao-primario" :disabled="enviando">
+                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
+                            <span x-text="enviando ? 'Enviando…' : 'Assinar envio'"></span>
+                        </button>
+                    </div>
+                </form>
+            </x-modal>
+        @endcan
+
         @can('receberTransferencia', $requisicao)
             <x-modal nome="receber" :titulo="'Receber '.$requisicao->numero" :abrir="old('_acao') === 'receber' && $errors->any()">
-                <form method="POST" action="{{ route('requisicoes.receber', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                <form method="POST" action="{{ route('requisicoes.receber', $requisicao) }}" enctype="multipart/form-data" x-data="{ enviando: false }" x-on:submit="enviando = true">
                     @csrf
                     <input type="hidden" name="_acao" value="receber">
                     <div class="space-y-4 px-5 py-4">
-                        <p class="text-sm text-ink-soft">Confirme que o produto chegou certo. A transferência fica encerrada.</p>
+                        <p class="text-sm text-ink-soft">Confirme que o produto chegou certo em <strong>{{ $requisicao->filial_destino?->rotulo() }}</strong>. A transferência fica encerrada.</p>
+                        <x-campo-foto id="receber-foto" rotulo="Foto do produto na chegada" />
                         <div>
                             <label for="receber-observacao" class="rotulo">Observação (opcional)</label>
                             <p class="ajuda">Algum detalhe do recebimento?</p>

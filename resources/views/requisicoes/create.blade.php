@@ -16,19 +16,21 @@
             ->map(fn (array $mensagens) => $mensagens[0])
             ->all();
         $destinoAnterior = (int) (is_numeric(old('setor_destino_id')) ? old('setor_destino_id') : $estoqueId);
-        $filialAnterior = is_string(old('filial_destino')) ? old('filial_destino') : '';
+        $origemAnterior = is_string(old('filial_origem')) ? old('filial_origem') : '';
+        $destinoFilialAnterior = is_string(old('filial_destino')) ? old('filial_destino') : '';
         $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO', 'TRANSFERENCIA_FILIAL'], true) ? old('tipo') : null;
     @endphp
 
     <x-cabecalho titulo="Nova requisição" subtitulo="Peça material ao estoque. Depois de enviar, a requisição vai para a aprovação do seu setor." />
 
-    <form method="POST" action="{{ route('requisicoes.store') }}" enctype="multipart/form-data"
+    <form method="POST" action="{{ route('requisicoes.store') }}"
           class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_295px] lg:items-start xl:gap-10"
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
               'destino' => (string) $destinoAnterior,
               'nomesDosSetores' => $setores->mapWithKeys(fn ($setor) => [$setor->id => \App\Support\Texto::setor($setor->nome)]),
-              'filial' => $filialAnterior,
+              'origem' => $origemAnterior,
+              'destinoFilial' => $destinoFilialAnterior,
               'nomesDasFiliais' => collect(\App\Enums\Filial::cases())->mapWithKeys(fn ($filial) => [$filial->value => $filial->rotulo()]),
               'itens' => $itensAnteriores,
               'erros' => (object) $errosDosItens,
@@ -75,7 +77,7 @@
                         <input type="radio" name="tipo" value="TRANSFERENCIA_FILIAL" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'TRANSFERENCIA_FILIAL' && 'text-marca'"><x-phosphor-arrows-left-right class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Transferência de filial</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto vendido que precisa passar de uma empresa para outra. O líder do setor aprova, a transferência é feita no WinThor e o estoque confirma o recebimento.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto que passa de uma filial para outra (Showroom, Binário ou Ninja Place). O líder do setor aprova, a transferência é feita no WinThor e o estoque fotografa na saída e na chegada.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'TRANSFERENCIA_FILIAL' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -264,37 +266,24 @@
                     <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
                     <span class="font-display text-[14px] font-bold text-ink">Transferência</span>
                 </h2>
-                <div class="space-y-5">
-                    <div>
-                        <label for="filial_destino" class="rotulo">Para qual filial vai</label>
-                        <select id="filial_destino" name="filial_destino" x-model="filial"
-                                :required="tipo === 'TRANSFERENCIA_FILIAL'" :disabled="tipo !== 'TRANSFERENCIA_FILIAL'"
-                                class="campo mt-2 sm:w-72 @error('filial_destino') campo-erro @enderror">
-                            <option value="">Escolha a filial</option>
-                            @foreach (\App\Enums\Filial::cases() as $filial)
-                                <option value="{{ $filial->value }}">{{ $filial->rotulo() }}</option>
-                            @endforeach
-                        </select>
-                        @error('filial_destino')
-                            <p class="erro-campo">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div x-data="{ nome: '' }">
-                        <label for="foto" class="rotulo">Foto do produto</label>
-                        <p id="foto-ajuda" class="ajuda">No celular, abre a câmera ou a galeria. PNG, JPG ou WEBP, até 10 MB.</p>
-                        <input id="foto" name="foto" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="foto-ajuda"
-                               :required="tipo === 'TRANSFERENCIA_FILIAL'" :disabled="tipo !== 'TRANSFERENCIA_FILIAL'"
-                               x-on:change="nome = $event.target.files[0]?.name ?? ''"
-                               class="campo mt-2 @error('foto') campo-erro @enderror">
-                        <p x-show="nome" x-cloak class="mt-1.5 text-[13px] text-ink-soft">Anexada: <span class="font-medium" x-text="nome"></span></p>
-                        @error('foto')
-                            <p class="erro-campo">{{ $message }}</p>
-                        @else
-                            @if ($errors->any() && old('tipo') === 'TRANSFERENCIA_FILIAL')
-                                <p class="ajuda mt-1.5">Anexe a foto de novo: o navegador não guarda o arquivo depois de um erro.</p>
-                            @endif
-                        @enderror
-                    </div>
+                <p class="ajuda mb-4">O estoque tira a foto do produto na saída e na chegada.</p>
+                <div class="grid gap-5 sm:grid-cols-2">
+                    @foreach (['filial_origem' => ['De qual filial sai', 'origem'], 'filial_destino' => ['Para qual filial vai', 'destinoFilial']] as $campo => [$rotulo, $modelo])
+                        <div>
+                            <label for="{{ $campo }}" class="rotulo">{{ $rotulo }}</label>
+                            <select id="{{ $campo }}" name="{{ $campo }}" x-model="{{ $modelo }}"
+                                    :required="tipo === 'TRANSFERENCIA_FILIAL'" :disabled="tipo !== 'TRANSFERENCIA_FILIAL'"
+                                    class="campo mt-2 @error($campo) campo-erro @enderror">
+                                <option value="">Escolha a filial</option>
+                                @foreach (\App\Enums\Filial::cases() as $filial)
+                                    <option value="{{ $filial->value }}" @if ($campo === 'filial_destino') :disabled="origem === '{{ $filial->value }}'" @endif>{{ $filial->rotulo() }}</option>
+                                @endforeach
+                            </select>
+                            @error($campo)
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endforeach
                 </div>
             </section>
 
@@ -344,8 +333,8 @@
                     <dd class="font-medium" x-text="nomesDosSetores[destino] ?? ''"></dd>
                 </div>
                 <div class="flex items-center justify-between gap-3" x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak>
-                    <dt class="text-mid-gray">Vai para a filial</dt>
-                    <dd class="font-medium" x-text="nomesDasFiliais[filial] ?? 'Não escolhida'"></dd>
+                    <dt class="text-mid-gray">Filiais</dt>
+                    <dd class="font-medium" x-text="(nomesDasFiliais[origem] ?? '?') + ' → ' + (nomesDasFiliais[destinoFilial] ?? '?')"></dd>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Setor</dt>

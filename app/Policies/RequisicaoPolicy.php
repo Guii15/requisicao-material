@@ -68,14 +68,16 @@ class RequisicaoPolicy
             return $user->aprova_compras;
         }
 
-        if ($user->aprovaSetor($requisicao->setor_id)) {
-            return true;
+        // Transferência de filial é decidida pelos líderes do próprio setor (no Showroom, Ana Alice e
+        // Nicole), mesmo que os líderes do estoque também estejam cadastrados como aprovadores dele.
+        // Os líderes do estoque só entram se o setor não tem aprovador próprio ativo.
+        if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return $this->fila->aprovaTransferencia($user, $requisicao)
+                || ($user->is_lider_estoque && $this->fila->semAprovadorProprio($requisicao));
         }
 
-        // Transferência de filial é decidida pelos líderes do setor (no Showroom, Ana Alice e Nicole):
-        // os líderes do estoque só entram se o setor não tem outro aprovador ativo.
-        if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
-            return $user->is_lider_estoque && $this->fila->semAprovadorElegivel($requisicao);
+        if ($user->aprovaSetor($requisicao->setor_id)) {
+            return true;
         }
 
         // Setor sem outro aprovador ativo, ou marcado para o estoque aprovar junto (Showroom e Ninja
@@ -190,7 +192,18 @@ class RequisicaoPolicy
     }
 
     /**
-     * Depois de transferido, um líder do estoque confirma que recebeu o produto (ou recusa).
+     * Transferido no WinThor: qualquer um do estoque envia o produto, com a foto da saída.
+     */
+    public function enviarTransferencia(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $user->is_estoque
+            && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_ENVIO;
+    }
+
+    /**
+     * Depois de enviado, um líder do estoque confirma que recebeu o produto (ou recusa).
      */
     public function receberTransferencia(User $user, Requisicao $requisicao): bool
     {

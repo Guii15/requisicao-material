@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
+use App\Services\FilaDeEnvio;
 use App\Services\FilaDeRecebimento;
 use App\Services\FilaDeTransferencia;
 use App\Services\RequisicaoWorkflow;
@@ -47,7 +48,21 @@ class TransferenciaController extends Controller
     {
         $workflow->transferir($requisicao, $request->user(), $this->texto($request, 'observacao'));
 
-        return redirect()->route('transferencias.index')->with('sucesso', "Requisição {$requisicao->numero} transferida. Agora o estoque confirma o recebimento.");
+        return redirect()->route('transferencias.index')->with('sucesso', "Requisição {$requisicao->numero} transferida no WinThor. Agora o estoque envia o produto.");
+    }
+
+    public function envio(Request $request, FilaDeEnvio $fila): View
+    {
+        Gate::authorize('acessar-envio');
+
+        return view('estoque.envio', ['requisicoes' => $this->paginar($fila->para($request->user()))]);
+    }
+
+    public function enviar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
+    {
+        $workflow->enviarTransferencia($requisicao, $request->user(), $request->file('foto'), $this->texto($request, 'observacao'));
+
+        return redirect()->route('envio.index')->with('sucesso', "Produto da requisição {$requisicao->numero} enviado. Agora a outra filial confirma o recebimento.");
     }
 
     public function recebimento(Request $request, FilaDeRecebimento $fila): View
@@ -59,7 +74,7 @@ class TransferenciaController extends Controller
 
     public function receber(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
     {
-        $workflow->receberTransferencia($requisicao, $request->user(), $this->texto($request, 'observacao'));
+        $workflow->receberTransferencia($requisicao, $request->user(), $request->file('foto'), $this->texto($request, 'observacao'));
 
         return redirect()->route('recebimento.index')->with('sucesso', "Recebimento da requisição {$requisicao->numero} confirmado.");
     }
