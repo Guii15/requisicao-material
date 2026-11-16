@@ -125,7 +125,8 @@ class RequisicaoPolicyTest extends TestCase
         foreach (S::cases() as $status) {
             $requisicao = Requisicao::factory()->status($status)->create();
 
-            $this->assertSame($status === S::APROVADA, $estoquista->can('separar', $requisicao), $status->value);
+            // Aprovada, ou liberada pelo líder do estoque (Uso e Consumo).
+            $this->assertSame(in_array($status, [S::APROVADA, S::LIBERADA], true), $estoquista->can('separar', $requisicao), $status->value);
         }
     }
 

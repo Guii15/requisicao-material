@@ -95,9 +95,9 @@ class CompraComprovanteTest extends TestCase
         [$setor, $lider] = $this->setorComAprovadores();
         $requisicao = $this->abrirRequisicao(User::factory()->for($setor)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         $this->workflow->aprovar($requisicao, $lider, null);
+        $this->workflow->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
         $quantidades = $requisicao->itens->mapWithKeys(fn ($item) => [$item->id => (string) $item->qtd_solicitada])->all();
         $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $quantidades, null);
-        $this->workflow->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
 
         $this->workflow->darBaixa($requisicao->fresh(), User::factory()->responsavelBaixa()->create(), 'Conferido no WinThor', null);
 

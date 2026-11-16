@@ -30,13 +30,16 @@ class StatusRequisicaoTest extends TestCase
         $add(S::APROVADA, S::EM_SEPARACAO, ...$ambos);
         $add(S::APROVADA, S::CANCELADA, ...$ambos);
         $add(S::EM_SEPARACAO, S::PRONTA_PARA_RETIRADA, T::TESTE);
-        $add(S::EM_SEPARACAO, S::AGUARDANDO_LIBERACAO_ESTOQUE, T::USO_CONSUMO);
+        // Uso e Consumo: aprovação -> liberação do líder do estoque -> separação -> baixa.
+        // Aprovado por líder do estoque, a liberação é dispensada e vai direto pra separação.
+        $add(S::APROVADA, S::AGUARDANDO_LIBERACAO_ESTOQUE, T::USO_CONSUMO);
+        $add(S::EM_SEPARACAO, S::AGUARDANDO_BAIXA, T::USO_CONSUMO);
         $add(S::EM_SEPARACAO, S::CANCELADA, ...$ambos);
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, T::USO_CONSUMO);
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::REPROVADA_ESTOQUE, T::USO_CONSUMO);
         $add(S::AGUARDANDO_LIBERACAO_ESTOQUE, S::CANCELADA, T::USO_CONSUMO);
-        // Sem tela de entrega: o Uso e Consumo liberado vai direto para a baixa.
-        $add(S::LIBERADA, S::AGUARDANDO_BAIXA, T::USO_CONSUMO);
+        $add(S::LIBERADA, S::EM_SEPARACAO, T::USO_CONSUMO);
+        $add(S::LIBERADA, S::CANCELADA, T::USO_CONSUMO);
         $add(S::PRONTA_PARA_RETIRADA, S::ENTREGUE, T::TESTE);
         $add(S::PRONTA_PARA_RETIRADA, S::CANCELADA, T::TESTE);
         $add(S::ENTREGUE, S::EM_POSSE, T::TESTE);
@@ -105,7 +108,8 @@ class StatusRequisicaoTest extends TestCase
 
     public function test_status_de_passagem_seguem_automaticamente_conforme_o_tipo(): void
     {
-        $this->assertSame(S::AGUARDANDO_BAIXA, S::LIBERADA->proximoAutomatico(T::USO_CONSUMO));
+        $this->assertSame(S::AGUARDANDO_BAIXA, S::EM_SEPARACAO->proximoAutomatico(T::USO_CONSUMO));
+        $this->assertNull(S::LIBERADA->proximoAutomatico(T::USO_CONSUMO));
         $this->assertSame(S::EM_POSSE, S::ENTREGUE->proximoAutomatico(T::TESTE));
         $this->assertNull(S::ENTREGUE->proximoAutomatico(T::USO_CONSUMO));
         $this->assertNull(S::APROVADA->proximoAutomatico(T::TESTE));

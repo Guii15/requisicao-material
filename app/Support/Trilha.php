@@ -18,7 +18,7 @@ final class Trilha
         $teste = $tipo === TipoRequisicao::TESTE;
         $nomes = $teste
             ? ['Aprovação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
-            : ['Aprovação', 'Separação', 'Liberação', 'Baixa'];
+            : ['Aprovação', 'Liberação', 'Separação', 'Baixa'];
 
         if ($status === S::CANCELADA) {
             return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'cancelada'], $nomes);
@@ -39,8 +39,9 @@ final class Trilha
             }
             : match ($status) {
                 S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
-                S::APROVADA, S::EM_SEPARACAO => 1,
-                S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE => 2,
+                S::AGUARDANDO_LIBERACAO_ESTOQUE, S::REPROVADA_ESTOQUE => 1,
+                // APROVADA só fica parada no Uso e Consumo quando a liberação foi dispensada.
+                S::APROVADA, S::LIBERADA, S::EM_SEPARACAO => 2,
                 default => 3,
             };
 

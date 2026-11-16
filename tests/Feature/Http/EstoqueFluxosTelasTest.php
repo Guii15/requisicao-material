@@ -35,8 +35,8 @@ class EstoqueFluxosTelasTest extends TestCase
     {
         [$ti, $lider] = $this->setorComAprovadores($setor);
         $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
+        // Aprovado pelo líder do setor: vai pra liberação dos líderes do estoque antes da separação.
         $this->workflow->aprovar($requisicao, $lider, 'password');
-        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $requisicao->fresh()->itens->pluck('qtd_solicitada', 'id')->all(), 'password');
 
         return $requisicao->fresh();
     }
@@ -64,6 +64,7 @@ class EstoqueFluxosTelasTest extends TestCase
         $requisicao = $this->requisicaoAguardandoLiberacao();
         $lider = User::factory()->liderEstoque()->create();
         $this->workflow->liberar($requisicao, $lider, 'password');
+        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $requisicao->fresh()->itens->pluck('qtd_solicitada', 'id')->all(), 'password');
 
         return $requisicao->fresh();
     }
@@ -89,7 +90,7 @@ class EstoqueFluxosTelasTest extends TestCase
             ->assertRedirect('/liberacao')
             ->assertSessionHas('sucesso');
 
-        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::LIBERADA, $requisicao->fresh()->status);
     }
 
     // ---- Separar e entregar na mesma tela (Teste) -----------------------------------------------

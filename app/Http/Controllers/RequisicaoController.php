@@ -137,6 +137,7 @@ class RequisicaoController extends Controller
                 StatusRequisicao::AGUARDANDO_APROVACAO->value => ['acessar-aprovacoes', 'aprovacoes.index', 'Aprovações', 'aprovacoes'],
                 StatusRequisicao::APROVADA->value => ['acessar-separacao', 'separacao.index', 'Separação', 'separacao'],
                 StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE->value => ['acessar-liberacao', 'liberacao.index', 'Liberação', 'liberacao'],
+                StatusRequisicao::LIBERADA->value => ['acessar-separacao', 'separacao.index', 'Separação', 'separacao'],
                 StatusRequisicao::EM_POSSE->value => ['acessar-devolucao', 'devolucao.index', 'Devolução', 'devolucao'],
                 StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Pedidos de compra', 'compras'],
                 StatusRequisicao::AGUARDANDO_BAIXA->value => ['acessar-baixa', 'baixa.index', 'Baixa', 'baixa'],

@@ -264,13 +264,14 @@ class AssinaturaService
         $status = $requisicao->status;
         $exigidas = [Etapa::SOLICITACAO];
 
+        // No Uso e Consumo a liberação vem antes da separação: aprovação -> liberação -> separação -> baixa.
         $depoisDaSeparacao = [
-            S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE, S::PRONTA_PARA_RETIRADA,
-            S::ENTREGUE, S::EM_POSSE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::AGUARDANDO_BAIXA, S::BAIXADA,
+            S::PRONTA_PARA_RETIRADA, S::ENTREGUE, S::EM_POSSE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::AGUARDANDO_BAIXA, S::BAIXADA,
         ];
         $depoisDaEntrega = [S::ENTREGUE, S::EM_POSSE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::AGUARDANDO_BAIXA, S::BAIXADA];
 
-        if ($status === S::APROVADA || $status === S::EM_SEPARACAO || in_array($status, $depoisDaSeparacao, true)
+        if (in_array($status, [S::APROVADA, S::EM_SEPARACAO, S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE], true)
+            || in_array($status, $depoisDaSeparacao, true)
             || in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)) {
             $exigidas[] = Etapa::APROVACAO_SETOR;
         }
@@ -285,7 +286,7 @@ class AssinaturaService
 
         // Aprovado por líder do estoque, a liberação é dispensada (fica assinado na aprovação, ver dadosDoDocumento).
         if ($requisicao->tipo === TipoRequisicao::USO_CONSUMO && ! $requisicao->liberacao_dispensada
-            && in_array($status, [S::LIBERADA, S::PRONTA_PARA_RETIRADA, S::ENTREGUE, S::AGUARDANDO_BAIXA, S::BAIXADA], true)) {
+            && in_array($status, [S::LIBERADA, S::EM_SEPARACAO, S::AGUARDANDO_BAIXA, S::BAIXADA], true)) {
             $exigidas[] = Etapa::LIBERACAO_ESTOQUE;
         }
 

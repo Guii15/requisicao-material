@@ -18,7 +18,7 @@ class TrilhaTest extends TestCase
     public function test_cada_tipo_tem_suas_etapas(): void
     {
         $this->assertSame(
-            ['Aprovação', 'Separação', 'Liberação', 'Baixa'],
+            ['Aprovação', 'Liberação', 'Separação', 'Baixa'],
             array_column(Trilha::etapas(S::APROVADA, T::USO_CONSUMO), 'nome'),
         );
         $this->assertSame(
@@ -30,7 +30,8 @@ class TrilhaTest extends TestCase
     public function test_marca_a_etapa_atual_e_as_anteriores_como_feitas(): void
     {
         $this->assertSame(['atual', 'pendente', 'pendente', 'pendente'], $this->estados(S::AGUARDANDO_APROVACAO, T::USO_CONSUMO));
-        $this->assertSame(['feita', 'feita', 'atual', 'pendente'], $this->estados(S::AGUARDANDO_LIBERACAO_ESTOQUE, T::USO_CONSUMO));
+        $this->assertSame(['feita', 'atual', 'pendente', 'pendente'], $this->estados(S::AGUARDANDO_LIBERACAO_ESTOQUE, T::USO_CONSUMO));
+        $this->assertSame(['feita', 'feita', 'atual', 'pendente'], $this->estados(S::LIBERADA, T::USO_CONSUMO));
         $this->assertSame(['feita', 'feita', 'feita', 'atual'], $this->estados(S::AGUARDANDO_BAIXA, T::USO_CONSUMO));
         $this->assertSame(['feita', 'feita', 'atual', 'pendente', 'pendente'], $this->estados(S::PRONTA_PARA_RETIRADA, T::TESTE));
     }
@@ -44,7 +45,7 @@ class TrilhaTest extends TestCase
     public function test_reprovacao_e_pendencia_marcam_a_etapa_do_problema(): void
     {
         $this->assertSame(['falha', 'pendente', 'pendente', 'pendente'], $this->estados(S::REPROVADA, T::USO_CONSUMO));
-        $this->assertSame(['feita', 'feita', 'falha', 'pendente'], $this->estados(S::REPROVADA_ESTOQUE, T::USO_CONSUMO));
+        $this->assertSame(['feita', 'falha', 'pendente', 'pendente'], $this->estados(S::REPROVADA_ESTOQUE, T::USO_CONSUMO));
         $this->assertSame(['feita', 'feita', 'feita', 'feita', 'falha'], $this->estados(S::DEVOLUCAO_COM_PENDENCIA, T::TESTE));
     }
 

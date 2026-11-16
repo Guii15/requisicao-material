@@ -76,12 +76,18 @@ enum StatusRequisicao: string
 
         return match ($this) {
             self::AGUARDANDO_APROVACAO => [self::APROVADA, self::REPROVADA, self::CANCELADA],
-            self::APROVADA => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? [self::AGUARDANDO_COMPRA, self::CANCELADA] : [self::EM_SEPARACAO, self::CANCELADA],
+            // Uso e Consumo: aprovado pelo setor vai para a liberação do líder do estoque antes da separação;
+            // aprovado por líder do estoque (liberação dispensada) vai direto para a separação.
+            self::APROVADA => match ($tipo) {
+                TipoRequisicao::COMPRA_FUNCIONARIO => [self::AGUARDANDO_COMPRA, self::CANCELADA],
+                TipoRequisicao::USO_CONSUMO => [self::AGUARDANDO_LIBERACAO_ESTOQUE, self::EM_SEPARACAO, self::CANCELADA],
+                default => [self::EM_SEPARACAO, self::CANCELADA],
+            },
             self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
-            self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_LIBERACAO_ESTOQUE, self::CANCELADA],
+            self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_BAIXA, self::CANCELADA],
             self::AGUARDANDO_LIBERACAO_ESTOQUE => $teste ? [] : [self::LIBERADA, self::REPROVADA_ESTOQUE, self::CANCELADA],
-            // Sem tela de entrega: o Uso e Consumo liberado vai direto para a baixa. Só o Teste passa por retirada/entrega.
-            self::LIBERADA => $teste ? [] : [self::AGUARDANDO_BAIXA],
+            // Liberado pelo líder do estoque: espera a separação. Depois de separado vai direto para a baixa.
+            self::LIBERADA => $teste ? [] : [self::EM_SEPARACAO, self::CANCELADA],
             self::PRONTA_PARA_RETIRADA => $teste ? [self::ENTREGUE, self::CANCELADA] : [],
             self::ENTREGUE => $teste ? [self::EM_POSSE] : [],
             self::EM_POSSE => $teste ? [self::DEVOLVIDA, self::DEVOLUCAO_COM_PENDENCIA] : [],
@@ -101,7 +107,7 @@ enum StatusRequisicao: string
     public function proximoAutomatico(TipoRequisicao $tipo): ?self
     {
         return match ($this) {
-            self::EM_SEPARACAO, self::LIBERADA, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
+            self::EM_SEPARACAO, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
             // Compra de funcionário não passa pelo estoque: depois do aprovador vai direto para a Erica.
             self::APROVADA => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? self::AGUARDANDO_COMPRA : null,
             default => null,
@@ -120,6 +126,17 @@ enum StatusRequisicao: string
             self::COMPRA_APROVADA,
             self::COMPRA_REPROVADA,
         ], true);
+    }
+
+    /**
+     * Esperando a separação: aprovada (Teste, ou Uso e Consumo aprovado por líder do estoque)
+     * ou liberada pelo líder do estoque (Uso e Consumo).
+     *
+     * @return list<self>
+     */
+    public static function prontosParaSeparar(): array
+    {
+        return [self::APROVADA, self::LIBERADA];
     }
 
     public function visivelParaEstoque(): bool

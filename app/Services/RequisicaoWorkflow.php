@@ -273,8 +273,8 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Liberação do estoque: só existe para Uso e Consumo. Avança sozinho pra pronta pra
-     * retirada, igual a separação avança pra liberação.
+     * Liberação do estoque: só existe para Uso e Consumo. Vem logo depois da aprovação do setor
+     * e antes da separação; liberada, a requisição espera o estoque separar.
      */
     public function liberar(Requisicao $requisicao, User $por, ?string $senha): Requisicao
     {
@@ -609,14 +609,16 @@ class RequisicaoWorkflow
                 $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, $para, $proximo);
             }
 
-            // Aprovado por líder do estoque: a liberação é dispensada e segue direto para a baixa.
-            if ($atual->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE && $atual->liberacao_dispensada) {
-                foreach ([StatusRequisicao::LIBERADA, StatusRequisicao::AGUARDANDO_BAIXA] as $passo) {
-                    $de = $atual->status;
-                    Requisicao::viaWorkflow(fn () => $atual->forceFill(['status' => $passo, 'status_alterado_em' => now()])->save());
-                    $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, $de, $passo, [
-                        'motivo' => 'Liberação dispensada: a requisição já foi aprovada por um líder do estoque',
+            // Uso e Consumo aprovado pelo setor vai para a liberação dos líderes do estoque antes da separação.
+            // Aprovado por um líder do estoque, a liberação é dispensada e fica esperando a separação.
+            if ($atual->status === StatusRequisicao::APROVADA && $atual->tipo === TipoRequisicao::USO_CONSUMO) {
+                if ($atual->liberacao_dispensada) {
+                    $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, $atual->status, $atual->status, [
+                        'motivo' => 'Liberação dispensada: aprovada por um líder do estoque, segue para a separação',
                     ]);
+                } else {
+                    Requisicao::viaWorkflow(fn () => $atual->forceFill(['status' => StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, 'status_alterado_em' => now()])->save());
+                    $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, StatusRequisicao::APROVADA, StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE);
                 }
             }
 

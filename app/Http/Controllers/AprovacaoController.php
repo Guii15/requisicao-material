@@ -50,9 +50,11 @@ class AprovacaoController extends Controller
                 ->with('sucesso', "Requisição {$requisicao->numero} reprovada: todos os itens foram recusados.");
         }
 
-        $destino = $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
-            ? 'a decisão da responsável pela baixa'
-            : 'a separação no estoque';
+        $destino = match (true) {
+            $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO => 'a decisão da responsável pela baixa',
+            $requisicao->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE => 'a liberação dos líderes do estoque',
+            default => 'a separação no estoque',
+        };
 
         return redirect()
             ->route('aprovacoes.index')

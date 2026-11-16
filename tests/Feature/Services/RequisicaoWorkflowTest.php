@@ -379,14 +379,26 @@ class RequisicaoWorkflowTest extends TestCase
         );
     }
 
-    public function test_estoque_separa_uso_e_consumo_e_avanca_pra_aguardando_liberacao(): void
+    public function test_uso_e_consumo_aprovado_pelo_setor_vai_pra_liberacao_antes_da_separacao(): void
     {
         $requisicao = $this->requisicaoAprovada(TipoRequisicao::USO_CONSUMO);
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->status);
+
+        $this->expectException(RegraDeNegocioException::class);
+
+        $this->workflow->separar($requisicao, User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao), 'password');
+    }
+
+    public function test_estoque_separa_uso_e_consumo_liberado_e_avanca_pra_baixa(): void
+    {
+        $requisicao = $this->requisicaoLiberada();
         $estoquista = User::factory()->estoque()->create();
 
         $this->workflow->separar($requisicao, $estoquista, $this->quantidadesSeparadas($requisicao), 'password');
 
-        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
+        $this->assertTrue(app(\App\Services\AssinaturaService::class)->verificar($requisicao->fresh())->integro);
     }
 
     public function test_separar_grava_a_quantidade_separada_de_cada_item(): void
@@ -453,18 +465,28 @@ class RequisicaoWorkflowTest extends TestCase
 
     // ---- Cenários prontos pra liberação / entrega / recebimento / devolução / baixa --------
 
+    /** Uso e Consumo já sai da aprovação do setor e espera a separação depois da liberação. */
     private function requisicaoSeparada(?TipoRequisicao $tipo = null, ?User $estoquista = null): Requisicao
     {
-        $requisicao = $this->requisicaoAprovada($tipo);
+        $requisicao = $tipo === TipoRequisicao::USO_CONSUMO ? $this->requisicaoLiberada() : $this->requisicaoAprovada($tipo);
         $this->workflow->separar($requisicao, $estoquista ?? User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao), 'password');
 
         return $requisicao->fresh();
     }
 
-    /** Uso e Consumo, pronta pra alguém do estoque liberar. */
+    /** Uso e Consumo aprovado pelo líder do setor: espera a liberação do líder do estoque. */
     private function requisicaoAguardandoLiberacao(): Requisicao
     {
-        return $this->requisicaoSeparada(TipoRequisicao::USO_CONSUMO);
+        return $this->requisicaoAprovada(TipoRequisicao::USO_CONSUMO);
+    }
+
+    /** Uso e Consumo liberado pelo líder do estoque: pronto pra separar. */
+    private function requisicaoLiberada(?User $lider = null): Requisicao
+    {
+        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $this->workflow->liberar($requisicao, $lider ?? User::factory()->liderEstoque()->create(), 'password');
+
+        return $requisicao->fresh();
     }
 
     /** Teste, pula liberação (só existe pra Uso e Consumo) e já cai pronta pra retirada. */
@@ -492,42 +514,32 @@ class RequisicaoWorkflowTest extends TestCase
 
     private function requisicaoAguardandoBaixa(): Requisicao
     {
-        $requisicao = $this->requisicaoAguardandoLiberacao();
-        $lider = $this->liderEstoqueDiferenteDe(
-            User::find($requisicao->aprovado_por_id),
-            User::find($requisicao->separado_por_id),
-        );
-        $this->workflow->liberar($requisicao, $lider, 'password');
-
-        return $requisicao->fresh();
+        return $this->requisicaoSeparada(TipoRequisicao::USO_CONSUMO);
     }
 
     // ---- Liberação (só Uso e Consumo) ----------------------------------------------------
 
-    public function test_lider_do_estoque_libera_e_a_requisicao_vai_direto_pra_baixa(): void
+    public function test_lider_do_estoque_libera_e_a_requisicao_vai_pra_separacao(): void
     {
         $requisicao = $this->requisicaoAguardandoLiberacao();
-        $lider = $this->liderEstoqueDiferenteDe(
-            User::find($requisicao->aprovado_por_id),
-            User::find($requisicao->separado_por_id),
-        );
+        $lider = $this->liderEstoqueDiferenteDe(User::find($requisicao->aprovado_por_id));
 
         $this->workflow->liberar($requisicao, $lider, 'password');
 
         $requisicao->refresh();
-        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
+        $this->assertSame(StatusRequisicao::LIBERADA, $requisicao->status);
         $this->assertSame($lider->id, $requisicao->liberado_por_id);
         $this->assertNotNull($requisicao->liberado_em);
     }
 
-    public function test_quem_separou_tambem_pode_liberar_a_mesma_requisicao(): void
+    public function test_quem_liberou_tambem_pode_separar_a_mesma_requisicao(): void
     {
-        $estoquista = User::factory()->liderEstoque()->create();
-        $requisicao = $this->requisicaoSeparada(TipoRequisicao::USO_CONSUMO, $estoquista);
+        $lider = User::factory()->liderEstoque()->create();
+        $requisicao = $this->requisicaoLiberada($lider);
 
-        $this->workflow->liberar($requisicao, $estoquista, 'password');
+        $this->workflow->separar($requisicao, $lider, $this->quantidadesSeparadas($requisicao), 'password');
 
-        $this->assertSame($estoquista->id, $requisicao->fresh()->liberado_por_id);
+        $this->assertSame($lider->id, $requisicao->fresh()->separado_por_id);
     }
 
     public function test_teste_nao_passa_por_liberacao(): void
@@ -541,10 +553,7 @@ class RequisicaoWorkflowTest extends TestCase
     public function test_lider_do_estoque_reprova_no_estoque_com_motivo(): void
     {
         $requisicao = $this->requisicaoAguardandoLiberacao();
-        $lider = $this->liderEstoqueDiferenteDe(
-            User::find($requisicao->aprovado_por_id),
-            User::find($requisicao->separado_por_id),
-        );
+        $lider = $this->liderEstoqueDiferenteDe(User::find($requisicao->aprovado_por_id));
 
         $this->workflow->reprovarEstoque($requisicao, $lider, 'Divergência na conferência: sobrou material no pedido anterior.', 'password');
 
@@ -760,6 +769,12 @@ class RequisicaoWorkflowTest extends TestCase
         $requisicao = $this->abrirRequisicao(User::factory()->for($rh)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
 
         $this->workflow->aprovar($requisicao, User::factory()->liderEstoque()->create(), 'password');
+
+        // Aprovado por líder do estoque: não cai na liberação, já fica pronto pra separar.
+        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+        $this->assertSame(0, app(\App\Services\FilaDeLiberacao::class)->para(User::factory()->liderEstoque()->create())->count());
+        $this->assertSame(1, app(\App\Services\FilaDeSeparacao::class)->para(User::factory()->estoque()->create())->count());
+
         $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
 
         $requisicao->refresh();
@@ -775,14 +790,14 @@ class RequisicaoWorkflowTest extends TestCase
         $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
 
         $this->workflow->aprovar($requisicao, $lider, 'password');
-        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
 
         $requisicao->refresh();
         $this->assertFalse($requisicao->liberacao_dispensada);
         $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->status);
+        $this->assertSame(0, app(\App\Services\FilaDeSeparacao::class)->para(User::factory()->estoque()->create())->count());
 
         // Marcar a dispensa direto no banco para pular a liberação aparece como divergência.
-        \Illuminate\Support\Facades\DB::table('requisicoes')->where('id', $requisicao->id)->update(['liberacao_dispensada' => true, 'status' => StatusRequisicao::AGUARDANDO_BAIXA->value]);
+        \Illuminate\Support\Facades\DB::table('requisicoes')->where('id', $requisicao->id)->update(['liberacao_dispensada' => true, 'status' => StatusRequisicao::APROVADA->value]);
         $this->assertFalse(app(\App\Services\AssinaturaService::class)->verificar($requisicao->fresh())->integro);
     }
 }

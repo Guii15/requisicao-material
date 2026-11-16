@@ -51,7 +51,7 @@ class DecisaoPorItemTest extends TestCase
 
         $this->workflow->aprovar($requisicao, $lider, null, [$segundo->id => 'Item em falta no estoque']);
 
-        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
         $this->assertNull($primeiro->fresh()->recusado_em);
         $recusado = $segundo->fresh();
         $this->assertNotNull($recusado->recusado_em);
@@ -95,7 +95,7 @@ class DecisaoPorItemTest extends TestCase
 
         $this->workflow->aprovar($requisicao, $lider, null, [$alheio->id => 'Motivo qualquer válido']);
 
-        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
         $this->assertNull($alheio->fresh()->recusado_em);
     }
 
@@ -104,10 +104,11 @@ class DecisaoPorItemTest extends TestCase
         [$requisicao, $lider] = $this->usoConsumoDeDoisItens();
         [$primeiro, $segundo] = $requisicao->itens;
         $this->workflow->aprovar($requisicao, $lider, null, [$segundo->id => 'Item em falta no estoque']);
+        $this->workflow->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
 
         $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), [$primeiro->id => '1'], null);
 
-        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->fresh()->status);
         $this->assertEquals(1, $primeiro->fresh()->qtd_separada);
         $this->assertNull($segundo->fresh()->qtd_separada);
     }

@@ -81,7 +81,8 @@ class RequisicaoPolicy
      */
     public function separar(User $user, Requisicao $requisicao): bool
     {
-        return $user->ativo && $user->is_estoque && $requisicao->status === StatusRequisicao::APROVADA;
+        // Uso e Consumo chega aqui liberado pelo líder do estoque (ou aprovado por ele, que dispensa a liberação).
+        return $user->ativo && $user->is_estoque && in_array($requisicao->status, StatusRequisicao::prontosParaSeparar(), true);
     }
 
     /**

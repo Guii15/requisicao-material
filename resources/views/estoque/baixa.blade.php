@@ -4,6 +4,6 @@
     :requisicoes="$requisicoes"
     :contador="$requisicoes->total().' esperando baixa no WinThor'"
     vazio-titulo="Nada esperando baixa"
-    vazio-texto="Só Uso e Consumo passa por aqui, depois de liberado."
-    coluna-ha="Liberado há"
+    vazio-texto="Só Uso e Consumo passa por aqui, depois de separado."
+    coluna-ha="Separado há"
 />

@@ -20,6 +20,6 @@ class FilaDeSeparacao
      */
     public function para(User $user): Builder
     {
-        return Requisicao::query()->where('status', StatusRequisicao::APROVADA);
+        return Requisicao::query()->whereIn('status', StatusRequisicao::prontosParaSeparar());
     }
 }

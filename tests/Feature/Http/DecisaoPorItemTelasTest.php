@@ -69,7 +69,8 @@ class DecisaoPorItemTelasTest extends TestCase
             ],
         ])->assertSessionHasNoErrors()->assertSessionHas('sucesso');
 
-        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
+        // Uso e Consumo aprovado pelo setor vai pra liberação dos líderes do estoque.
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->fresh()->status);
         $this->assertNull($primeiro->fresh()->recusado_em);
         $this->assertSame('Item em falta no estoque', $segundo->fresh()->motivo_recusa);
 
@@ -138,6 +139,7 @@ class DecisaoPorItemTelasTest extends TestCase
         $this->actingAs($lider)->post("/requisicoes/{$requisicao->numero}/aprovar", [
             'itens' => [$segundo->id => ['decisao' => 'recusar', 'motivo' => 'Item em falta no estoque']],
         ]);
+        app(\App\Services\RequisicaoWorkflow::class)->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
 
         $this->actingAs(User::factory()->estoque()->create())->get(route('requisicoes.show', $requisicao))
             ->assertOk()

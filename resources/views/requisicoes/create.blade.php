@@ -54,7 +54,7 @@
                         <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'USO_CONSUMO' && 'text-marca'"><x-phosphor-package class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Uso e consumo</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque (se ele ainda não aprovou) e pela baixa no WinThor.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Depois da aprovação, o líder do estoque libera (se ele mesmo não aprovou), o estoque separa e a baixa é feita no WinThor.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'USO_CONSUMO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>

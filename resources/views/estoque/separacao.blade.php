@@ -2,8 +2,8 @@
     titulo="Separação"
     icone="package"
     :requisicoes="$requisicoes"
-    :contador="$requisicoes->total().' aprovada'.($requisicoes->total() === 1 ? '' : 's').', pronta'.($requisicoes->total() === 1 ? '' : 's').' pra separar'"
+    :contador="$requisicoes->total().' pronta'.($requisicoes->total() === 1 ? '' : 's').' pra separar'"
     vazio-titulo="Nada esperando separação"
-    vazio-texto="Quando uma requisição for aprovada, ela aparece aqui pra qualquer um do estoque separar."
-    coluna-ha="Aprovada há"
+    vazio-texto="Quando uma requisição for aprovada (e, no Uso e Consumo, liberada pelo líder do estoque), ela aparece aqui pra qualquer um do estoque separar."
+    coluna-ha="Pronta há"
 />

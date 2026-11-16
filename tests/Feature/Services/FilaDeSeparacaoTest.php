@@ -40,7 +40,7 @@ class FilaDeSeparacaoTest extends TestCase
         $estoquista = User::factory()->estoque()->create();
 
         foreach (StatusRequisicao::cases() as $status) {
-            if ($status === StatusRequisicao::APROVADA) {
+            if (in_array($status, StatusRequisicao::prontosParaSeparar(), true)) {
                 continue;
             }
 
