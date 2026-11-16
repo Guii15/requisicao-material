@@ -45,8 +45,7 @@ class AprovacaoController extends Controller
 
         // Recusar todos os itens reprova a requisição inteira.
         if ($requisicao->status === StatusRequisicao::REPROVADA) {
-            return redirect()
-                ->route('aprovacoes.index')
+            return $this->depoisDeAssinar($request, $requisicao, 'aprovacoes.index')
                 ->with('sucesso', "Requisição {$requisicao->numero} reprovada: todos os itens foram recusados.");
         }
 
@@ -56,8 +55,7 @@ class AprovacaoController extends Controller
             default => 'a separação no estoque',
         };
 
-        return redirect()
-            ->route('aprovacoes.index')
+        return $this->depoisDeAssinar($request, $requisicao, 'aprovacoes.index')
             ->with('sucesso', "Requisição {$requisicao->numero} aprovada. Ela segue para {$destino}.");
     }
 
@@ -65,8 +63,7 @@ class AprovacaoController extends Controller
     {
         $workflow->reprovar($requisicao, $request->user(), $this->texto($request, 'motivo'), $this->texto($request, 'senha'));
 
-        return redirect()
-            ->route('aprovacoes.index')
+        return $this->depoisDeAssinar($request, $requisicao, 'aprovacoes.index')
             ->with('sucesso', "Requisição {$requisicao->numero} reprovada.");
     }
 }

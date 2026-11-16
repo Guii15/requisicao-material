@@ -48,7 +48,7 @@ class AprovacaoTelasTest extends TestCase
         $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create());
 
         $this->actingAs($lider)->post("/requisicoes/{$requisicao->numero}/aprovar", ['senha' => 'password'])
-            ->assertRedirect('/aprovacoes')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
@@ -72,7 +72,7 @@ class AprovacaoTelasTest extends TestCase
             ->assertSessionHasErrors('motivo');
 
         $this->actingAs($lider)->post("/requisicoes/{$requisicao->numero}/reprovar", ['senha' => 'password', 'motivo' => 'Já existe placa de teste disponível.'])
-            ->assertRedirect('/aprovacoes');
+            ->assertRedirect("/requisicoes/{$requisicao->numero}");
 
         $this->assertSame(StatusRequisicao::REPROVADA, $requisicao->fresh()->status);
     }

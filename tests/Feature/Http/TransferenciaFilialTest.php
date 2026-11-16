@@ -174,7 +174,7 @@ class TransferenciaFilialTest extends TestCase
 
         $this->actingAs($this->isabelly)
             ->post("/requisicoes/{$requisicao->numero}/transferir", ['observacao' => 'NF de transferência 5531'])
-            ->assertRedirect('/transferencias');
+            ->assertRedirect("/requisicoes/{$requisicao->numero}");
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::AGUARDANDO_ENVIO, $requisicao->status);
         $this->assertSame($this->isabelly->id, $requisicao->transferido_por_id);
@@ -191,7 +191,7 @@ class TransferenciaFilialTest extends TestCase
             ->assertSessionHasErrors('foto');
         $this->actingAs($estoquista)
             ->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto(), 'observacao' => 'Foi na caixa original'])
-            ->assertRedirect('/envio');
+            ->assertRedirect("/requisicoes/{$requisicao->numero}");
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::AGUARDANDO_RECEBIMENTO, $requisicao->status);
         $this->assertSame($estoquista->id, $requisicao->enviado_por_id);
@@ -207,7 +207,7 @@ class TransferenciaFilialTest extends TestCase
         $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertForbidden();
         $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber")->assertSessionHasErrors('foto');
 
-        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertRedirect('/recebimento');
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertRedirect("/requisicoes/{$requisicao->numero}");
         $requisicao->refresh();
         Storage::disk('local')->assertExists($requisicao->foto_chegada);
         $this->assertSame(StatusRequisicao::TRANSFERENCIA_RECEBIDA, $requisicao->status);
@@ -249,7 +249,7 @@ class TransferenciaFilialTest extends TestCase
 
         $this->actingAs($this->kelber)
             ->post("/requisicoes/{$requisicao->numero}/recusar-recebimento", ['motivo' => 'Produto chegou com a caixa amassada.'])
-            ->assertRedirect('/recebimento');
+            ->assertRedirect("/requisicoes/{$requisicao->numero}");
 
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::REPROVADA_ESTOQUE, $requisicao->status);

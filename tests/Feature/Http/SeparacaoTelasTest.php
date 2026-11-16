@@ -61,7 +61,7 @@ class SeparacaoTelasTest extends TestCase
             'itens' => $itens,
             'senha' => 'password',
         ])
-            ->assertRedirect('/separacao')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $requisicao->refresh();

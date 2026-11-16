@@ -61,7 +61,7 @@ class EstoqueController extends Controller
 
         $workflow->separar($requisicao, $request->user(), $itens, $this->texto($request, 'senha'), $this->texto($request, 'retirado_por_nome'));
 
-        return redirect()->route('separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada.");
+        return $this->depoisDeAssinar($request, $requisicao, 'separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada.");
     }
 
     public function separarEntregar(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
@@ -77,7 +77,7 @@ class EstoqueController extends Controller
             $this->texto($request, 'retirado_por_nome') ?? '',
         );
 
-        return redirect()->route('separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada e entregue.");
+        return $this->depoisDeAssinar($request, $requisicao, 'separacao.index')->with('sucesso', "Requisição {$requisicao->numero} separada e entregue.");
     }
 
     public function liberacao(Request $request, FilaDeLiberacao $fila): View
@@ -91,14 +91,14 @@ class EstoqueController extends Controller
     {
         $workflow->liberar($requisicao, $request->user(), $this->texto($request, 'senha'));
 
-        return redirect()->route('liberacao.index')->with('sucesso', "Requisição {$requisicao->numero} liberada.");
+        return $this->depoisDeAssinar($request, $requisicao, 'liberacao.index')->with('sucesso', "Requisição {$requisicao->numero} liberada.");
     }
 
     public function reprovarEstoque(Request $request, Requisicao $requisicao, RequisicaoWorkflow $workflow): RedirectResponse
     {
         $workflow->reprovarEstoque($requisicao, $request->user(), $this->texto($request, 'motivo'), $this->texto($request, 'senha'));
 
-        return redirect()->route('liberacao.index')->with('sucesso', "Requisição {$requisicao->numero} reprovada pelo estoque.");
+        return $this->depoisDeAssinar($request, $requisicao, 'liberacao.index')->with('sucesso', "Requisição {$requisicao->numero} reprovada pelo estoque.");
     }
 
     public function devolucao(Request $request, FilaDeDevolucao $fila): View
@@ -121,7 +121,7 @@ class EstoqueController extends Controller
             $this->texto($request, 'devolvido_por_nome') ?? '',
         );
 
-        return redirect()->route('devolucao.index')->with('sucesso', "Devolução da requisição {$requisicao->numero} conferida.");
+        return $this->depoisDeAssinar($request, $requisicao, 'devolucao.index')->with('sucesso', "Devolução da requisição {$requisicao->numero} conferida.");
     }
 
     public function compras(Request $request, FilaDeCompras $fila): View
@@ -143,7 +143,7 @@ class EstoqueController extends Controller
             $aprova ? $request->file('comprovante') : null,
         );
 
-        return redirect()->route('compras.index')->with('sucesso', $aprova
+        return $this->depoisDeAssinar($request, $requisicao, 'compras.index')->with('sucesso', $aprova
             ? "Compra da requisição {$requisicao->numero} aprovada."
             : "Compra da requisição {$requisicao->numero} reprovada.");
     }
@@ -164,6 +164,6 @@ class EstoqueController extends Controller
             $this->texto($request, 'senha'),
         );
 
-        return redirect()->route('baixa.index')->with('sucesso', "Baixa da requisição {$requisicao->numero} registrada.");
+        return $this->depoisDeAssinar($request, $requisicao, 'baixa.index')->with('sucesso', "Baixa da requisição {$requisicao->numero} registrada.");
     }
 }

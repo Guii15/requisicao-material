@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Requisicao;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 abstract class Controller
@@ -32,5 +34,16 @@ abstract class Controller
         }
 
         return $recusas;
+    }
+
+    /**
+     * Depois de assinar uma etapa, volta para a requisição, para a pessoa ver o status novo na hora.
+     * Se ela não puder mais abrir a requisição, volta para a fila de onde veio.
+     */
+    protected function depoisDeAssinar(Request $request, Requisicao $requisicao, string $fila): RedirectResponse
+    {
+        return $request->user()->can('view', $requisicao->refresh())
+            ? redirect()->route('requisicoes.show', $requisicao)
+            : redirect()->route($fila);
     }
 }

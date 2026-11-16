@@ -87,7 +87,7 @@ class EstoqueFluxosTelasTest extends TestCase
 
         $this->actingAs(User::factory()->liderEstoque()->create())
             ->post("/requisicoes/{$requisicao->numero}/liberar", ['senha' => 'password'])
-            ->assertRedirect('/liberacao')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::LIBERADA, $requisicao->fresh()->status);
@@ -107,7 +107,7 @@ class EstoqueFluxosTelasTest extends TestCase
                 'itens' => $requisicao->itens->pluck('qtd_solicitada', 'id')->map(fn ($qtd) => (string) $qtd)->all(),
                 'retirado_por_nome' => 'Maria da Silva',
             ])
-            ->assertRedirect('/separacao')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $requisicao->refresh();
@@ -150,7 +150,7 @@ class EstoqueFluxosTelasTest extends TestCase
                 'itens' => $itens,
                 'devolvido_por_nome' => 'Maria da Silva',
             ])
-            ->assertRedirect('/devolucao')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::DEVOLVIDA, $requisicao->fresh()->status);
@@ -174,7 +174,7 @@ class EstoqueFluxosTelasTest extends TestCase
 
         $this->actingAs(User::factory()->responsavelBaixa()->create())
             ->post("/requisicoes/{$requisicao->numero}/dar-baixa", ['senha' => 'password'])
-            ->assertRedirect('/baixa')
+            ->assertRedirect("/requisicoes/{$requisicao->numero}")
             ->assertSessionHas('sucesso');
 
         $this->assertSame(StatusRequisicao::BAIXADA, $requisicao->fresh()->status);
