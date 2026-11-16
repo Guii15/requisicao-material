@@ -19,8 +19,9 @@ use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 /**
- * Transferência de filial: o Showroom pede, o líder do setor aprova, quem faz a transferência
- * (Isabelly) transfere no WinThor e um líder do estoque confirma o recebimento.
+ * Transferência de filial: alguém pede, um líder do estoque aprova, quem faz a transferência
+ * (Isabelly ou Paloma) transfere no WinThor, o estoque envia e quem pediu confirma o recebimento
+ * (nunca quem enviou). Regras de 16/11/2026.
  */
 class TransferenciaFilialTest extends TestCase
 {
@@ -133,11 +134,11 @@ class TransferenciaFilialTest extends TestCase
 
         $this->assertSame(Filial::NINJA_PLACE, $requisicao->filial_origem);
         $this->assertSame(Filial::SHOWROOM, $requisicao->filial_destino);
-        $this->assertTrue($gustavo->can('aprovar', $requisicao));
-        $this->assertFalse($this->kelber->can('aprovar', $requisicao));
+        $this->assertFalse($gustavo->can('aprovar', $requisicao));
+        $this->assertTrue($this->kelber->can('aprovar', $requisicao));
     }
 
-    public function test_binario_tambem_pede_e_o_proprio_lider_aprova(): void
+    public function test_binario_tambem_pede_e_so_o_lider_do_estoque_aprova(): void
     {
         [$compras, $liderCompras] = $this->setorComAprovadores('COMPRAS');
         $solicitante = User::factory()->for($compras)->create();
@@ -147,21 +148,22 @@ class TransferenciaFilialTest extends TestCase
 
         $this->assertSame(Filial::BINARIO, $requisicao->filial_origem);
         $this->assertSame(Filial::SHOWROOM, $requisicao->filial_destino);
-        $this->assertTrue($liderCompras->can('aprovar', $requisicao));
+        $this->assertFalse($liderCompras->can('aprovar', $requisicao));
         $this->assertFalse($this->ana->can('aprovar', $requisicao));
+        $this->assertTrue($this->kelber->can('aprovar', $requisicao));
     }
 
-    public function test_fluxo_completo_lider_do_setor_isabelly_e_estoque_recebe(): void
+    public function test_fluxo_completo_lider_do_estoque_aprova_e_quem_pediu_recebe(): void
     {
         $requisicao = $this->abrirPelaTela();
 
-        // Na transferência quem aprova é o líder do setor; o líder do estoque não entra, mesmo no Showroom.
-        $this->assertTrue($this->ana->can('aprovar', $requisicao));
-        $this->assertFalse($this->kelber->can('aprovar', $requisicao));
-        $this->assertSame(0, app(FilaDeAprovacao::class)->para($this->kelber)->count());
-        $this->assertSame([$this->ana->id], app(FilaDeAprovacao::class)->aprovadoresElegiveis($requisicao)->pluck('id')->all());
+        // Na transferência só os líderes do estoque aprovam; o líder do setor não entra.
+        $this->assertFalse($this->ana->can('aprovar', $requisicao));
+        $this->assertTrue($this->kelber->can('aprovar', $requisicao));
+        $this->assertSame(0, app(FilaDeAprovacao::class)->para($this->ana)->count());
+        $this->assertSame([$this->kelber->id], app(FilaDeAprovacao::class)->aprovadoresElegiveis($requisicao)->pluck('id')->all());
 
-        $this->actingAs($this->ana)->post("/requisicoes/{$requisicao->numero}/aprovar")->assertSessionHasNoErrors();
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar")->assertSessionHasNoErrors();
         $this->assertSame(StatusRequisicao::AGUARDANDO_TRANSFERENCIA, $requisicao->fresh()->status);
 
         // Cai na fila da Isabelly.
@@ -197,21 +199,23 @@ class TransferenciaFilialTest extends TestCase
         $this->assertSame($estoquista->id, $requisicao->enviado_por_id);
         Storage::disk('local')->assertExists($requisicao->foto_saida);
 
-        // Depois cai para os líderes do estoque receberem.
-        $this->actingAs($this->kelber)->get('/recebimento')->assertOk()->assertSee($requisicao->numero);
-        $this->actingAs($this->kelber)->get("/requisicoes/{$requisicao->numero}")
+        // Depois quem pediu confirma o recebimento; o líder do estoque e quem enviou, não.
+        $this->actingAs($this->vendedor)->get('/recebimento')->assertOk()->assertSee($requisicao->numero);
+        $this->actingAs($this->vendedor)->get("/requisicoes/{$requisicao->numero}")
             ->assertOk()
             ->assertSee('Confirmar recebimento')
             ->assertSee('Recusar recebimento')
             ->assertSee('NF de transferência 5531');
+        $this->actingAs($this->kelber)->get('/recebimento')->assertForbidden();
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertForbidden();
         $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertForbidden();
-        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber")->assertSessionHasErrors('foto');
+        $this->actingAs($this->vendedor)->post("/requisicoes/{$requisicao->numero}/receber")->assertSessionHasErrors('foto');
 
-        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertRedirect("/requisicoes/{$requisicao->numero}");
+        $this->actingAs($this->vendedor)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertRedirect("/requisicoes/{$requisicao->numero}");
         $requisicao->refresh();
         Storage::disk('local')->assertExists($requisicao->foto_chegada);
         $this->assertSame(StatusRequisicao::TRANSFERENCIA_RECEBIDA, $requisicao->status);
-        $this->assertSame($this->kelber->id, $requisicao->recebido_por_id);
+        $this->assertSame($this->vendedor->id, $requisicao->recebido_por_id);
         $this->assertTrue($requisicao->status->isFinal());
 
         $this->assertSame(
@@ -235,19 +239,25 @@ class TransferenciaFilialTest extends TestCase
         $this->actingAs(User::factory()->create())->get("/requisicoes/{$requisicao->numero}/foto/saida")->assertForbidden();
     }
 
-    public function test_lider_do_estoque_recusa_o_recebimento_com_motivo(): void
+    public function test_quem_pediu_recusa_o_recebimento_com_motivo(): void
     {
         $requisicao = $this->abrirPelaTela();
-        $this->actingAs($this->ana)->post("/requisicoes/{$requisicao->numero}/aprovar");
+        $this->kelber->forceFill(['is_estoque' => true])->save();
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar");
         $this->actingAs($this->isabelly)->post("/requisicoes/{$requisicao->numero}/transferir");
         $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()]);
 
+        // O Kelber enviou: não pode confirmar nem recusar o próprio envio.
         $this->actingAs($this->kelber)
+            ->post("/requisicoes/{$requisicao->numero}/recusar-recebimento", ['motivo' => 'Teste'])
+            ->assertForbidden();
+
+        $this->actingAs($this->vendedor)
             ->post("/requisicoes/{$requisicao->numero}/recusar-recebimento", ['motivo' => ''])
             ->assertSessionHasErrors('motivo');
         $this->assertSame(StatusRequisicao::AGUARDANDO_RECEBIMENTO, $requisicao->fresh()->status);
 
-        $this->actingAs($this->kelber)
+        $this->actingAs($this->vendedor)
             ->post("/requisicoes/{$requisicao->numero}/recusar-recebimento", ['motivo' => 'Produto chegou com a caixa amassada.'])
             ->assertRedirect("/requisicoes/{$requisicao->numero}");
 
@@ -275,6 +285,21 @@ class TransferenciaFilialTest extends TestCase
         $this->assertFalse($this->ana->can('aprovar', $requisicao));
         $this->assertSame([$requisicao->id], app(FilaDeAprovacao::class)->para($geisla)->pluck('id')->all());
         $this->assertSame(0, app(FilaDeAprovacao::class)->para($this->ana)->count());
+    }
+
+    public function test_quem_pediu_e_tambem_enviou_nao_recebe(): void
+    {
+        $estoque = Setor::query()->where('nome', 'ESTOQUE')->firstOrFail();
+        $estoquista = User::factory()->for($estoque)->estoque()->create();
+        $this->actingAs($estoquista)->post('/requisicoes', $this->dadosTransferencia())->assertSessionHasNoErrors();
+        $requisicao = Requisicao::query()->latest('id')->firstOrFail();
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar");
+        $this->actingAs($this->isabelly)->post("/requisicoes/{$requisicao->numero}/transferir");
+        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()]);
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_RECEBIMENTO, $requisicao->fresh()->status);
+        $this->assertFalse($estoquista->can('receberTransferencia', $requisicao->fresh()));
+        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertForbidden();
     }
 
     public function test_fila_de_aprovacao_confere_com_a_policy(): void
@@ -334,7 +359,7 @@ class TransferenciaFilialTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $requisicao = $this->abrirPelaTela();
-        $this->actingAs($this->ana)->post("/requisicoes/{$requisicao->numero}/aprovar");
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar");
 
         $this->actingAs($admin)
             ->post("/requisicoes/{$requisicao->numero}/cancelar", ['motivo' => 'Venda desfeita pelo cliente.'])

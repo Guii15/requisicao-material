@@ -96,7 +96,7 @@ enum StatusRequisicao: string
             },
             self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
             // Transferência de filial: a responsável transfere no WinThor, o estoque envia (foto da saída)
-            // e um líder do estoque confirma o recebimento (foto da chegada).
+            // e quem pediu confirma o recebimento (foto da chegada).
             self::AGUARDANDO_TRANSFERENCIA => $transferencia ? [self::AGUARDANDO_ENVIO, self::CANCELADA] : [],
             self::AGUARDANDO_ENVIO => $transferencia ? [self::AGUARDANDO_RECEBIMENTO, self::CANCELADA] : [],
             self::AGUARDANDO_RECEBIMENTO => $transferencia ? [self::TRANSFERENCIA_RECEBIDA, self::REPROVADA_ESTOQUE] : [],

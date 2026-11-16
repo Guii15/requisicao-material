@@ -68,12 +68,9 @@ class RequisicaoPolicy
             return $user->aprova_compras;
         }
 
-        // Transferência de filial é decidida pelos líderes do próprio setor (no Showroom, Ana Alice e
-        // Nicole), mesmo que os líderes do estoque também estejam cadastrados como aprovadores dele.
-        // Os líderes do estoque só entram se o setor não tem aprovador próprio ativo.
+        // Transferência de filial: só os líderes do estoque aprovam (decisão de 16/11/2026).
         if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
-            return $this->fila->aprovaTransferencia($user, $requisicao)
-                || ($user->is_lider_estoque && $this->fila->semAprovadorProprio($requisicao));
+            return $user->is_lider_estoque;
         }
 
         if ($user->aprovaSetor($requisicao->setor_id)) {
@@ -203,14 +200,16 @@ class RequisicaoPolicy
     }
 
     /**
-     * Depois de enviado, um líder do estoque confirma que recebeu o produto (ou recusa).
+     * Depois de enviado, quem pediu (desde que não tenha sido quem enviou) confirma que recebeu o produto (ou recusa).
      */
     public function receberTransferencia(User $user, Requisicao $requisicao): bool
     {
         return $user->ativo
-            && $user->is_lider_estoque
             && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
-            && $requisicao->status === StatusRequisicao::AGUARDANDO_RECEBIMENTO;
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_RECEBIMENTO
+            // Quem pediu confirma que chegou; quem enviou nunca confirma o próprio envio.
+            && $requisicao->solicitante_id === $user->id
+            && $requisicao->enviado_por_id !== $user->id;
     }
 
     public function recusarRecebimento(User $user, Requisicao $requisicao): bool

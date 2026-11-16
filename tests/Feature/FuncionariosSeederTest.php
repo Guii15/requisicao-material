@@ -28,6 +28,7 @@ class FuncionariosSeederTest extends TestCase
         $this->assertTrue(User::where('login', 'cesar.marcelino')->firstOrFail()->is_admin);
         $this->assertTrue(User::where('login', 'meire.vale')->firstOrFail()->is_responsavel_baixa);
         $this->assertTrue(User::where('login', 'isabelly.santos')->firstOrFail()->faz_transferencia);
+        $this->assertTrue(User::where('login', 'paloma.nascimento')->firstOrFail()->faz_transferencia);
 
         $showroom = Setor::where('nome', 'SHOWROOM')->firstOrFail();
         $aprovadores = $showroom->aprovadores()->pluck('login')->sort()->values()->all();
