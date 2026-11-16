@@ -25,6 +25,7 @@ class FuncionariosSeederTest extends TestCase
         $this->assertTrue(Hash::check('Bin@2026', $kelber->password));
 
         $this->assertTrue(User::where('login', 'guilherme.santana')->firstOrFail()->is_admin);
+        $this->assertTrue(User::where('login', 'cesar.marcelino')->firstOrFail()->is_admin);
         $this->assertTrue(User::where('login', 'meire.vale')->firstOrFail()->is_responsavel_baixa);
         $this->assertTrue(User::where('login', 'isabelly.santos')->firstOrFail()->faz_transferencia);
 
@@ -45,5 +46,18 @@ class FuncionariosSeederTest extends TestCase
 
         $this->assertSame(49, User::query()->count());
         $this->assertTrue(Hash::check('OutraSenha#1', $kelber->fresh()->password));
+    }
+
+    public function test_rodar_de_novo_nao_tira_admin_de_ninguem(): void
+    {
+        $this->seed(FuncionariosSeeder::class);
+        $hayla = User::where('login', 'hayla.souza')->firstOrFail();
+        $hayla->forceFill(['is_admin' => true])->save();
+
+        $this->seed(FuncionariosSeeder::class);
+
+        $this->assertTrue($hayla->fresh()->is_admin);
+        $this->assertTrue(User::where('login', 'cesar.marcelino')->firstOrFail()->is_admin);
+        $this->assertTrue(User::where('login', 'guilherme.santana')->firstOrFail()->is_admin);
     }
 }

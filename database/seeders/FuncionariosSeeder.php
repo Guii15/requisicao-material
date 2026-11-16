@@ -14,7 +14,7 @@ use RuntimeException;
  *
  * Usa a mesma validação da importação de usuários: se alguma linha tiver erro, nada é gravado.
  * Pode rodar de novo: quem já existe é atualizado para ficar igual à lista, ninguém tem a senha
- * trocada e ninguém fora da lista é desativado. Quem é criado entra com a senha Bin@2026 e
+ * trocada, ninguém perde o admin e ninguém fora da lista é desativado. Quem é criado entra com a senha Bin@2026 e
  * troca no primeiro acesso.
  *
  * Para mudar alguém depois do lançamento, use a tela Usuários do site (admin).
@@ -74,7 +74,7 @@ class FuncionariosSeeder extends Seeder
         [129, 'Thiago Moseli Ferreira', 'thiago.ferreira', 'SHOWROOM', '', [], ''],
         [19, 'Yhan Otavio Rezende', 'yhan.rezende', 'SHOWROOM', '', [], ''],
         [99, 'Adilson Fonseca', 'adilson.fonseca', 'TI', '', [], ''],
-        [40, 'Cesar Augusto da Cruz Marcelino', 'cesar.marcelino', 'TI', '', [], ''],
+        [40, 'Cesar Augusto da Cruz Marcelino', 'cesar.marcelino', 'TI', '', ['ADMIN'], ''],
         [58, 'Guilherme de Oliveira Santana', 'guilherme.santana', 'TI', 'LIDER', ['ADMIN'], ''],
         [91, 'Kaua Otaviano', 'kaua.otaviano', 'TI', '', [], ''],
         [27, 'Matheus Rodrigues Luiz', 'matheus.luiz', 'TI', '', [], ''],
@@ -103,12 +103,16 @@ class FuncionariosSeeder extends Seeder
             $linhas[] = ['linha' => $i + 1, 'colunas' => $colunas];
         }
 
+        // Quem já é admin continua admin: a lista só dá admin, nunca tira.
+        $admins = User::query()->where('is_admin', true)->pluck('id')->all();
+
         $resultado = $importacao->executar($linhas, senhaPadrao: self::SENHA_PADRAO);
 
         if ($resultado->falhou()) {
             throw new RuntimeException("Funcionários não carregados:\n".implode("\n", $resultado->erros));
         }
 
+        User::query()->whereIn('id', $admins)->update(['is_admin' => true]);
         User::query()->whereIn('login', self::FAZ_TRANSFERENCIA)->update(['faz_transferencia' => true]);
 
         foreach ($resultado->avisos as $aviso) {
