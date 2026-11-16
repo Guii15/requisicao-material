@@ -63,15 +63,27 @@
         {{ $totalRequisicoes }} {{ $totalRequisicoes === 1 ? 'requisição' : 'requisições' }}, {{ $itens->total() }} {{ $itens->total() === 1 ? 'item' : 'itens' }} de {{ $filtro['de']->format('d/m/Y') }} a {{ $filtro['ate']->format('d/m/Y') }}
     </p>
 
+    @php
+        // Na tela: código vai embaixo do produto, unidade junto da quantidade e nomes encurtados,
+        // para caber sem rolagem. O Excel continua com todas as colunas e nomes completos.
+        $naTela = array_diff_key($colunas, array_flip(['codigo', 'unidade']));
+        $pessoas = ['solicitante', 'aprovado_por', 'separado_por', 'baixa_por', 'compra_por'];
+        $datas = ['data', 'baixa_em', 'compra_em', 'devolucao_prevista'];
+        $curto = function (string $nome): string {
+            $partes = preg_split('/\s+/', trim($nome));
+            return count($partes) > 2 ? $partes[0].' '.end($partes) : $nome;
+        };
+    @endphp
+
     <section class="quadro" aria-label="Relatório de {{ $rotulos[$tipo->value] }}">
         @if ($linhas->isEmpty())
             <p class="p-8 text-center text-sm text-mid-gray">Nenhum pedido de {{ $rotulos[$tipo->value] }} nesse período.</p>
         @else
             <div class="overflow-x-auto">
-                <table class="tabela">
+                <table class="tabela tabela-compacta">
                     <thead>
                         <tr>
-                            @foreach ($colunas as $chave => $titulo)
+                            @foreach ($naTela as $chave => $titulo)
                                 <th scope="col" @class(['text-right' => in_array($chave, $numericas, true)])>{{ $titulo }}</th>
                             @endforeach
                         </tr>
@@ -79,18 +91,46 @@
                     <tbody>
                         @foreach ($linhas as $linha)
                             <tr>
-                                @foreach ($colunas as $chave => $titulo)
-                                    @if ($chave === 'numero')
-                                        <td class="whitespace-nowrap font-medium">
-                                            @if ($linha['pode_abrir'])
-                                                <a href="{{ route('requisicoes.show', $linha['numero']) }}" class="text-ink hover:underline">{{ $linha['numero'] }}</a>
-                                            @else
-                                                {{ $linha['numero'] }}
-                                            @endif
-                                        </td>
-                                    @else
-                                        <td @class(['text-right tabular-nums' => in_array($chave, $numericas, true), 'whitespace-nowrap' => in_array($chave, ['data', 'baixa_em', 'compra_em', 'devolucao_prevista'], true)])>{{ $linha[$chave] !== '' ? $linha[$chave] : '—' }}</td>
-                                    @endif
+                                @foreach ($naTela as $chave => $titulo)
+                                    @switch(true)
+                                        @case($chave === 'numero')
+                                            <td class="font-medium whitespace-nowrap">
+                                                @if ($linha['pode_abrir'])
+                                                    <a href="{{ route('requisicoes.show', $linha['numero']) }}" class="text-ink hover:underline">{{ $linha['numero'] }}</a>
+                                                @else
+                                                    {{ $linha['numero'] }}
+                                                @endif
+                                            </td>
+                                            @break
+                                        @case($chave === 'produto')
+                                            <td class="min-w-48">
+                                                {{ $linha['produto'] }}
+                                                @if ($linha['codigo'] !== '')
+                                                    <span class="block text-[12px] text-mid-gray tabular-nums">Cód. {{ $linha['codigo'] }}</span>
+                                                @endif
+                                            </td>
+                                            @break
+                                        @case($chave === 'qtd')
+                                            <td class="text-right whitespace-nowrap tabular-nums">{{ $linha['qtd'] }} <span class="text-mid-gray">{{ $linha['unidade'] }}</span></td>
+                                            @break
+                                        @case($chave === 'situacao')
+                                            <td>
+                                                @if ($linha['recusado'])
+                                                    <span class="selo selo-erro">Item recusado</span>
+                                                @else
+                                                    <x-selo-status :status="$linha['status']" />
+                                                @endif
+                                            </td>
+                                            @break
+                                        @case(in_array($chave, $pessoas, true))
+                                            <td class="whitespace-nowrap" @if ($linha[$chave] !== '') title="{{ $linha[$chave] }}" @endif>{{ $linha[$chave] !== '' ? $curto($linha[$chave]) : '—' }}</td>
+                                            @break
+                                        @case(in_array($chave, $datas, true))
+                                            <td class="whitespace-nowrap tabular-nums">{{ $linha[$chave] !== '' ? $linha[$chave] : '—' }}</td>
+                                            @break
+                                        @default
+                                            <td @class(['text-right tabular-nums' => in_array($chave, $numericas, true), 'whitespace-nowrap' => $chave === 'setor'])>{{ $linha[$chave] !== '' ? $linha[$chave] : '—' }}</td>
+                                    @endswitch
                                 @endforeach
                             </tr>
                         @endforeach

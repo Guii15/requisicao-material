@@ -205,6 +205,12 @@
         @apply border-b border-hairline px-5 py-4 align-middle dark:border-line-escuro;
     }
 
+    /* Tabela com muitas colunas (relatórios): menos respiro para caber na tela. */
+    .tabela-compacta th,
+    .tabela-compacta td {
+        @apply px-3;
+    }
+
     .tabela tbody tr {
         @apply transition-colors hover:bg-fundo;
     }

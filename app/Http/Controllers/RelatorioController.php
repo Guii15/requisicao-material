@@ -31,6 +31,8 @@ class RelatorioController extends Controller
             'colunas' => $relatorio->colunas($filtro['tipo']),
             'linhas' => $itens->getCollection()->map(fn ($item) => $relatorio->linha($item) + [
                 'pode_abrir' => $request->user()->can('view', $item->requisicao),
+                'status' => $item->requisicao->status,
+                'recusado' => $item->isRecusado(),
             ]),
             'itens' => $itens,
             'totalRequisicoes' => (clone $consulta)->reorder()->distinct()->count('requisicoes.id'),
