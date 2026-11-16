@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  * requisição cai para os líderes do estoque (decisão de 24/09/2026: o Admin fica fora
  * da aprovação por enquanto). Nos setores marcados com lideres_estoque_aprovam (Showroom e
  * Ninja Place, decisão de 23/10/2026) os líderes do estoque aprovam sempre, junto com o setor.
- * Transferência de filial é aprovada só pelos líderes do estoque (16/11/2026).
+ * Transferência de filial é aprovada pelos líderes do estoque e pelos líderes do Showroom (16/11/2026).
  */
 class FilaDeAprovacao
 {
@@ -47,8 +47,8 @@ class FilaDeAprovacao
                         });
                 });
 
-                // Transferência de filial: só os líderes do estoque aprovam (decisão de 16/11/2026).
-                if ($user->is_lider_estoque) {
+                // Transferência de filial: líderes do estoque e líderes do Showroom (decisão de 16/11/2026).
+                if ($this->aprovaTransferencia($user)) {
                     $fila->orWhere('tipo', TipoRequisicao::TRANSFERENCIA_FILIAL->value);
                 }
 
@@ -69,6 +69,20 @@ class FilaDeAprovacao
         }
 
         return (bool) $requisicao->setor()->value('lideres_estoque_aprovam') || $this->semAprovadorElegivel($requisicao);
+    }
+
+    /**
+     * Transferência de filial: aprovam os líderes do estoque e os líderes (e sublíderes) do Showroom.
+     */
+    public function aprovaTransferencia(User $user): bool
+    {
+        return $user->is_lider_estoque
+            || $user->setoresAprovados()->whereIn('setores.id', $this->setorShowroom())->exists();
+    }
+
+    private function setorShowroom(): QueryBuilder
+    {
+        return DB::table('setores')->select('id')->where('nome', 'SHOWROOM');
     }
 
     public function semAprovadorElegivel(Requisicao $requisicao): bool
@@ -98,7 +112,10 @@ class FilaDeAprovacao
         }
 
         if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
-            return $query->where('is_lider_estoque', true)->get();
+            return $query->where(fn (Builder $q) => $q
+                ->where('is_lider_estoque', true)
+                ->orWhereIn('id', DB::table('setor_aprovadores')->select('user_id')->whereIn('setor_id', $this->setorShowroom())))
+                ->get();
         }
 
         if ($this->semAprovadorElegivel($requisicao)) {

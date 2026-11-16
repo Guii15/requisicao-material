@@ -19,7 +19,7 @@ use Tests\Concerns\CenarioRequisicao;
 use Tests\TestCase;
 
 /**
- * Transferência de filial: alguém pede, um líder do estoque aprova, quem faz a transferência
+ * Transferência de filial: alguém pede, um líder do estoque ou do Showroom aprova, quem faz a transferência
  * (Isabelly ou Paloma) transfere no WinThor, o estoque envia e quem pediu confirma o recebimento
  * (nunca quem enviou). Regras de 16/11/2026.
  */
@@ -136,9 +136,10 @@ class TransferenciaFilialTest extends TestCase
         $this->assertSame(Filial::SHOWROOM, $requisicao->filial_destino);
         $this->assertFalse($gustavo->can('aprovar', $requisicao));
         $this->assertTrue($this->kelber->can('aprovar', $requisicao));
+        $this->assertTrue($this->ana->can('aprovar', $requisicao));
     }
 
-    public function test_binario_tambem_pede_e_so_o_lider_do_estoque_aprova(): void
+    public function test_binario_tambem_pede_e_aprovam_estoque_e_showroom(): void
     {
         [$compras, $liderCompras] = $this->setorComAprovadores('COMPRAS');
         $solicitante = User::factory()->for($compras)->create();
@@ -149,7 +150,7 @@ class TransferenciaFilialTest extends TestCase
         $this->assertSame(Filial::BINARIO, $requisicao->filial_origem);
         $this->assertSame(Filial::SHOWROOM, $requisicao->filial_destino);
         $this->assertFalse($liderCompras->can('aprovar', $requisicao));
-        $this->assertFalse($this->ana->can('aprovar', $requisicao));
+        $this->assertTrue($this->ana->can('aprovar', $requisicao));
         $this->assertTrue($this->kelber->can('aprovar', $requisicao));
     }
 
@@ -157,11 +158,14 @@ class TransferenciaFilialTest extends TestCase
     {
         $requisicao = $this->abrirPelaTela();
 
-        // Na transferência só os líderes do estoque aprovam; o líder do setor não entra.
-        $this->assertFalse($this->ana->can('aprovar', $requisicao));
+        // Na transferência aprovam os líderes do estoque e os do Showroom; o líder de outro setor, não.
+        [, $liderCompras] = $this->setorComAprovadores('COMPRAS');
+        $this->assertTrue($this->ana->can('aprovar', $requisicao));
         $this->assertTrue($this->kelber->can('aprovar', $requisicao));
-        $this->assertSame(0, app(FilaDeAprovacao::class)->para($this->ana)->count());
-        $this->assertSame([$this->kelber->id], app(FilaDeAprovacao::class)->aprovadoresElegiveis($requisicao)->pluck('id')->all());
+        $this->assertFalse($liderCompras->can('aprovar', $requisicao));
+        $this->assertSame(1, app(FilaDeAprovacao::class)->para($this->ana)->count());
+        $this->assertSame(0, app(FilaDeAprovacao::class)->para($liderCompras)->count());
+        $this->assertEqualsCanonicalizing([$this->ana->id, $this->kelber->id], app(FilaDeAprovacao::class)->aprovadoresElegiveis($requisicao)->pluck('id')->all());
 
         $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar")->assertSessionHasNoErrors();
         $this->assertSame(StatusRequisicao::AGUARDANDO_TRANSFERENCIA, $requisicao->fresh()->status);
@@ -282,9 +286,9 @@ class TransferenciaFilialTest extends TestCase
 
         $this->assertTrue($geisla->can('aprovar', $requisicao));
         $this->assertFalse($this->kelber->can('aprovar', $requisicao));
-        $this->assertFalse($this->ana->can('aprovar', $requisicao));
+        $this->assertTrue($this->ana->can('aprovar', $requisicao));
         $this->assertSame([$requisicao->id], app(FilaDeAprovacao::class)->para($geisla)->pluck('id')->all());
-        $this->assertSame(0, app(FilaDeAprovacao::class)->para($this->ana)->count());
+        $this->assertSame(1, app(FilaDeAprovacao::class)->para($this->ana)->count());
     }
 
     public function test_quem_pediu_e_tambem_enviou_nao_recebe(): void

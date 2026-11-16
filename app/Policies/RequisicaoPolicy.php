@@ -68,9 +68,9 @@ class RequisicaoPolicy
             return $user->aprova_compras;
         }
 
-        // Transferência de filial: só os líderes do estoque aprovam (decisão de 16/11/2026).
+        // Transferência de filial: líderes do estoque e líderes do Showroom (Ana Alice e Nicole), decisão de 16/11/2026.
         if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
-            return $user->is_lider_estoque;
+            return $this->fila->aprovaTransferencia($user);
         }
 
         if ($user->aprovaSetor($requisicao->setor_id)) {
