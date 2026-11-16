@@ -15,6 +15,7 @@
         request()->routeIs('envio.*') => 'envio',
         request()->routeIs('recebimento.*') => 'recebimento',
         request()->routeIs('usuarios.*') => 'usuarios',
+        request()->routeIs('relatorios.*') => 'relatorios',
         default => null,
     };
 
@@ -87,6 +88,11 @@
             @if ($menu['recebimento'] !== null)
                 <x-menu-link-lateral :href="route('recebimento.index')" :ativo="$secao === 'recebimento'" :contador="$menu['recebimento']" contador-nome="recebimento" icone="truck">Recebimento</x-menu-link-lateral>
             @endif
+
+            @can('acessar-relatorios')
+                <p class="etiqueta mt-7 mb-2.5 px-3.5 !text-preto-texto">Relatórios</p>
+                <x-menu-link-lateral :href="route('relatorios.index')" :ativo="$secao === 'relatorios'" icone="chart-bar">Relatórios</x-menu-link-lateral>
+            @endcan
 
             @can('gerenciar-usuarios')
                 <p class="etiqueta mt-7 mb-2.5 px-3.5 !text-preto-texto">Administração</p>

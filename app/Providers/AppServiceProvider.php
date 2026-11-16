@@ -63,6 +63,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('acessar-recebimento', fn (User $user) => $user->is_lider_estoque);
 
         // Tela Usuários: criar login e dar permissões. Só administrador ativo.
+        // Relatórios de Uso e Consumo, Pedidos de compra e Teste: a responsável pela baixa e o Admin.
+        Gate::define('acessar-relatorios', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
+
         Gate::define('gerenciar-usuarios', fn (User $user) => $user->ativo && $user->is_admin);
 
         View::composer('components.layouts.app', MenuComposer::class);

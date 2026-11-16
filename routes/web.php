@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\EstoqueController;
 use App\Http\Controllers\PainelController;
+use App\Http\Controllers\RelatorioController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
@@ -66,6 +67,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/recebimento', [TransferenciaController::class, 'recebimento'])->name('recebimento.index');
             Route::post('/requisicoes/{requisicao}/receber', [TransferenciaController::class, 'receber'])->name('requisicoes.receber');
             Route::post('/requisicoes/{requisicao}/recusar-recebimento', [TransferenciaController::class, 'recusarRecebimento'])->name('requisicoes.recusar-recebimento');
+
+            // Relatórios (pedido da Meire): tela com filtros e download para o Excel.
+            Route::get('/relatorios', [RelatorioController::class, 'index'])->name('relatorios.index');
+            Route::get('/relatorios/exportar', [RelatorioController::class, 'exportar'])->name('relatorios.exportar');
 
             // Administração: logins e permissões (só administradores; conferido no controller/serviço).
             Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
