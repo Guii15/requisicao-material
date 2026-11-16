@@ -7,7 +7,9 @@ use App\Services\FilaDeBaixa;
 use App\Services\FilaDeCompras;
 use App\Services\FilaDeDevolucao;
 use App\Services\FilaDeLiberacao;
+use App\Services\FilaDeRecebimento;
 use App\Services\FilaDeSeparacao;
+use App\Services\FilaDeTransferencia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
@@ -25,6 +27,8 @@ class MenuComposer
         private readonly FilaDeDevolucao $filaDevolucao,
         private readonly FilaDeBaixa $filaBaixa,
         private readonly FilaDeCompras $filaCompras,
+        private readonly FilaDeTransferencia $filaTransferencia,
+        private readonly FilaDeRecebimento $filaRecebimento,
     ) {}
 
     public function compose(View $view): void
@@ -42,6 +46,8 @@ class MenuComposer
             'devolucao' => $contar('acessar-devolucao', $this->filaDevolucao),
             'baixa' => $contar('acessar-baixa', $this->filaBaixa),
             'compras' => $contar('acessar-compras', $this->filaCompras),
+            'transferencias' => $contar('acessar-transferencias', $this->filaTransferencia),
+            'recebimento' => $contar('acessar-recebimento', $this->filaRecebimento),
         ]);
     }
 }

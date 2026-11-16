@@ -7,6 +7,7 @@ enum TipoRequisicao: string
     case TESTE = 'TESTE';
     case USO_CONSUMO = 'USO_CONSUMO';
     case COMPRA_FUNCIONARIO = 'COMPRA_FUNCIONARIO';
+    case TRANSFERENCIA_FILIAL = 'TRANSFERENCIA_FILIAL';
 
     public function rotulo(): string
     {
@@ -14,6 +15,7 @@ enum TipoRequisicao: string
             self::TESTE => 'TESTE',
             self::USO_CONSUMO => 'USO E CONSUMO',
             self::COMPRA_FUNCIONARIO => 'PEDIDO DE COMPRA',
+            self::TRANSFERENCIA_FILIAL => 'TRANSFERÊNCIA DE FILIAL',
         };
     }
 

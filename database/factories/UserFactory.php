@@ -39,6 +39,7 @@ class UserFactory extends Factory
             'is_lider_estoque' => false,
             'is_responsavel_baixa' => false,
             'aprova_compras' => false,
+            'faz_transferencia' => false,
             'is_admin' => false,
             'remember_token' => Str::random(10),
         ];
@@ -57,6 +58,11 @@ class UserFactory extends Factory
     public function responsavelBaixa(): static
     {
         return $this->state(fn () => ['is_responsavel_baixa' => true]);
+    }
+
+    public function fazTransferencia(): static
+    {
+        return $this->state(fn () => ['faz_transferencia' => true]);
     }
 
     public function admin(): static

@@ -95,6 +95,8 @@
                         Devolução prevista: {{ $requisicao->data_prevista_devolucao?->format('d/m/Y') }}
                     @elseif ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO)
                         Pedido de compra, sem passar pelo estoque
+                    @elseif ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL)
+                        Vai para a filial {{ $requisicao->filial_destino?->rotulo() }}
                     @else
                         Material consumido, com baixa no WinThor
                     @endif

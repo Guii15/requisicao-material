@@ -28,6 +28,9 @@ enum StatusRequisicao: string
     case AGUARDANDO_COMPRA = 'AGUARDANDO_COMPRA';
     case COMPRA_APROVADA = 'COMPRA_APROVADA';
     case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
+    case AGUARDANDO_TRANSFERENCIA = 'AGUARDANDO_TRANSFERENCIA';
+    case AGUARDANDO_RECEBIMENTO = 'AGUARDANDO_RECEBIMENTO';
+    case TRANSFERENCIA_RECEBIDA = 'TRANSFERENCIA_RECEBIDA';
 
     public function rotulo(): string
     {
@@ -50,6 +53,9 @@ enum StatusRequisicao: string
             self::AGUARDANDO_COMPRA => 'Aguardando compra',
             self::COMPRA_APROVADA => 'Compra aprovada',
             self::COMPRA_REPROVADA => 'Compra reprovada',
+            self::AGUARDANDO_TRANSFERENCIA => 'Aguardando transferência',
+            self::AGUARDANDO_RECEBIMENTO => 'Aguardando recebimento',
+            self::TRANSFERENCIA_RECEBIDA => 'Recebida na filial',
         };
     }
 
@@ -59,8 +65,9 @@ enum StatusRequisicao: string
     public function grupo(): string
     {
         return match ($this) {
-            self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA, self::AGUARDANDO_COMPRA => 'aguardando',
-            self::DEVOLVIDA, self::BAIXADA, self::COMPRA_APROVADA => 'concluida',
+            self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA, self::AGUARDANDO_COMPRA,
+            self::AGUARDANDO_TRANSFERENCIA, self::AGUARDANDO_RECEBIMENTO => 'aguardando',
+            self::DEVOLVIDA, self::BAIXADA, self::COMPRA_APROVADA, self::TRANSFERENCIA_RECEBIDA => 'concluida',
             self::REPROVADA, self::REPROVADA_ESTOQUE, self::CANCELADA, self::COMPRA_REPROVADA => 'encerrada',
             self::DEVOLUCAO_COM_PENDENCIA => 'alerta',
             default => 'andamento',
@@ -73,6 +80,7 @@ enum StatusRequisicao: string
     public function destinos(TipoRequisicao $tipo): array
     {
         $teste = $tipo === TipoRequisicao::TESTE;
+        $transferencia = $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL;
 
         return match ($this) {
             self::AGUARDANDO_APROVACAO => [self::APROVADA, self::REPROVADA, self::CANCELADA],
@@ -80,10 +88,14 @@ enum StatusRequisicao: string
             // aprovado por líder do estoque (liberação dispensada) vai direto para a separação.
             self::APROVADA => match ($tipo) {
                 TipoRequisicao::COMPRA_FUNCIONARIO => [self::AGUARDANDO_COMPRA, self::CANCELADA],
+                TipoRequisicao::TRANSFERENCIA_FILIAL => [self::AGUARDANDO_TRANSFERENCIA, self::CANCELADA],
                 TipoRequisicao::USO_CONSUMO => [self::AGUARDANDO_LIBERACAO_ESTOQUE, self::EM_SEPARACAO, self::CANCELADA],
                 default => [self::EM_SEPARACAO, self::CANCELADA],
             },
             self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
+            // Transferência de filial: a responsável transfere no WinThor e um líder do estoque confirma o recebimento.
+            self::AGUARDANDO_TRANSFERENCIA => $transferencia ? [self::AGUARDANDO_RECEBIMENTO, self::CANCELADA] : [],
+            self::AGUARDANDO_RECEBIMENTO => $transferencia ? [self::TRANSFERENCIA_RECEBIDA, self::REPROVADA_ESTOQUE] : [],
             self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_BAIXA, self::CANCELADA],
             self::AGUARDANDO_LIBERACAO_ESTOQUE => $teste ? [] : [self::LIBERADA, self::REPROVADA_ESTOQUE, self::CANCELADA],
             // Liberado pelo líder do estoque: espera a separação. Depois de separado vai direto para a baixa.
@@ -109,7 +121,12 @@ enum StatusRequisicao: string
         return match ($this) {
             self::EM_SEPARACAO, self::ENTREGUE => $this->destinos($tipo)[0] ?? null,
             // Compra de funcionário não passa pelo estoque: depois do aprovador vai direto para a Erica.
-            self::APROVADA => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? self::AGUARDANDO_COMPRA : null,
+            // Transferência de filial também: aprovada, vai direto para quem faz a transferência.
+            self::APROVADA => match ($tipo) {
+                TipoRequisicao::COMPRA_FUNCIONARIO => self::AGUARDANDO_COMPRA,
+                TipoRequisicao::TRANSFERENCIA_FILIAL => self::AGUARDANDO_TRANSFERENCIA,
+                default => null,
+            },
             default => null,
         };
     }
@@ -125,6 +142,7 @@ enum StatusRequisicao: string
             self::BAIXADA,
             self::COMPRA_APROVADA,
             self::COMPRA_REPROVADA,
+            self::TRANSFERENCIA_RECEBIDA,
         ], true);
     }
 

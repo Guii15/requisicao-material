@@ -29,6 +29,7 @@ class GestaoUsuarios
         'is_lider_estoque' => 'Líder do estoque (libera e aprova Showroom, Ninja e setores sem líder)',
         'is_responsavel_baixa' => 'Responsável pela baixa e pela decisão das compras',
         'aprova_compras' => 'Aprova pedido de compra de funcionário',
+        'faz_transferencia' => 'Faz transferência entre filiais (WinThor)',
         'is_admin' => 'Administrador (cria logins e dá permissões)',
     ];
 

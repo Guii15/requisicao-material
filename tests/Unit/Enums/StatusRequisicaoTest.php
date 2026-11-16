@@ -55,6 +55,16 @@ class StatusRequisicaoTest extends TestCase
         $add(S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, T::COMPRA_FUNCIONARIO);
         $add(S::AGUARDANDO_COMPRA, S::COMPRA_REPROVADA, T::COMPRA_FUNCIONARIO);
         $add(S::AGUARDANDO_COMPRA, S::CANCELADA, T::COMPRA_FUNCIONARIO);
+        // Transferência de filial: aprovador do setor -> quem transfere no WinThor -> líder do estoque recebe.
+        $add(S::AGUARDANDO_APROVACAO, S::APROVADA, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_APROVACAO, S::REPROVADA, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_APROVACAO, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
+        $add(S::APROVADA, S::AGUARDANDO_TRANSFERENCIA, T::TRANSFERENCIA_FILIAL);
+        $add(S::APROVADA, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_RECEBIMENTO, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_TRANSFERENCIA, S::CANCELADA, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA, T::TRANSFERENCIA_FILIAL);
+        $add(S::AGUARDANDO_RECEBIMENTO, S::REPROVADA_ESTOQUE, T::TRANSFERENCIA_FILIAL);
 
         return $casos;
     }
@@ -74,6 +84,10 @@ class StatusRequisicaoTest extends TestCase
                 foreach (T::cases() as $tipo) {
                     // Compra de funcionário nunca chega nos status do fluxo de estoque.
                     if ($tipo === T::COMPRA_FUNCIONARIO && ! in_array($de, [S::AGUARDANDO_APROVACAO, S::APROVADA, S::AGUARDANDO_COMPRA], true)) {
+                        continue;
+                    }
+                    // Transferência de filial nunca chega nos status do fluxo de estoque nem da compra.
+                    if ($tipo === T::TRANSFERENCIA_FILIAL && ! in_array($de, [S::AGUARDANDO_APROVACAO, S::APROVADA, S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_RECEBIMENTO], true)) {
                         continue;
                     }
                     // Aguardando compra só existe para compra de funcionário.
@@ -114,12 +128,13 @@ class StatusRequisicaoTest extends TestCase
         $this->assertNull(S::ENTREGUE->proximoAutomatico(T::USO_CONSUMO));
         $this->assertNull(S::APROVADA->proximoAutomatico(T::TESTE));
         $this->assertSame(S::AGUARDANDO_COMPRA, S::APROVADA->proximoAutomatico(T::COMPRA_FUNCIONARIO));
+        $this->assertSame(S::AGUARDANDO_TRANSFERENCIA, S::APROVADA->proximoAutomatico(T::TRANSFERENCIA_FILIAL));
         $this->assertNull(S::EM_POSSE->proximoAutomatico(T::TESTE));
     }
 
     public function test_status_finais_nao_tem_saida(): void
     {
-        $finais = [S::REPROVADA, S::CANCELADA, S::REPROVADA_ESTOQUE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::BAIXADA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA];
+        $finais = [S::REPROVADA, S::CANCELADA, S::REPROVADA_ESTOQUE, S::DEVOLVIDA, S::DEVOLUCAO_COM_PENDENCIA, S::BAIXADA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA, S::TRANSFERENCIA_RECEBIDA];
 
         foreach (S::cases() as $status) {
             $this->assertSame(in_array($status, $finais, true), $status->isFinal(), $status->value);

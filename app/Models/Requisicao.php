@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Filial;
 use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
@@ -33,6 +34,7 @@ class Requisicao extends Model
         'data_prevista_devolucao',
         'forma_pagamento',
         'parcelas',
+        'filial_destino',
     ];
 
     private static int $alteracoesAutorizadas = 0;
@@ -51,6 +53,8 @@ class Requisicao extends Model
             'data_prevista_devolucao' => 'date',
             'forma_pagamento' => FormaPagamento::class,
             'parcelas' => 'integer',
+            'filial_destino' => Filial::class,
+            'transferido_em' => 'datetime',
             'liberacao_dispensada' => 'boolean',
             'aprovado_em' => 'datetime',
             'reprovado_em' => 'datetime',
@@ -191,6 +195,18 @@ class Requisicao extends Model
     public function compraDecididaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'compra_decidido_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function transferidoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'transferido_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function recebidoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recebido_por_id');
     }
 
     /** @return BelongsTo<User, $this> */

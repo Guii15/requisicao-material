@@ -37,6 +37,8 @@ class AssinaturaService
         'entregue_por_id' => Etapa::ENTREGA,
         'devolucao_conferida_por_id' => Etapa::DEVOLUCAO,
         'baixa_por_id' => Etapa::BAIXA,
+        'transferido_por_id' => Etapa::TRANSFERENCIA,
+        'recebido_por_id' => Etapa::RECEBIMENTO,
     ];
 
     public function assinarComSenha(Requisicao $requisicao, Etapa $etapa, User $assinante): RequisicaoAssinatura
@@ -240,6 +242,9 @@ class AssinaturaService
             // Só entra quando é verdade, para não mudar o conteúdo das assinaturas que já existiam.
             // Assim, marcar a dispensa direto no banco depois da aprovação aparece como divergência.
             ...($requisicao->liberacao_dispensada ? ['liberacao_dispensada' => true] : []),
+            // Idem para a transferência de filial: só aparece nela.
+            ...($requisicao->filial_destino !== null ? ['filial_destino' => $requisicao->filial_destino->value] : []),
+            ...($requisicao->foto_produto !== null ? ['foto_produto' => $requisicao->foto_produto] : []),
             'itens' => $requisicao->itens()->get()->map(fn (RequisicaoItem $item) => [
                 'id' => $item->id,
                 ...($item->codigo !== null ? ['codigo' => $item->codigo] : []),
@@ -272,7 +277,8 @@ class AssinaturaService
 
         if (in_array($status, [S::APROVADA, S::EM_SEPARACAO, S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE], true)
             || in_array($status, $depoisDaSeparacao, true)
-            || in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)) {
+            || in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)
+            || in_array($status, [S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA], true)) {
             $exigidas[] = Etapa::APROVACAO_SETOR;
         }
 
@@ -313,6 +319,16 @@ class AssinaturaService
 
         if ($status === S::COMPRA_REPROVADA) {
             $exigidas[] = Etapa::COMPRA_REPROVADA;
+        }
+
+        // Transferência de filial: transferido antes de receber (ou de o estoque recusar).
+        if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
+            && in_array($status, [S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA, S::REPROVADA_ESTOQUE], true)) {
+            $exigidas[] = Etapa::TRANSFERENCIA;
+        }
+
+        if ($status === S::TRANSFERENCIA_RECEBIDA) {
+            $exigidas[] = Etapa::RECEBIMENTO;
         }
 
         return $exigidas;

@@ -6,6 +6,7 @@
             'is_estoque' => 'Estoque',
             'is_responsavel_baixa' => 'Baixa',
             'aprova_compras' => 'Aprova compras',
+            'faz_transferencia' => 'Transferência',
         ];
     @endphp
 

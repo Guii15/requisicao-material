@@ -11,6 +11,8 @@
         request()->routeIs('devolucao.*') => 'devolucao',
         request()->routeIs('baixa.*') => 'baixa',
         request()->routeIs('compras.*') => 'compras',
+        request()->routeIs('transferencias.*') => 'transferencias',
+        request()->routeIs('recebimento.*') => 'recebimento',
         request()->routeIs('usuarios.*') => 'usuarios',
         default => null,
     };
@@ -74,6 +76,12 @@
             @endif
             @if ($menu['baixa'] !== null)
                 <x-menu-link-lateral :href="route('baixa.index')" :ativo="$secao === 'baixa'" :contador="$menu['baixa']" contador-nome="baixa" icone="list-checks">Baixa</x-menu-link-lateral>
+            @endif
+            @if ($menu['transferencias'] !== null)
+                <x-menu-link-lateral :href="route('transferencias.index')" :ativo="$secao === 'transferencias'" :contador="$menu['transferencias']" contador-nome="transferencias" icone="arrows-left-right">Transferências</x-menu-link-lateral>
+            @endif
+            @if ($menu['recebimento'] !== null)
+                <x-menu-link-lateral :href="route('recebimento.index')" :ativo="$secao === 'recebimento'" :contador="$menu['recebimento']" contador-nome="recebimento" icone="truck">Recebimento</x-menu-link-lateral>
             @endif
 
             @can('gerenciar-usuarios')

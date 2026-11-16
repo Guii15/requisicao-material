@@ -55,6 +55,7 @@ class User extends Authenticatable
             'is_responsavel_baixa' => 'boolean',
             'is_admin' => 'boolean',
             'aprova_compras' => 'boolean',
+            'faz_transferencia' => 'boolean',
         ];
     }
 

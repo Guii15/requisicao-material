@@ -56,6 +56,7 @@ class RequisicoesVisiveisTest extends TestCase
             'lider do estoque' => User::factory()->liderEstoque()->create(),
             'responsavel pela baixa' => User::factory()->responsavelBaixa()->create(),
             'aprova compras' => User::factory()->create(['aprova_compras' => true]),
+            'faz transferencia' => User::factory()->fazTransferencia()->create(),
             'admin' => User::factory()->admin()->create(),
         ];
 

@@ -37,6 +37,13 @@ class RequisicaoPolicy
                 && in_array($requisicao->status, [StatusRequisicao::AGUARDANDO_COMPRA, StatusRequisicao::COMPRA_APROVADA, StatusRequisicao::COMPRA_REPROVADA], true);
         }
 
+        // Quem faz a transferência vê as transferências a partir da sua fila (depois, pela própria assinatura).
+        if ($user->faz_transferencia
+            && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_TRANSFERENCIA) {
+            return true;
+        }
+
         // O estoque nunca vê o que não foi aprovado.
         if (($user->is_estoque || $user->is_lider_estoque) && $requisicao->status->visivelParaEstoque()) {
             return true;
@@ -63,6 +70,12 @@ class RequisicaoPolicy
 
         if ($user->aprovaSetor($requisicao->setor_id)) {
             return true;
+        }
+
+        // Transferência de filial é decidida pelos líderes do setor (no Showroom, Ana Alice e Nicole):
+        // os líderes do estoque só entram se o setor não tem outro aprovador ativo.
+        if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return $user->is_lider_estoque && $this->fila->semAprovadorElegivel($requisicao);
         }
 
         // Setor sem outro aprovador ativo, ou marcado para o estoque aprovar junto (Showroom e Ninja
@@ -162,6 +175,34 @@ class RequisicaoPolicy
             && $user->is_responsavel_baixa
             && $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
             && $requisicao->status === StatusRequisicao::AGUARDANDO_COMPRA;
+    }
+
+    /**
+     * Transferência de filial aprovada: quem tem a permissão de fazer transferência (Isabelly)
+     * transfere de uma empresa para a outra no WinThor.
+     */
+    public function transferir(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $user->faz_transferencia
+            && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_TRANSFERENCIA;
+    }
+
+    /**
+     * Depois de transferido, um líder do estoque confirma que recebeu o produto (ou recusa).
+     */
+    public function receberTransferencia(User $user, Requisicao $requisicao): bool
+    {
+        return $user->ativo
+            && $user->is_lider_estoque
+            && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
+            && $requisicao->status === StatusRequisicao::AGUARDANDO_RECEBIMENTO;
+    }
+
+    public function recusarRecebimento(User $user, Requisicao $requisicao): bool
+    {
+        return $this->receberTransferencia($user, $requisicao);
     }
 
     public function cancelar(User $user, Requisicao $requisicao): bool

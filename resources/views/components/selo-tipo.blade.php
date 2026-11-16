@@ -7,6 +7,8 @@
         <x-phosphor-flask class="size-3.5" aria-hidden="true" />
     @elseif ($compra)
         <x-phosphor-shopping-cart class="size-3.5" aria-hidden="true" />
+    @elseif ($tipo === \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL)
+        <x-phosphor-arrows-left-right class="size-3.5" aria-hidden="true" />
     @else
         <x-phosphor-package class="size-3.5" aria-hidden="true" />
     @endif

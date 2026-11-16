@@ -63,6 +63,19 @@
                     <x-phosphor-arrow-counter-clockwise class="size-[18px]" aria-hidden="true" />Conferir devolução
                 </button>
             @endcan
+            @can('transferir', $requisicao)
+                <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'transferir')">
+                    <x-phosphor-arrows-left-right class="size-[18px]" aria-hidden="true" />Transferência feita
+                </button>
+            @endcan
+            @can('recusarRecebimento', $requisicao)
+                <button type="button" class="botao botao-perigo-contorno" x-data x-on:click="$dispatch('abrir-modal', 'recusar-recebimento')">Recusar recebimento</button>
+            @endcan
+            @can('receberTransferencia', $requisicao)
+                <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'receber')">
+                    <x-phosphor-truck class="size-[18px]" aria-hidden="true" />Confirmar recebimento
+                </button>
+            @endcan
             @can('darBaixa', $requisicao)
                 <button type="button" class="botao botao-primario" x-data x-on:click="$dispatch('abrir-modal', 'baixa')">
                     <x-phosphor-receipt class="size-[18px]" aria-hidden="true" />Dar baixa
@@ -98,6 +111,12 @@
                         <dt class="legenda">Setor</dt>
                         <dd class="mt-1 font-medium">{{ $requisicao->setor->nome }}</dd>
                     </div>
+                    @if ($requisicao->filial_destino)
+                        <div>
+                            <dt class="legenda">Vai para a filial</dt>
+                            <dd class="mt-1 font-medium">{{ $requisicao->filial_destino->rotulo() }}</dd>
+                        </div>
+                    @endif
                     @if ($requisicao->setorDestino)
                         <div>
                             <dt class="legenda">Pedido para</dt>
@@ -115,6 +134,8 @@
                                 Até <span class="font-medium tabular-nums">{{ $requisicao->data_prevista_devolucao?->format('d/m/Y') }}</span>
                             @elseif ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)
                                 <span class="text-mid-gray">Não se aplica (compra)</span>
+                            @elseif ($requisicao->tipo === \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL)
+                                <span class="text-mid-gray">Não se aplica (transferência)</span>
                             @else
                                 <span class="text-mid-gray">Não volta (uso e consumo)</span>
                             @endif
@@ -127,6 +148,16 @@
                         <div>
                             <dt class="legenda">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO ? 'Observações' : 'Finalidade' }}</dt>
                             <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->foto_produto)
+                        <div>
+                            <dt class="legenda">Foto do produto</dt>
+                            <dd class="mt-2">
+                                <a href="{{ route('requisicoes.foto-produto', $requisicao) }}" target="_blank" rel="noopener" class="inline-block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marca">
+                                    <img src="{{ route('requisicoes.foto-produto', $requisicao) }}" alt="Foto do produto da transferência" loading="lazy" class="max-h-64 rounded border border-hairline">
+                                </a>
+                            </dd>
                         </div>
                     @endif
                     @if ($requisicao->forma_pagamento !== null)
@@ -180,6 +211,31 @@
                                 </dd>
                             @endif
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->compraDecididaPor?->nome }}, {{ $dataHora($requisicao->compra_decidido_em) }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->transferido_por_id !== null)
+                        <div class="rounded-lg border border-hairline p-4">
+                            <dt class="text-[13px] font-medium text-ink">Transferência feita no WinThor</dt>
+                            @if (filled($requisicao->transferencia_observacao))
+                                <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->transferencia_observacao }}</dd>
+                            @endif
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->transferidoPor?->nome }}, {{ $dataHora($requisicao->transferido_em) }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->recebido_por_id !== null)
+                        <div class="rounded-lg border border-hairline p-4">
+                            <dt class="text-[13px] font-medium text-ink">Recebimento confirmado</dt>
+                            @if (filled($requisicao->recebimento_observacao))
+                                <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->recebimento_observacao }}</dd>
+                            @endif
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->recebidoPor?->nome }}, {{ $dataHora($requisicao->recebido_em) }}</dd>
+                        </div>
+                    @endif
+                    @if ($requisicao->motivo_reprovacao_estoque)
+                        <div class="rounded-lg border border-destrutivo/35 p-4">
+                            <dt class="text-[13px] font-medium text-destrutivo">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL ? 'Recebimento recusado pelo estoque' : 'Reprovada pelo estoque' }}</dt>
+                            <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->motivo_reprovacao_estoque }}</dd>
+                            <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->reprovadoEstoquePor?->nome }}, {{ $dataHora($requisicao->reprovado_estoque_em) }}</dd>
                         </div>
                     @endif
                     @if ($requisicao->baixa_por_id !== null)
@@ -684,6 +740,87 @@
                         <button type="submit" class="botao botao-perigo" :disabled="enviando">
                             <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
                             <span x-text="enviando ? 'Enviando…' : 'Reprovar compra'"></span>
+                        </button>
+                    </div>
+                </form>
+            </x-modal>
+        @endcan
+
+        @can('transferir', $requisicao)
+            <x-modal nome="transferir" :titulo="'Transferência '.$requisicao->numero" :abrir="old('_acao') === 'transferir' && $errors->any()">
+                <form method="POST" action="{{ route('requisicoes.transferir', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                    @csrf
+                    <input type="hidden" name="_acao" value="transferir">
+                    <div class="space-y-4 px-5 py-4">
+                        <p class="text-sm text-ink-soft">Confirme que o produto já foi transferido no WinThor para a filial <strong>{{ $requisicao->filial_destino?->rotulo() }}</strong>. Depois, um líder do estoque confirma o recebimento.</p>
+                        <div>
+                            <label for="transferir-observacao" class="rotulo">Observação (opcional)</label>
+                            <p class="ajuda">Ex.: número da nota de transferência.</p>
+                            <textarea id="transferir-observacao" name="observacao" rows="2" maxlength="1000" data-foco
+                                      class="campo mt-1.5 @error('observacao') campo-erro @enderror">{{ is_string(old('observacao')) ? old('observacao') : '' }}</textarea>
+                            @error('observacao')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
+                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
+                        <button type="submit" class="botao botao-primario" :disabled="enviando">
+                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
+                            <span x-text="enviando ? 'Enviando…' : 'Assinar transferência'"></span>
+                        </button>
+                    </div>
+                </form>
+            </x-modal>
+        @endcan
+
+        @can('receberTransferencia', $requisicao)
+            <x-modal nome="receber" :titulo="'Receber '.$requisicao->numero" :abrir="old('_acao') === 'receber' && $errors->any()">
+                <form method="POST" action="{{ route('requisicoes.receber', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                    @csrf
+                    <input type="hidden" name="_acao" value="receber">
+                    <div class="space-y-4 px-5 py-4">
+                        <p class="text-sm text-ink-soft">Confirme que o produto chegou certo. A transferência fica encerrada.</p>
+                        <div>
+                            <label for="receber-observacao" class="rotulo">Observação (opcional)</label>
+                            <p class="ajuda">Algum detalhe do recebimento?</p>
+                            <textarea id="receber-observacao" name="observacao" rows="2" maxlength="1000" data-foco
+                                      class="campo mt-1.5 @error('observacao') campo-erro @enderror">{{ is_string(old('observacao')) ? old('observacao') : '' }}</textarea>
+                            @error('observacao')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
+                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
+                        <button type="submit" class="botao botao-primario" :disabled="enviando">
+                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
+                            <span x-text="enviando ? 'Enviando…' : 'Assinar recebimento'"></span>
+                        </button>
+                    </div>
+                </form>
+            </x-modal>
+
+            <x-modal nome="recusar-recebimento" :titulo="'Recusar recebimento '.$requisicao->numero" :abrir="old('_acao') === 'recusar-recebimento' && $errors->any()">
+                <form method="POST" action="{{ route('requisicoes.recusar-recebimento', $requisicao) }}" x-data="{ enviando: false }" x-on:submit="enviando = true">
+                    @csrf
+                    <input type="hidden" name="_acao" value="recusar-recebimento">
+                    <div class="space-y-4 px-5 py-4">
+                        <div>
+                            <label for="recusar-recebimento-motivo" class="rotulo">Motivo da recusa</label>
+                            <p class="ajuda">O solicitante vai ver este texto. A transferência fica encerrada como reprovada pelo estoque.</p>
+                            <textarea id="recusar-recebimento-motivo" name="motivo" rows="3" maxlength="1000" required data-foco
+                                      class="campo mt-1.5 @error('motivo') campo-erro @enderror">{{ old('_acao') === 'recusar-recebimento' && is_string(old('motivo')) ? old('motivo') : '' }}</textarea>
+                            @error('motivo')
+                                <p class="erro-campo">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
+                        <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>
+                        <button type="submit" class="botao botao-perigo" :disabled="enviando">
+                            <x-phosphor-circle-notch x-show="enviando" x-cloak class="size-[18px] animate-spin" aria-hidden="true" />
+                            <span x-text="enviando ? 'Enviando…' : 'Assinar e recusar'"></span>
                         </button>
                     </div>
                 </form>

@@ -57,6 +57,10 @@ class AppServiceProvider extends ServiceProvider
         // Pedidos de compra: a responsável pela baixa decide.
         Gate::define('acessar-compras', fn (User $user) => $user->is_responsavel_baixa);
 
+        // Transferência de filial: quem faz a transferência no WinThor e os líderes do estoque, que recebem.
+        Gate::define('acessar-transferencias', fn (User $user) => $user->faz_transferencia);
+        Gate::define('acessar-recebimento', fn (User $user) => $user->is_lider_estoque);
+
         // Tela Usuários: criar login e dar permissões. Só administrador ativo.
         Gate::define('gerenciar-usuarios', fn (User $user) => $user->ativo && $user->is_admin);
 

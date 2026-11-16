@@ -50,6 +50,13 @@ class RequisicoesVisiveis
                     ->whereIn('requisicoes.status', $this->valores([StatusRequisicao::AGUARDANDO_BAIXA, StatusRequisicao::BAIXADA])));
             }
 
+            // Quem faz a transferência de filial vê a fila dela (o que já transferiu, pela assinatura).
+            if ($user->faz_transferencia) {
+                $visivel->orWhere(fn (Builder $q) => $q
+                    ->where('requisicoes.tipo', TipoRequisicao::TRANSFERENCIA_FILIAL->value)
+                    ->where('requisicoes.status', StatusRequisicao::AGUARDANDO_TRANSFERENCIA->value));
+            }
+
             if ($user->is_estoque || $user->is_lider_estoque) {
                 $visivel->orWhere(fn (Builder $q) => $q
                     ->where('requisicoes.tipo', '!=', TipoRequisicao::COMPRA_FUNCIONARIO->value)

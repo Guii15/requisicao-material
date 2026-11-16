@@ -16,17 +16,20 @@
             ->map(fn (array $mensagens) => $mensagens[0])
             ->all();
         $destinoAnterior = (int) (is_numeric(old('setor_destino_id')) ? old('setor_destino_id') : $estoqueId);
-        $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO'], true) ? old('tipo') : null;
+        $filialAnterior = is_string(old('filial_destino')) ? old('filial_destino') : '';
+        $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO', 'TRANSFERENCIA_FILIAL'], true) ? old('tipo') : null;
     @endphp
 
     <x-cabecalho titulo="Nova requisição" subtitulo="Peça material ao estoque. Depois de enviar, a requisição vai para a aprovação do seu setor." />
 
-    <form method="POST" action="{{ route('requisicoes.store') }}"
+    <form method="POST" action="{{ route('requisicoes.store') }}" enctype="multipart/form-data"
           class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_295px] lg:items-start xl:gap-10"
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
               'destino' => (string) $destinoAnterior,
               'nomesDosSetores' => $setores->mapWithKeys(fn ($setor) => [$setor->id => \App\Support\Texto::setor($setor->nome)]),
+              'filial' => $filialAnterior,
+              'nomesDasFiliais' => collect(\App\Enums\Filial::cases())->mapWithKeys(fn ($filial) => [$filial->value => $filial->rotulo()]),
               'itens' => $itensAnteriores,
               'erros' => (object) $errosDosItens,
           ]))"
@@ -58,7 +61,7 @@
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'USO_CONSUMO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
-                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca sm:col-span-2"
+                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca"
                            :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
                         <input type="radio" name="tipo" value="COMPRA_FUNCIONARIO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'COMPRA_FUNCIONARIO' && 'text-marca'"><x-phosphor-shopping-cart class="size-[21px]" aria-hidden="true" /></span>
@@ -66,6 +69,15 @@
                         <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque: é aprovada por quem aprova as compras e depois pela responsável pela baixa.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
+                    </label>
+                    <label class="relative flex cursor-pointer flex-col rounded-lg border p-[18px] transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca"
+                           :class="tipo === 'TRANSFERENCIA_FILIAL' ? 'border-marca bg-marca-suave' : 'border-hairline bg-paper hover:border-hairline-campo'">
+                        <input type="radio" name="tipo" value="TRANSFERENCIA_FILIAL" x-model="tipo" required class="sr-only">
+                        <span class="mb-4 block text-mid-gray" :class="tipo === 'TRANSFERENCIA_FILIAL' && 'text-marca'"><x-phosphor-arrows-left-right class="size-[21px]" aria-hidden="true" /></span>
+                        <span class="text-[13px] font-semibold text-ink">Transferência de filial</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto vendido que precisa passar de uma empresa para outra. O líder do setor aprova, a transferência é feita no WinThor e o estoque confirma o recebimento.</span>
+                        <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
+                              :class="tipo === 'TRANSFERENCIA_FILIAL' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
                 </div>
                 @error('tipo')
@@ -183,11 +195,11 @@
                     <span class="font-display text-[14px] font-bold text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Observações' : 'Finalidade'">Finalidade</span>
                 </h2>
                 <div class="space-y-5">
-                    <div x-show="tipo !== 'COMPRA_FUNCIONARIO'">
+                    <div x-show="tipo !== 'COMPRA_FUNCIONARIO' && tipo !== 'TRANSFERENCIA_FILIAL'">
                         <label for="setor_destino_id" class="rotulo">Pedido para o setor</label>
                         <p id="destino-ajuda" class="ajuda">Quase sempre é o Estoque. Mude só se o material vai ser pedido a outro setor.</p>
                         <select id="setor_destino_id" name="setor_destino_id" aria-describedby="destino-ajuda"
-                                x-model="destino" :disabled="tipo === 'COMPRA_FUNCIONARIO'"
+                                x-model="destino" :disabled="tipo === 'COMPRA_FUNCIONARIO' || tipo === 'TRANSFERENCIA_FILIAL'"
                                 class="campo mt-2 sm:w-72 @error('setor_destino_id') campo-erro @enderror">
                             @foreach ($setores as $setor)
                                 <option value="{{ $setor->id }}">{{ \App\Support\Texto::setor($setor->nome) }}</option>
@@ -199,7 +211,7 @@
                     </div>
                     <div>
                         <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Observações (opcional)' : 'Finalidade'">Finalidade</label>
-                        <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Algum detalhe para quem vai comprar? Ex.: cor, modelo, onde retirar.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
+                        <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Algum detalhe para quem vai comprar? Ex.: cor, modelo, onde retirar.' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Por que vai transferir? Ex.: venda do pedido 88412 para o cliente João.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
                         <textarea id="finalidade" name="finalidade" rows="3" maxlength="2000" :required="tipo !== 'COMPRA_FUNCIONARIO'"
                                   aria-describedby="finalidade-ajuda"
                                   class="campo mt-2 @error('finalidade') campo-erro @enderror">{{ old('finalidade') }}</textarea>
@@ -247,6 +259,45 @@
                 </fieldset>
             </section>
 
+            <section x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak aria-labelledby="transferencia-titulo">
+                <h2 id="transferencia-titulo" class="mb-4 flex items-center gap-2.5">
+                    <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
+                    <span class="font-display text-[14px] font-bold text-ink">Transferência</span>
+                </h2>
+                <div class="space-y-5">
+                    <div>
+                        <label for="filial_destino" class="rotulo">Para qual filial vai</label>
+                        <select id="filial_destino" name="filial_destino" x-model="filial"
+                                :required="tipo === 'TRANSFERENCIA_FILIAL'" :disabled="tipo !== 'TRANSFERENCIA_FILIAL'"
+                                class="campo mt-2 sm:w-72 @error('filial_destino') campo-erro @enderror">
+                            <option value="">Escolha a filial</option>
+                            @foreach (\App\Enums\Filial::cases() as $filial)
+                                <option value="{{ $filial->value }}">{{ $filial->rotulo() }}</option>
+                            @endforeach
+                        </select>
+                        @error('filial_destino')
+                            <p class="erro-campo">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div x-data="{ nome: '' }">
+                        <label for="foto" class="rotulo">Foto do produto</label>
+                        <p id="foto-ajuda" class="ajuda">No celular, abre a câmera ou a galeria. PNG, JPG ou WEBP, até 10 MB.</p>
+                        <input id="foto" name="foto" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="foto-ajuda"
+                               :required="tipo === 'TRANSFERENCIA_FILIAL'" :disabled="tipo !== 'TRANSFERENCIA_FILIAL'"
+                               x-on:change="nome = $event.target.files[0]?.name ?? ''"
+                               class="campo mt-2 @error('foto') campo-erro @enderror">
+                        <p x-show="nome" x-cloak class="mt-1.5 text-[13px] text-ink-soft">Anexada: <span class="font-medium" x-text="nome"></span></p>
+                        @error('foto')
+                            <p class="erro-campo">{{ $message }}</p>
+                        @else
+                            @if ($errors->any() && old('tipo') === 'TRANSFERENCIA_FILIAL')
+                                <p class="ajuda mt-1.5">Anexe a foto de novo: o navegador não guarda o arquivo depois de um erro.</p>
+                            @endif
+                        @enderror
+                    </div>
+                </div>
+            </section>
+
             <section x-show="tipo === 'TESTE'" x-cloak aria-labelledby="devolucao-titulo">
                 <h2 id="devolucao-titulo" class="mb-4 flex items-center gap-2.5">
                     <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
@@ -281,15 +332,20 @@
                         <span x-show="tipo === 'TESTE'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::TESTE" /></span>
                         <span x-show="tipo === 'USO_CONSUMO'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::USO_CONSUMO" /></span>
                         <span x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO" /></span>
+                        <span x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak><x-selo-tipo :tipo="\App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL" /></span>
                     </dd>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Itens preenchidos</dt>
                     <dd class="font-medium tabular-nums" x-text="itens.filter((item) => item.descricao.trim() !== '').length"></dd>
                 </div>
-                <div class="flex items-center justify-between gap-3" x-show="tipo !== 'COMPRA_FUNCIONARIO'">
+                <div class="flex items-center justify-between gap-3" x-show="tipo !== 'COMPRA_FUNCIONARIO' && tipo !== 'TRANSFERENCIA_FILIAL'">
                     <dt class="text-mid-gray">Pedido para</dt>
                     <dd class="font-medium" x-text="nomesDosSetores[destino] ?? ''"></dd>
+                </div>
+                <div class="flex items-center justify-between gap-3" x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak>
+                    <dt class="text-mid-gray">Vai para a filial</dt>
+                    <dd class="font-medium" x-text="nomesDasFiliais[filial] ?? 'Não escolhida'"></dd>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                     <dt class="text-mid-gray">Setor</dt>
@@ -298,7 +354,7 @@
             </dl>
             <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
                 <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
-                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras' : 'Aprovação do setor'">Aprovação do setor</strong></span>
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do líder do setor' : 'Aprovação do setor'">Aprovação do setor</strong></span>
             </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">

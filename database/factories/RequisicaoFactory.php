@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Filial;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
@@ -45,6 +46,15 @@ class RequisicaoFactory extends Factory
             'tipo' => TipoRequisicao::COMPRA_FUNCIONARIO,
             'status' => StatusRequisicao::AGUARDANDO_COMPRA,
             'data_prevista_devolucao' => null,
+        ]);
+    }
+
+    public function transferencia(): static
+    {
+        return $this->state(fn () => [
+            'tipo' => TipoRequisicao::TRANSFERENCIA_FILIAL,
+            'data_prevista_devolucao' => null,
+            'filial_destino' => Filial::BINARIO,
         ]);
     }
 

@@ -17,7 +17,7 @@ use Illuminate\View\View;
  */
 class UsuarioController extends Controller
 {
-    private const CAMPOS = ['nome', 'login', 'matricula', 'cargo', 'setor_id', 'papel_setor', 'aprova_setores', 'senha', 'ativo', 'is_estoque', 'is_lider_estoque', 'is_responsavel_baixa', 'aprova_compras', 'is_admin'];
+    private const CAMPOS = ['nome', 'login', 'matricula', 'cargo', 'setor_id', 'papel_setor', 'aprova_setores', 'senha', 'ativo', 'is_estoque', 'is_lider_estoque', 'is_responsavel_baixa', 'aprova_compras', 'faz_transferencia', 'is_admin'];
 
     public function index(Request $request): View
     {

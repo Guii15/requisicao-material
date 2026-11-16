@@ -38,7 +38,10 @@ class FilaDeAprovacao
                             $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
 
                             if ($user->is_lider_estoque) {
-                                $query->orWhereIn('setor_id', DB::table('setores')->select('id')->where('lideres_estoque_aprovam', true))
+                                // Na transferência de filial o líder do estoque não aprova junto: só quando o setor não tem aprovador.
+                                $query->orWhere(fn (Builder $marcado) => $marcado
+                                    ->where('tipo', '!=', TipoRequisicao::TRANSFERENCIA_FILIAL->value)
+                                    ->whereIn('setor_id', DB::table('setores')->select('id')->where('lideres_estoque_aprovam', true)))
                                     ->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
                                         ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
                                         ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
@@ -58,6 +61,10 @@ class FilaDeAprovacao
      */
     public function lideresDoEstoqueAprovam(Requisicao $requisicao): bool
     {
+        if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return $this->semAprovadorElegivel($requisicao);
+        }
+
         return (bool) $requisicao->setor()->value('lideres_estoque_aprovam') || $this->semAprovadorElegivel($requisicao);
     }
 
@@ -93,7 +100,7 @@ class FilaDeAprovacao
 
         $doSetor = DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id);
 
-        return $requisicao->setor()->value('lideres_estoque_aprovam')
+        return $requisicao->tipo !== TipoRequisicao::TRANSFERENCIA_FILIAL && $requisicao->setor()->value('lideres_estoque_aprovam')
             ? $query->where(fn (Builder $q) => $q->whereIn('id', $doSetor)->orWhere('is_lider_estoque', true))->get()
             : $query->whereIn('id', $doSetor)->get();
     }

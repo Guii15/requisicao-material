@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\EstoqueController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\TransferenciaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/requisicoes/{requisicao}/pdf', [RequisicaoController::class, 'pdf'])->name('requisicoes.pdf');
             Route::get('/requisicoes/{requisicao}/comprovante-baixa', [RequisicaoController::class, 'comprovanteBaixa'])->name('requisicoes.comprovante-baixa');
             Route::get('/requisicoes/{requisicao}/comprovante-compra', [RequisicaoController::class, 'comprovanteCompra'])->name('requisicoes.comprovante-compra');
+            Route::get('/requisicoes/{requisicao}/foto-produto', [RequisicaoController::class, 'fotoProduto'])->name('requisicoes.foto-produto');
             Route::post('/requisicoes/{requisicao}/cancelar', [RequisicaoController::class, 'cancelar'])->name('requisicoes.cancelar');
 
             Route::get('/aprovacoes', [AprovacaoController::class, 'index'])->name('aprovacoes.index');
@@ -55,6 +57,13 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/baixa', [EstoqueController::class, 'baixa'])->name('baixa.index');
             Route::post('/requisicoes/{requisicao}/dar-baixa', [EstoqueController::class, 'darBaixa'])->name('requisicoes.dar-baixa');
+
+            // Transferência de filial: a Isabelly transfere, os líderes do estoque recebem.
+            Route::get('/transferencias', [TransferenciaController::class, 'transferencias'])->name('transferencias.index');
+            Route::post('/requisicoes/{requisicao}/transferir', [TransferenciaController::class, 'transferir'])->name('requisicoes.transferir');
+            Route::get('/recebimento', [TransferenciaController::class, 'recebimento'])->name('recebimento.index');
+            Route::post('/requisicoes/{requisicao}/receber', [TransferenciaController::class, 'receber'])->name('requisicoes.receber');
+            Route::post('/requisicoes/{requisicao}/recusar-recebimento', [TransferenciaController::class, 'recusarRecebimento'])->name('requisicoes.recusar-recebimento');
 
             // Administração: logins e permissões (só administradores; conferido no controller/serviço).
             Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');

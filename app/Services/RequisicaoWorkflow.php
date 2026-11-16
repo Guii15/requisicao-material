@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\AcaoEvento;
 use App\Enums\EtapaAssinatura;
+use App\Enums\Filial;
 use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Enums\TipoRequisicao;
@@ -58,6 +59,7 @@ class RequisicaoWorkflow
 
         return DB::transaction(function () use ($solicitante, $validado) {
             $tipo = TipoRequisicao::from($validado['tipo']);
+            $transferencia = $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL;
 
             $requisicao = new Requisicao([
                 'tipo' => $tipo,
@@ -68,15 +70,18 @@ class RequisicaoWorkflow
                 'parcelas' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ($validado['forma_pagamento'] ?? null) === FormaPagamento::PARCELADO->value
                     ? (int) $validado['parcelas']
                     : null,
+                'filial_destino' => $transferencia ? $validado['filial_destino'] : null,
             ]);
 
             $requisicao->forceFill([
+                // Foto do produto da transferência: disco privado, só abre para quem pode ver a requisição.
+                'foto_produto' => $transferencia ? $validado['foto']->store('transferencias', 'local') : null,
                 'numero' => $this->numeracao->proximo(),
                 'status' => StatusRequisicao::AGUARDANDO_APROVACAO,
                 'status_alterado_em' => now(),
                 'solicitante_id' => $solicitante->id,
                 'setor_id' => $solicitante->setor_id,
-                'setor_destino_id' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? null : ((int) ($validado['setor_destino_id'] ?? 0) ?: Setor::idDoEstoque()),
+                'setor_destino_id' => in_array($tipo, [TipoRequisicao::COMPRA_FUNCIONARIO, TipoRequisicao::TRANSFERENCIA_FILIAL], true) ? null : ((int) ($validado['setor_destino_id'] ?? 0) ?: Setor::idDoEstoque()),
             ])->save();
 
             foreach ($validado['itens'] as $item) {
@@ -550,6 +555,69 @@ class RequisicaoWorkflow
         ];
     }
 
+    /**
+     * Transferência de filial: quem tem a permissão (Isabelly) registra que transferiu o produto
+     * de uma empresa para a outra no WinThor. Observação opcional (ex.: número da nota).
+     */
+    public function transferir(Requisicao $requisicao, User $por, ?string $observacao): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::AGUARDANDO_RECEBIMENTO, 'transferir', AcaoEvento::TRANSFERENCIA,
+            EtapaAssinatura::TRANSFERENCIA, null,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'transferido_por_id' => $por->id,
+                'transferido_em' => now(),
+                'transferencia_observacao' => $dados['observacao'],
+            ]),
+            validar: fn () => ['observacao' => $this->observacaoOpcional($observacao)],
+        );
+    }
+
+    /**
+     * Um líder do estoque confirma que o produto transferido chegou. Encerra a transferência.
+     */
+    public function receberTransferencia(Requisicao $requisicao, User $por, ?string $observacao): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::TRANSFERENCIA_RECEBIDA, 'receberTransferencia', AcaoEvento::RECEBIMENTO,
+            EtapaAssinatura::RECEBIMENTO, null,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'recebido_por_id' => $por->id,
+                'recebido_em' => now(),
+                'recebimento_observacao' => $dados['observacao'],
+            ]),
+            validar: fn () => ['observacao' => $this->observacaoOpcional($observacao)],
+        );
+    }
+
+    /**
+     * O líder do estoque não recebeu (ou recebeu errado): encerra como reprovada pelo estoque, com motivo.
+     */
+    public function recusarRecebimento(Requisicao $requisicao, User $por, ?string $motivo): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::REPROVADA_ESTOQUE, 'recusarRecebimento', AcaoEvento::REPROVACAO_ESTOQUE,
+            EtapaAssinatura::REPROVACAO_ESTOQUE, null,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'reprovado_estoque_por_id' => $por->id,
+                'reprovado_estoque_em' => now(),
+                'motivo_reprovacao_estoque' => $dados['motivo'],
+            ]),
+            validar: fn () => ['motivo' => $this->exigirMotivo($motivo, 'Informe o motivo da recusa do recebimento')],
+        );
+    }
+
+    private function observacaoOpcional(?string $texto): ?string
+    {
+        $texto = is_string($texto) ? trim($texto) : '';
+
+        if (mb_strlen($texto) > 1000) {
+            throw ValidationException::withMessages(['observacao' => 'A observação pode ter no máximo 1000 caracteres.']);
+        }
+
+        return $texto === '' ? null : $texto;
+    }
+
     public function cancelar(Requisicao $requisicao, User $por, ?string $motivo): Requisicao
     {
         return $this->executar(
@@ -722,9 +790,20 @@ class RequisicaoWorkflow
                 'exclude_unless:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
                 'required', 'integer', 'min:2', 'max:24',
             ],
-            // Para qual setor é o pedido. Vazio vale Estoque; compra de funcionário não passa por setor nenhum.
+            // Transferência de filial: para qual filial vai e a foto do produto.
+            'filial_destino' => [
+                'exclude_unless:tipo,'.TipoRequisicao::TRANSFERENCIA_FILIAL->value,
+                'required',
+                Rule::enum(Filial::class),
+            ],
+            'foto' => [
+                'exclude_unless:tipo,'.TipoRequisicao::TRANSFERENCIA_FILIAL->value,
+                'required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240',
+            ],
+            // Para qual setor é o pedido. Vazio vale Estoque; compra de funcionário e transferência não passam por setor nenhum.
             'setor_destino_id' => [
                 'exclude_if:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
+                'exclude_if:tipo,'.TipoRequisicao::TRANSFERENCIA_FILIAL->value,
                 'nullable',
                 'integer',
                 Rule::exists('setores', 'id')->where('ativo', true),
@@ -748,6 +827,13 @@ class RequisicaoWorkflow
             'parcelas.integer' => 'Informe o número de parcelas.',
             'parcelas.min' => 'Parcelado começa em 2 vezes.',
             'parcelas.max' => 'O máximo é 24 vezes.',
+            'filial_destino.required' => 'Escolha para qual filial vai o produto.',
+            'filial_destino.enum' => 'Escolha uma filial da lista.',
+            'foto.required' => 'Tire ou anexe uma foto do produto.',
+            'foto.image' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'foto.mimes' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'foto.max' => 'A foto pode ter no máximo 10 MB.',
+            'foto.uploaded' => 'Não foi possível enviar a foto. Tente de novo.',
             'data_prevista_devolucao.required' => 'Informe a data prevista de devolução.',
             'data_prevista_devolucao.after_or_equal' => 'A devolução não pode ser antes de hoje.',
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",
@@ -762,6 +848,8 @@ class RequisicaoWorkflow
             'data_prevista_devolucao' => 'data prevista de devolução',
             'forma_pagamento' => 'forma de pagamento',
             'setor_destino_id' => 'setor de destino',
+            'filial_destino' => 'filial de destino',
+            'foto' => 'foto do produto',
         ])->validate();
     }
 }

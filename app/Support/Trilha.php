@@ -16,6 +16,11 @@ final class Trilha
     public static function etapas(S $status, TipoRequisicao $tipo): array
     {
         $teste = $tipo === TipoRequisicao::TESTE;
+
+        if ($tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return self::transferencia($status);
+        }
+
         $nomes = $teste
             ? ['Aprovação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
             : ['Aprovação', 'Liberação', 'Separação', 'Baixa'];
@@ -46,6 +51,35 @@ final class Trilha
             };
 
         $falhou = in_array($status, [S::REPROVADA, S::REPROVADA_ESTOQUE, S::DEVOLUCAO_COM_PENDENCIA], true);
+
+        return array_map(fn (string $nome, int $i) => [
+            'nome' => $nome,
+            'estado' => match (true) {
+                $i < $posicao => 'feita',
+                $i === $posicao => $falhou ? 'falha' : 'atual',
+                default => 'pendente',
+            },
+        ], $nomes, array_keys($nomes));
+    }
+
+    /**
+     * @return list<array{nome: string, estado: string}>
+     */
+    private static function transferencia(S $status): array
+    {
+        $nomes = ['Aprovação', 'Transferência', 'Recebimento'];
+
+        if ($status === S::CANCELADA) {
+            return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'cancelada'], $nomes);
+        }
+
+        $posicao = match ($status) {
+            S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
+            S::APROVADA, S::AGUARDANDO_TRANSFERENCIA => 1,
+            S::AGUARDANDO_RECEBIMENTO, S::REPROVADA_ESTOQUE => 2,
+            default => 3,
+        };
+        $falhou = in_array($status, [S::REPROVADA, S::REPROVADA_ESTOQUE], true);
 
         return array_map(fn (string $nome, int $i) => [
             'nome' => $nome,
