@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\SenhaController;
 use App\Http\Controllers\EstoqueController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -54,6 +55,14 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/baixa', [EstoqueController::class, 'baixa'])->name('baixa.index');
             Route::post('/requisicoes/{requisicao}/dar-baixa', [EstoqueController::class, 'darBaixa'])->name('requisicoes.dar-baixa');
+
+            // Administração: logins e permissões (só administradores; conferido no controller/serviço).
+            Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
+            Route::get('/usuarios/novo', [UsuarioController::class, 'create'])->name('usuarios.create');
+            Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+            Route::get('/usuarios/{usuario}', [UsuarioController::class, 'edit'])->name('usuarios.edit');
+            Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+            Route::post('/usuarios/{usuario}/resetar-senha', [UsuarioController::class, 'resetarSenha'])->name('usuarios.resetar-senha');
         });
     });
 });

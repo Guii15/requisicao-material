@@ -11,6 +11,7 @@
         request()->routeIs('devolucao.*') => 'devolucao',
         request()->routeIs('baixa.*') => 'baixa',
         request()->routeIs('compras.*') => 'compras',
+        request()->routeIs('usuarios.*') => 'usuarios',
         default => null,
     };
 
@@ -74,6 +75,11 @@
             @if ($menu['baixa'] !== null)
                 <x-menu-link-lateral :href="route('baixa.index')" :ativo="$secao === 'baixa'" :contador="$menu['baixa']" contador-nome="baixa" icone="list-checks">Baixa</x-menu-link-lateral>
             @endif
+
+            @can('gerenciar-usuarios')
+                <p class="etiqueta mt-7 mb-2.5 px-3.5 !text-preto-texto">Administração</p>
+                <x-menu-link-lateral :href="route('usuarios.index')" :ativo="$secao === 'usuarios'" icone="users-three">Usuários e permissões</x-menu-link-lateral>
+            @endcan
         </nav>
 
         <div class="mt-auto pt-7">

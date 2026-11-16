@@ -70,6 +70,19 @@ php artisan usuarios:importar caminho/planilha.xlsx             # grava
 - Se uma linha tiver erro, nada é gravado.
 - Sem `--senha-padrao`, cada pessoa nova recebe uma senha provisória, listada no fim do comando para entregar a ela. O sistema pede a troca no primeiro acesso.
 
+### Tela Usuários e permissões
+
+Depois da carga inicial, logins e permissões são cuidados pela tela **Usuários e permissões** (menu Administração), sem mexer no banco: criar login com senha inicial, mudar setor, marcar líder/sublíder e outros setores que a pessoa aprova, dar ou tirar as permissões (estoque, líder do estoque, baixa, aprova compras, administrador), resetar senha e desativar. Cada alteração fica no histórico da pessoa, com quem fez e quando.
+
+Só administrador vê a tela. O primeiro administrador é marcado pelo terminal:
+
+```bash
+php artisan usuarios:admin guilherme.santana cesar.marcelino   # dá o acesso
+php artisan usuarios:admin cesar.marcelino --remover           # tira
+```
+
+Ninguém tira o próprio acesso de administrador nem se desativa, e o sistema nunca fica sem um administrador ativo.
+
 Quem aprova pedido de compra de funcionário vem da coluna `APROVA_COMPRAS`. Com `--so-incluir` ela só soma: quem já aprovava continua aprovando.
 
 ## Papéis

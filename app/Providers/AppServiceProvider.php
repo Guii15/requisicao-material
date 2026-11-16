@@ -57,6 +57,9 @@ class AppServiceProvider extends ServiceProvider
         // Pedidos de compra: a responsável pela baixa decide.
         Gate::define('acessar-compras', fn (User $user) => $user->is_responsavel_baixa);
 
+        // Tela Usuários: criar login e dar permissões. Só administrador ativo.
+        Gate::define('gerenciar-usuarios', fn (User $user) => $user->ativo && $user->is_admin);
+
         View::composer('components.layouts.app', MenuComposer::class);
     }
 }
