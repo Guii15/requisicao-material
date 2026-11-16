@@ -24,7 +24,7 @@ class FuncionariosSeeder extends Seeder
     private const SENHA_PADRAO = 'Bin@2026';
 
     /** Quem registra a transferência entre filiais no WinThor. */
-    private const FAZ_TRANSFERENCIA = ['isabelly.santos', 'paloma.nascimento'];
+    private const FAZ_TRANSFERENCIA = ['isabelly.santos', 'paloma.nascimento', 'camila.martins'];
 
     /**
      * matrícula, nome, login, setor, papel no setor (LIDER/SUBLIDER), marcações, outros setores que aprova.
