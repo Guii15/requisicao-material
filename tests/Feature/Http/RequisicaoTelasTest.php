@@ -80,7 +80,7 @@ class RequisicaoTelasTest extends TestCase
             ->assertSee('Assinaturas íntegras');
     }
 
-    public function test_detalhe_mostra_pelo_nome_quem_pode_aprovar(): void
+    public function test_detalhe_mostra_so_aguardando_aprovacao_sem_listar_nomes(): void
     {
         [$ti, $lider, $sublider] = $this->setorComAprovadores();
         $lider->forceFill(['nome' => 'Leandro Moreira'])->save();
@@ -90,7 +90,9 @@ class RequisicaoTelasTest extends TestCase
 
         $this->actingAs($eu)->get("/requisicoes/{$requisicao->numero}")
             ->assertOk()
-            ->assertSee('Aguardando Juliana Duarte ou Leandro Moreira');
+            ->assertSee('Aguardando aprovação')
+            ->assertDontSee('Juliana Duarte')
+            ->assertDontSee('Leandro Moreira');
     }
 
     public function test_historico_nao_diz_setor_quando_quem_aprovou_foi_o_estoque(): void

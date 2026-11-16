@@ -57,7 +57,7 @@ class RequisicaoController extends Controller
     {
         $requisicao = $workflow->criar(
             $request->user(),
-            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento', 'setor_destino_id']),
+            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento', 'parcelas', 'setor_destino_id']),
             $this->texto($request, 'senha'),
         );
 

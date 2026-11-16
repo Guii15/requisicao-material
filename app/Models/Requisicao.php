@@ -32,6 +32,7 @@ class Requisicao extends Model
         'finalidade',
         'data_prevista_devolucao',
         'forma_pagamento',
+        'parcelas',
     ];
 
     private static int $alteracoesAutorizadas = 0;
@@ -50,6 +51,7 @@ class Requisicao extends Model
             'data_prevista_devolucao' => 'date',
             'forma_pagamento' => FormaPagamento::class,
             'parcelas' => 'integer',
+            'liberacao_dispensada' => 'boolean',
             'aprovado_em' => 'datetime',
             'reprovado_em' => 'datetime',
             'separado_em' => 'datetime',

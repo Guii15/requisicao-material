@@ -117,6 +117,8 @@ class ImportarUsuarios extends Command
             $this->line("  {$setor}: ".($nomes === [] ? 'nenhum. Os pedidos vão para os líderes do estoque.' : implode(', ', $nomes)));
         }
 
+        $this->line('Aprovam pedido de compra: '.($resultado->aprovadoresDeCompra === [] ? 'ninguém marcado na planilha (coluna APROVA_COMPRAS)' : implode(', ', $resultado->aprovadoresDeCompra)));
+
         if (! $resultado->temLiderDoEstoqueAtivo) {
             $this->warn('Nenhum líder do estoque ativo: os setores sem aprovador ficam sem ninguém para aprovar.');
         }

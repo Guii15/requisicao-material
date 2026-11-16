@@ -51,7 +51,7 @@ class AprovacaoController extends Controller
         }
 
         $destino = $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO
-            ? 'a decisão da Erica'
+            ? 'a decisão da responsável pela baixa'
             : 'a separação no estoque';
 
         return redirect()

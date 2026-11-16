@@ -36,6 +36,9 @@ final class ResultadoImportacao
     /** @var array<string, list<string>> Por setor, "Nome (líder)". */
     public array $aprovadores = [];
 
+    /** @var list<string> Quem aprova pedido de compra de funcionário (coluna APROVA_COMPRAS). */
+    public array $aprovadoresDeCompra = [];
+
     public bool $temLiderDoEstoqueAtivo = true;
 
     public function falhou(): bool

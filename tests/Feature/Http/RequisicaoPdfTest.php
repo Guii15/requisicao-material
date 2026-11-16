@@ -68,7 +68,7 @@ class RequisicaoPdfTest extends TestCase
         $this->assertStringContainsString('Assinaturas íntegras', $html);
     }
 
-    public function test_documento_aguardando_aprovacao_mostra_quem_pode_aprovar(): void
+    public function test_documento_aguardando_aprovacao_nao_lista_os_aprovadores(): void
     {
         [$ti, $lider, $sublider] = $this->setorComAprovadores();
         $lider->forceFill(['nome' => 'Leandro Moreira'])->save();
@@ -79,8 +79,9 @@ class RequisicaoPdfTest extends TestCase
         $html = $this->documento($requisicao->fresh(), $solicitante);
 
         $this->assertStringContainsString('AGUARDANDO APROVAÇÃO', $html);
-        $this->assertStringContainsString('Juliana Duarte', $html);
-        $this->assertStringContainsString('Leandro Moreira', $html);
+        $this->assertStringContainsString('Aguardando aprovação', $html);
+        $this->assertStringNotContainsString('Juliana Duarte', $html);
+        $this->assertStringNotContainsString('Leandro Moreira', $html);
     }
 
     public function test_documento_divergente_avisa_que_nao_vale(): void

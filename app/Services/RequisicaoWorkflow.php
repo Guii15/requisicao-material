@@ -62,9 +62,12 @@ class RequisicaoWorkflow
             $requisicao = new Requisicao([
                 'tipo' => $tipo,
                 'justificativa' => $validado['justificativa'] ?? '',
-                'finalidade' => $validado['finalidade'],
+                'finalidade' => $validado['finalidade'] ?? '',
                 'data_prevista_devolucao' => $tipo->exigeDevolucao() ? $validado['data_prevista_devolucao'] : null,
                 'forma_pagamento' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? $validado['forma_pagamento'] : null,
+                'parcelas' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ($validado['forma_pagamento'] ?? null) === FormaPagamento::PARCELADO->value
+                    ? (int) $validado['parcelas']
+                    : null,
             ]);
 
             $requisicao->forceFill([
@@ -112,7 +115,12 @@ class RequisicaoWorkflow
             $requisicao, $por, StatusRequisicao::APROVADA, 'aprovar', AcaoEvento::APROVACAO,
             EtapaAssinatura::APROVACAO_SETOR, $senha,
             alterar: function (Requisicao $r, array $dados) use ($por) {
-                $r->forceFill(['aprovado_por_id' => $por->id, 'aprovado_em' => now()]);
+                $r->forceFill([
+                    'aprovado_por_id' => $por->id,
+                    'aprovado_em' => now(),
+                    // Quem aprovou já é líder do estoque: depois da separação não precisa liberar de novo.
+                    'liberacao_dispensada' => $r->tipo->exigeLiberacaoEstoque() && $por->is_lider_estoque,
+                ]);
                 $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
             },
             validar: fn () => $recusas === [] ? [] : ['recusas' => $recusas],
@@ -601,6 +609,17 @@ class RequisicaoWorkflow
                 $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, $para, $proximo);
             }
 
+            // Aprovado por líder do estoque: a liberação é dispensada e segue direto para a baixa.
+            if ($atual->status === StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE && $atual->liberacao_dispensada) {
+                foreach ([StatusRequisicao::LIBERADA, StatusRequisicao::AGUARDANDO_BAIXA] as $passo) {
+                    $de = $atual->status;
+                    Requisicao::viaWorkflow(fn () => $atual->forceFill(['status' => $passo, 'status_alterado_em' => now()])->save());
+                    $this->registrarEvento($atual, $por, AcaoEvento::AVANCO_AUTOMATICO, $de, $passo, [
+                        'motivo' => 'Liberação dispensada: a requisição já foi aprovada por um líder do estoque',
+                    ]);
+                }
+            }
+
             return $atual;
         });
 
@@ -692,7 +711,15 @@ class RequisicaoWorkflow
                 'required',
                 Rule::enum(FormaPagamento::class),
             ],
-            'finalidade' => ['required', 'string', 'min:5', 'max:2000'],
+            // No pedido de compra é só uma observação opcional (a compra é pessoal, não precisa de motivo).
+            'finalidade' => ($dados['tipo'] ?? null) === TipoRequisicao::COMPRA_FUNCIONARIO->value
+                ? ['nullable', 'string', 'max:2000']
+                : ['required', 'string', 'min:5', 'max:2000'],
+            'parcelas' => [
+                'exclude_unless:forma_pagamento,'.FormaPagamento::PARCELADO->value,
+                'exclude_unless:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
+                'required', 'integer', 'min:2', 'max:24',
+            ],
             // Para qual setor é o pedido. Vazio vale Estoque; compra de funcionário não passa por setor nenhum.
             'setor_destino_id' => [
                 'exclude_if:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
@@ -715,6 +742,10 @@ class RequisicaoWorkflow
             'itens.*.quantidade.gt' => 'A quantidade precisa ser maior que zero.',
             'itens.*.quantidade.decimal' => 'Use no máximo 3 casas decimais.',
             'forma_pagamento.required' => 'Escolha a forma de pagamento: à vista ou parcelado.',
+            'parcelas.required' => 'Informe em quantas vezes quer parcelar.',
+            'parcelas.integer' => 'Informe o número de parcelas.',
+            'parcelas.min' => 'Parcelado começa em 2 vezes.',
+            'parcelas.max' => 'O máximo é 24 vezes.',
             'data_prevista_devolucao.required' => 'Informe a data prevista de devolução.',
             'data_prevista_devolucao.after_or_equal' => 'A devolução não pode ser antes de hoje.',
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",

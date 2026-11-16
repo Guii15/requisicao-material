@@ -123,10 +123,12 @@
                 </dl>
 
                 <dl class="space-y-5 border-t border-hairline p-5">
-                    <div>
-                        <dt class="legenda">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</dt>
-                        <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
-                    </div>
+                    @if (filled($requisicao->finalidade))
+                        <div>
+                            <dt class="legenda">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO ? 'Observações' : 'Finalidade' }}</dt>
+                            <dd class="mt-1 whitespace-pre-line">{{ $requisicao->finalidade }}</dd>
+                        </div>
+                    @endif
                     @if ($requisicao->forma_pagamento !== null)
                         <div>
                             <dt class="legenda">Forma de pagamento</dt>
@@ -295,7 +297,7 @@
                                 @endif
                             </span>
                             <div class="min-w-0 pt-0.5">
-                                <p @class(['text-sm font-medium', 'text-ink' => $assinatura || $aguardando, 'text-mid-gray' => ! $assinatura && ! $aguardando])>{{ $bloco['etapa']->rotulo() }}</p>
+                                <p @class(['text-sm font-medium', 'text-ink' => $assinatura || $aguardando, 'text-mid-gray' => ! $assinatura && ! $aguardando])>{{ $aguardando ? 'Aguardando aprovação' : $bloco['etapa']->rotulo() }}</p>
                                 @if ($assinatura)
                                     <p class="mt-0.5 text-sm">{{ $assinatura->nome_assinante }}@if ($assinatura->cargo_assinante)<span class="text-mid-gray">, {{ $assinatura->cargo_assinante }}</span>@endif</p>
                                     <p class="mt-0.5 flex flex-wrap gap-x-3 text-[13px] text-mid-gray">
@@ -303,15 +305,8 @@
                                         <span class="font-mono text-ink-soft" title="Código de verificação">{{ \App\Services\AssinaturaService::codigoCurto($assinatura->hash_documento) }}</span>
                                     </p>
                                 @elseif ($aguardando)
-                                    <p class="mt-0.5 text-sm text-ink">
-                                        @if ($aguardandoAprovacaoDe->isEmpty())
-                                            Nenhum aprovador disponível. Procure a TI.
-                                        @else
-                                            Aguardando {{ $aguardandoAprovacaoDe->pluck('nome')->join(', ', ' ou ') }}
-                                        @endif
-                                    </p>
-                                    @if ($motivoSemAprovador)
-                                        <p class="mt-0.5 text-[13px] text-mid-gray">Pelos líderes do estoque: {{ mb_strtolower($motivoSemAprovador) }}.</p>
+                                    @if ($aguardandoAprovacaoDe->isEmpty())
+                                        <p class="mt-0.5 text-sm text-destrutivo">Nenhum aprovador disponível. Procure a TI.</p>
                                     @endif
                                 @else
                                     <p class="text-[13px] text-mid-gray">Pendente</p>
@@ -365,7 +360,7 @@
                     <input type="hidden" name="_acao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
                         <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar" />
-                        <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a Erica decidir.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
+                        <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a responsável pela baixa decidir.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>

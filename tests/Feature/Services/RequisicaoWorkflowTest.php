@@ -746,12 +746,43 @@ class RequisicaoWorkflowTest extends TestCase
         $this->workflow->aprovar($requisicao, $liderEstoque, 'password');
         $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
         $requisicao->refresh();
-        $outroLider = $this->liderEstoqueDiferenteDe(User::find($requisicao->separado_por_id));
-        $this->workflow->liberar($requisicao, $outroLider, 'password');
-        $requisicao->refresh();
+        // Quem aprovou foi líder do estoque: a liberação é dispensada e já cai na baixa.
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
 
         $this->expectException(AuthorizationException::class);
 
         $this->workflow->darBaixa($requisicao, $erica, null, 'password');
+    }
+
+    public function test_uso_e_consumo_aprovado_por_lider_do_estoque_nao_passa_pela_liberacao(): void
+    {
+        $rh = Setor::factory()->create(['nome' => 'RH-SEM-LIDER']);
+        $requisicao = $this->abrirRequisicao(User::factory()->for($rh)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
+
+        $this->workflow->aprovar($requisicao, User::factory()->liderEstoque()->create(), 'password');
+        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
+
+        $requisicao->refresh();
+        $this->assertTrue($requisicao->liberacao_dispensada);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_BAIXA, $requisicao->status);
+        $this->assertFalse($requisicao->assinaturas()->where('etapa', EtapaAssinatura::LIBERACAO_ESTOQUE)->exists());
+        $this->assertTrue(app(\App\Services\AssinaturaService::class)->verificar($requisicao)->integro);
+    }
+
+    public function test_uso_e_consumo_aprovado_pelo_lider_do_setor_continua_passando_pela_liberacao(): void
+    {
+        [$ti, $lider] = $this->setorComAprovadores();
+        $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
+
+        $this->workflow->aprovar($requisicao, $lider, 'password');
+        $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $this->quantidadesSeparadas($requisicao->fresh()), 'password');
+
+        $requisicao->refresh();
+        $this->assertFalse($requisicao->liberacao_dispensada);
+        $this->assertSame(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE, $requisicao->status);
+
+        // Marcar a dispensa direto no banco para pular a liberação aparece como divergência.
+        \Illuminate\Support\Facades\DB::table('requisicoes')->where('id', $requisicao->id)->update(['liberacao_dispensada' => true, 'status' => StatusRequisicao::AGUARDANDO_BAIXA->value]);
+        $this->assertFalse(app(\App\Services\AssinaturaService::class)->verificar($requisicao->fresh())->integro);
     }
 }

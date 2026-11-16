@@ -16,7 +16,7 @@ class ImportarUsuariosTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO', 'APROVA_SETORES'];
+    private const CABECALHO = ['MATRICULA', 'NOME', 'LOGIN', 'LOGIN_WINTHOR', 'CARGO', 'SETOR', 'PAPEL_SETOR', 'ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'INCLUIR', 'SUA_ANOTACAO', 'APROVA_SETORES', 'APROVA_COMPRAS'];
 
     /** @var list<string> */
     private array $arquivos = [];
@@ -102,6 +102,30 @@ class ImportarUsuariosTest extends TestCase
         );
         // Showroom e RH sem aprovador: a aprovação cai para os líderes do estoque (regra do sistema).
         $this->assertSame(0, Setor::where('nome', 'SHOWROOM')->firstOrFail()->aprovadores()->count());
+    }
+
+    public function test_marca_quem_aprova_pedido_de_compra(): void
+    {
+        $linhas = $this->linhasPadrao();
+        $linhas[0] = [...$linhas[0], '', 'SIM'];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas)])
+            ->expectsOutputToContain('Aprovam pedido de compra: Geisla Felix Luiz')
+            ->assertSuccessful();
+
+        $this->assertTrue(User::where('login', 'geisla.luiz')->value('aprova_compras'));
+        $this->assertFalse(User::where('login', 'bruno.silva')->value('aprova_compras'));
+    }
+
+    public function test_so_incluir_soma_aprovador_de_compra_para_quem_ja_existe(): void
+    {
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($this->linhasPadrao())])->assertSuccessful();
+        $linhas = $this->linhasPadrao();
+        $linhas[0] = [...$linhas[0], '', 'SIM'];
+
+        $this->artisan('usuarios:importar', ['arquivo' => $this->planilha($linhas), '--so-incluir' => true])->assertSuccessful();
+
+        $this->assertTrue(User::where('login', 'geisla.luiz')->value('aprova_compras'));
     }
 
     public function test_mostra_a_senha_provisoria_de_cada_pessoa_nova(): void

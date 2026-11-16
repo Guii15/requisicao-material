@@ -123,12 +123,14 @@
                 </td>
             </tr>
         @endif
-        <tr>
-            <td colspan="3">
-                <div class="rotulo">{{ $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? 'Motivo da compra' : 'Finalidade' }}</div>
-                <div class="valor">{!! nl2br(e($requisicao->finalidade)) !!}</div>
-            </td>
-        </tr>
+        @if (filled($requisicao->finalidade))
+            <tr>
+                <td colspan="3">
+                    <div class="rotulo">{{ $requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? 'Observações' : 'Finalidade' }}</div>
+                    <div class="valor">{!! nl2br(e($requisicao->finalidade)) !!}</div>
+                </td>
+            </tr>
+        @endif
         @if ($requisicao->forma_pagamento !== null)
             <tr>
                 <td colspan="3">
@@ -250,12 +252,9 @@
                                 @if ($aguardandoAprovacaoDe->isEmpty())
                                     Nenhum aprovador disponível. Procure a TI.
                                 @else
-                                    Aguardando {{ $aguardandoAprovacaoDe->pluck('nome')->join(', ', ' ou ') }}
+                                    Aguardando aprovação
                                 @endif
                             </div>
-                            @if ($motivoSemAprovador)
-                                <div class="pequeno">Aprovação pelos líderes do estoque: {{ mb_strtolower($motivoSemAprovador) }}.</div>
-                            @endif
                         @else
                             <div class="valor pendente">Pendente</div>
                         @endif

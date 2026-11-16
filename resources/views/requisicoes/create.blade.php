@@ -54,7 +54,7 @@
                         <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'USO_CONSUMO' && 'text-marca'"><x-phosphor-package class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Uso e consumo</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque e pela baixa no WinThor.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Passa pela liberação do líder do estoque (se ele ainda não aprovou) e pela baixa no WinThor.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'USO_CONSUMO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -63,7 +63,7 @@
                         <input type="radio" name="tipo" value="COMPRA_FUNCIONARIO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'COMPRA_FUNCIONARIO' && 'text-marca'"><x-phosphor-shopping-cart class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Pedido de compra</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque: é aprovada por Kelber, Sérgio ou Miguel e depois pela Erica.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque: é aprovada por quem aprova as compras e depois pela responsável pela baixa.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -180,7 +180,7 @@
             <section aria-labelledby="motivo-titulo" class="border-b border-hairline pb-7">
                 <h2 id="motivo-titulo" class="mb-4 flex items-center gap-2.5">
                     <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">03</span>
-                    <span class="font-display text-[14px] font-bold text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</span>
+                    <span class="font-display text-[14px] font-bold text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Observações' : 'Finalidade'">Finalidade</span>
                 </h2>
                 <div class="space-y-5">
                     <div x-show="tipo !== 'COMPRA_FUNCIONARIO'">
@@ -198,9 +198,9 @@
                         @enderror
                     </div>
                     <div>
-                        <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Motivo da compra' : 'Finalidade'">Finalidade</label>
-                        <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Por que precisa comprar? Ex.: SSD NVMe 1 TB para o notebook da montagem, o atual está com defeito.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
-                        <textarea id="finalidade" name="finalidade" rows="3" maxlength="2000" required
+                        <label for="finalidade" class="rotulo" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Observações (opcional)' : 'Finalidade'">Finalidade</label>
+                        <p id="finalidade-ajuda" class="ajuda" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Algum detalhe para quem vai comprar? Ex.: cor, modelo, onde retirar.' : 'Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.'">Vai ser usado para quê? Ex.: montagem do pedido 88412, reparo da impressora do balcão.</p>
+                        <textarea id="finalidade" name="finalidade" rows="3" maxlength="2000" :required="tipo !== 'COMPRA_FUNCIONARIO'"
                                   aria-describedby="finalidade-ajuda"
                                   class="campo mt-2 @error('finalidade') campo-erro @enderror">{{ old('finalidade') }}</textarea>
                         @error('finalidade')
@@ -215,13 +215,13 @@
                     <span class="grid size-[26px] place-items-center rounded-[5px] bg-surface-alt text-[11px] text-mid-gray">04</span>
                     <span class="font-display text-[14px] font-bold text-ink">Forma de pagamento</span>
                 </h2>
-                <fieldset>
+                <fieldset x-data="{ forma: @js($texto(old('forma_pagamento'))) }">
                     <legend class="sr-only">Forma de pagamento</legend>
-                    <p class="ajuda">Como você quer comprar. A Erica pode ajustar na hora da compra.</p>
+                    <p class="ajuda">Como você quer comprar. A responsável pela compra pode ajustar.</p>
                     <div class="mt-3 flex flex-wrap gap-3">
                         @foreach (\App\Enums\FormaPagamento::cases() as $forma)
                             <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-hairline bg-paper px-4 py-3 text-[13px] font-medium text-ink transition-colors has-[:checked]:border-marca has-[:checked]:bg-marca-suave focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-marca">
-                                <input type="radio" name="forma_pagamento" value="{{ $forma->value }}" class="accent-marca"
+                                <input type="radio" name="forma_pagamento" value="{{ $forma->value }}" class="accent-marca" x-model="forma"
                                        :required="tipo === 'COMPRA_FUNCIONARIO'" :disabled="tipo !== 'COMPRA_FUNCIONARIO'"
                                        @checked(old('forma_pagamento') === $forma->value)>
                                 {{ $forma->rotulo() }}
@@ -231,6 +231,19 @@
                     @error('forma_pagamento')
                         <p class="erro-campo pt-2">{{ $message }}</p>
                     @enderror
+                    <div x-show="forma === 'PARCELADO'" x-cloak class="mt-4">
+                        <label for="parcelas" class="rotulo">Em quantas vezes?</label>
+                        <div class="mt-1.5 flex items-center gap-2">
+                            <input type="number" id="parcelas" name="parcelas" min="2" max="24" inputmode="numeric"
+                                   value="{{ is_scalar(old('parcelas')) ? old('parcelas') : '' }}"
+                                   :required="tipo === 'COMPRA_FUNCIONARIO' && forma === 'PARCELADO'" :disabled="tipo !== 'COMPRA_FUNCIONARIO' || forma !== 'PARCELADO'"
+                                   class="campo w-24 tabular-nums @error('parcelas') campo-erro @enderror">
+                            <span class="text-sm text-mid-gray">vezes (de 2 a 24)</span>
+                        </div>
+                        @error('parcelas')
+                            <p class="erro-campo">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </fieldset>
             </section>
 
@@ -285,7 +298,7 @@
             </dl>
             <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
                 <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
-                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras (Kelber, Sérgio ou Miguel)' : 'Aprovação do setor'">Aprovação do setor</strong></span>
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras' : 'Aprovação do setor'">Aprovação do setor</strong></span>
             </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">

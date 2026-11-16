@@ -24,17 +24,19 @@ class PedidoCompraTelasTest extends TestCase
         $this->travelTo('2026-09-24 10:00:00');
     }
 
-    public function test_formulario_mostra_pedido_de_compra_motivo_e_forma_de_pagamento(): void
+    public function test_formulario_mostra_pedido_de_compra_observacoes_e_forma_de_pagamento(): void
     {
         $this->actingAs(User::factory()->create())->get('/requisicoes/nova')
             ->assertOk()
             ->assertSee('Pedido de compra')
-            ->assertSee('Motivo da compra')
+            ->assertSee('Observações')
+            ->assertDontSee('Motivo da compra')
+            ->assertSee('Em quantas vezes?')
             ->assertSee('Forma de pagamento')
             ->assertSee('À vista')
             ->assertSee('Parcelado')
             ->assertDontSee('Compra de funcionário')
-            ->assertSee('Por que precisa comprar?');
+            ->assertDontSee('Por que precisa comprar?');
     }
 
     public function test_abrir_pedido_de_compra_sem_forma_de_pagamento_volta_com_erro(): void
@@ -50,12 +52,41 @@ class PedidoCompraTelasTest extends TestCase
         $dados = $this->dadosRequisicao([
             'tipo' => 'COMPRA_FUNCIONARIO',
             'forma_pagamento' => 'PARCELADO',
+            'parcelas' => '6',
             'data_prevista_devolucao' => null,
         ]);
 
         $this->actingAs(User::factory()->create())->post('/requisicoes', $dados)->assertSessionHasNoErrors();
 
-        $this->assertSame(FormaPagamento::PARCELADO, Requisicao::query()->latest('id')->firstOrFail()->forma_pagamento);
+        $requisicao = Requisicao::query()->latest('id')->firstOrFail();
+        $this->assertSame(FormaPagamento::PARCELADO, $requisicao->forma_pagamento);
+        $this->assertSame(6, $requisicao->parcelas);
+    }
+
+    public function test_pedido_de_compra_parcelado_sem_numero_de_vezes_volta_com_erro(): void
+    {
+        $dados = $this->dadosRequisicao([
+            'tipo' => 'COMPRA_FUNCIONARIO',
+            'forma_pagamento' => 'PARCELADO',
+            'data_prevista_devolucao' => null,
+        ]);
+
+        $this->actingAs(User::factory()->create())->post('/requisicoes', $dados)
+            ->assertSessionHasErrors('parcelas');
+    }
+
+    public function test_pedido_de_compra_sem_observacao_e_aceito(): void
+    {
+        $dados = $this->dadosRequisicao([
+            'tipo' => 'COMPRA_FUNCIONARIO',
+            'forma_pagamento' => 'A_VISTA',
+            'finalidade' => '',
+            'data_prevista_devolucao' => null,
+        ]);
+
+        $this->actingAs(User::factory()->create())->post('/requisicoes', $dados)->assertSessionHasNoErrors();
+
+        $this->assertSame('', Requisicao::query()->latest('id')->firstOrFail()->finalidade);
     }
 
     public function test_responsavel_ve_a_forma_pedida_e_o_campo_de_parcelas(): void

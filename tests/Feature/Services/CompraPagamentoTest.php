@@ -55,11 +55,25 @@ class CompraPagamentoTest extends TestCase
     {
         $solicitante = User::factory()->create();
 
-        $requisicao = $this->workflow->criar($solicitante, $this->dadosCompra(['forma_pagamento' => 'PARCELADO']));
+        $requisicao = $this->workflow->criar($solicitante, $this->dadosCompra(['forma_pagamento' => 'PARCELADO', 'parcelas' => 3]));
 
         $this->assertSame(TipoRequisicao::COMPRA_FUNCIONARIO, $requisicao->tipo);
         $this->assertSame(FormaPagamento::PARCELADO, $requisicao->fresh()->forma_pagamento);
+        $this->assertSame(3, $requisicao->fresh()->parcelas);
+    }
+
+    public function test_pedido_de_compra_a_vista_nao_guarda_parcelas(): void
+    {
+        $requisicao = $this->workflow->criar(User::factory()->create(), $this->dadosCompra(['forma_pagamento' => 'A_VISTA', 'parcelas' => 5]));
+
         $this->assertNull($requisicao->fresh()->parcelas);
+    }
+
+    public function test_pedido_de_compra_parcelado_exige_o_numero_de_vezes(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->workflow->criar(User::factory()->create(), $this->dadosCompra(['forma_pagamento' => 'PARCELADO']));
     }
 
     public function test_pedido_de_compra_exige_a_forma_de_pagamento(): void

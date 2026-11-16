@@ -237,6 +237,9 @@ class AssinaturaService
             'finalidade_complemento_estoque' => $requisicao->finalidade_complemento_estoque,
             'data_prevista_devolucao' => $requisicao->data_prevista_devolucao?->toDateString(),
             'baixa_documento_winthor' => $requisicao->baixa_documento_winthor,
+            // Só entra quando é verdade, para não mudar o conteúdo das assinaturas que já existiam.
+            // Assim, marcar a dispensa direto no banco depois da aprovação aparece como divergência.
+            ...($requisicao->liberacao_dispensada ? ['liberacao_dispensada' => true] : []),
             'itens' => $requisicao->itens()->get()->map(fn (RequisicaoItem $item) => [
                 'id' => $item->id,
                 ...($item->codigo !== null ? ['codigo' => $item->codigo] : []),
@@ -280,7 +283,8 @@ class AssinaturaService
             $exigidas[] = Etapa::SEPARACAO;
         }
 
-        if ($requisicao->tipo === TipoRequisicao::USO_CONSUMO
+        // Aprovado por líder do estoque, a liberação é dispensada (fica assinado na aprovação, ver dadosDoDocumento).
+        if ($requisicao->tipo === TipoRequisicao::USO_CONSUMO && ! $requisicao->liberacao_dispensada
             && in_array($status, [S::LIBERADA, S::PRONTA_PARA_RETIRADA, S::ENTREGUE, S::AGUARDANDO_BAIXA, S::BAIXADA], true)) {
             $exigidas[] = Etapa::LIBERACAO_ESTOQUE;
         }

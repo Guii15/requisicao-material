@@ -61,7 +61,7 @@ php artisan usuarios:importar caminho/planilha.xlsx             # grava
 ```
 
 - Aceita `.xlsx` (aba `USUARIOS`) ou `.csv` exportado do Excel.
-- Colunas obrigatórias: `MATRICULA`, `NOME`, `LOGIN`, `SETOR`. Opcionais: `CARGO`, `PAPEL_SETOR` (`LIDER` ou `SUBLIDER`), `INCLUIR` (`SIM`/`NÃO`) e as marcações `ESTOQUE`, `LIDER_ESTOQUE`, `RESP_BAIXA` e `ADMIN` (`SIM`/`NÃO`).
+- Colunas obrigatórias: `MATRICULA`, `NOME`, `LOGIN`, `SETOR`. Opcionais: `CARGO`, `PAPEL_SETOR` (`LIDER` ou `SUBLIDER`), `INCLUIR` (`SIM`/`NÃO`) e as marcações `ESTOQUE`, `LIDER_ESTOQUE`, `RESP_BAIXA`, `ADMIN` e `APROVA_COMPRAS` (`SIM`/`NÃO`).
 - `APROVA_SETORES` (opcional): outros setores que a pessoa também aprova, separados por `;`. Por exemplo, os líderes do estoque com `SHOWROOM; NINJA PLACE`.
 - `--desativar-ausentes` desativa quem está ativo no sistema mas saiu da planilha.
 - `--so-incluir` só acrescenta: cria quem ainda não existe e soma os aprovadores marcados em `PAPEL_SETOR` e `APROVA_SETORES`. Quem já está no sistema fica com os dados, o setor, os papéis e a senha que tem, e nenhum aprovador sai. É o modo para carregar a lista do WinThor.
@@ -70,7 +70,7 @@ php artisan usuarios:importar caminho/planilha.xlsx             # grava
 - Se uma linha tiver erro, nada é gravado.
 - Sem `--senha-padrao`, cada pessoa nova recebe uma senha provisória, listada no fim do comando para entregar a ela. O sistema pede a troca no primeiro acesso.
 
-Quem aprova pedido de compra de funcionário (`aprova_compras`) é marcado direto no banco, porque a planilha ainda não tem essa coluna.
+Quem aprova pedido de compra de funcionário vem da coluna `APROVA_COMPRAS`. Com `--so-incluir` ela só soma: quem já aprovava continua aprovando.
 
 ## Papéis
 
@@ -89,8 +89,8 @@ Ninguém aprova o próprio pedido. Quem pode fazer o quê fica em `app/Policies/
 ## Fluxo de cada tipo
 
 - **Teste** (material emprestado para testar): aprovação do setor, depois separação e entrega na mesma tela, e por fim a devolução conferida item a item. O prazo máximo de devolução está na tabela `parametros` (`prazo_max_devolucao_dias`, em dias úteis).
-- **Uso e Consumo**: aprovação do setor, separação, liberação do líder do estoque e baixa.
-- **Pedido de compra de funcionário**: aprovação de quem aprova compras e decisão da responsável pela baixa, com a forma de pagamento e o print do pedido no WinThor.
+- **Uso e Consumo**: aprovação do setor, separação, liberação do líder do estoque e baixa. Se quem aprovou já foi um líder do estoque (Showroom, Ninja Place ou setor sem aprovador), a liberação é dispensada e o pedido vai da separação direto para a baixa.
+- **Pedido de compra de funcionário**: quem pede escolhe à vista ou parcelado (e em quantas vezes) e pode deixar uma observação. Depois vem a aprovação de quem aprova compras e decisão da responsável pela baixa, com a forma de pagamento e o print do pedido no WinThor.
 
 No Teste e no Uso e Consumo, quem pede escolhe para qual setor é o pedido; o Estoque já vem marcado. Quem aprova continua sendo o setor de quem pediu.
 

@@ -25,7 +25,7 @@ class ImportacaoUsuarios
 {
     private const OBRIGATORIAS = ['MATRICULA', 'NOME', 'LOGIN', 'SETOR'];
 
-    private const MARCACOES = ['ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN'];
+    private const MARCACOES = ['ESTOQUE', 'LIDER_ESTOQUE', 'RESP_BAIXA', 'ADMIN', 'APROVA_COMPRAS'];
 
     /**
      * @param  list<array{linha: int, colunas: array<string, string>}>  $linhas  saída de PlanilhaUsuarios::ler()
@@ -281,6 +281,7 @@ class ImportacaoUsuarios
                 'is_lider_estoque' => $pessoa['LIDER_ESTOQUE'],
                 'is_responsavel_baixa' => $pessoa['RESP_BAIXA'],
                 'is_admin' => $pessoa['ADMIN'],
+                'aprova_compras' => $pessoa['APROVA_COMPRAS'],
                 'ativo' => true,
             ]);
             $mudou = array_keys($user->getDirty());
@@ -305,6 +306,10 @@ class ImportacaoUsuarios
             }
 
             $user->save();
+
+            if ($pessoa['APROVA_COMPRAS']) {
+                $resultado->aprovadoresDeCompra[] = $user->nome;
+            }
 
             if ($pessoa['papel'] !== null) {
                 $aprovadores[$pessoa['setor']][$user->id] = ['papel' => $pessoa['papel']];
@@ -386,6 +391,7 @@ class ImportacaoUsuarios
                     'is_lider_estoque' => $pessoa['LIDER_ESTOQUE'],
                     'is_responsavel_baixa' => $pessoa['RESP_BAIXA'],
                     'is_admin' => $pessoa['ADMIN'],
+                    'aprova_compras' => $pessoa['APROVA_COMPRAS'],
                     'ativo' => true,
                     'password' => $senha,
                     'deve_trocar_senha' => $senhaDeTeste === null,
@@ -394,6 +400,12 @@ class ImportacaoUsuarios
                 $resultado->criados[$pessoa['login']] = ['nome' => $pessoa['nome'], 'senha' => $senhaDeTeste === null && $senhaPadrao === null ? $senha : null];
             } else {
                 $resultado->semMudanca++;
+            }
+
+            // Aprovar compras também só soma: quem já aprova continua aprovando.
+            if ($pessoa['APROVA_COMPRAS']) {
+                $user->forceFill(['aprova_compras' => true])->save();
+                $resultado->aprovadoresDeCompra[] = $user->nome;
             }
 
             // O papel vale também para quem já existe: soma o aprovador, sem mudar o setor da pessoa.
