@@ -29,6 +29,7 @@ enum StatusRequisicao: string
     case COMPRA_APROVADA = 'COMPRA_APROVADA';
     case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
     case AGUARDANDO_TRANSFERENCIA = 'AGUARDANDO_TRANSFERENCIA';
+    case AGUARDANDO_ENVIO = 'AGUARDANDO_ENVIO';
     case AGUARDANDO_RECEBIMENTO = 'AGUARDANDO_RECEBIMENTO';
     case TRANSFERENCIA_RECEBIDA = 'TRANSFERENCIA_RECEBIDA';
 
@@ -54,6 +55,7 @@ enum StatusRequisicao: string
             self::COMPRA_APROVADA => 'Compra aprovada',
             self::COMPRA_REPROVADA => 'Compra reprovada',
             self::AGUARDANDO_TRANSFERENCIA => 'Aguardando transferência',
+            self::AGUARDANDO_ENVIO => 'Aguardando envio',
             self::AGUARDANDO_RECEBIMENTO => 'Aguardando recebimento',
             self::TRANSFERENCIA_RECEBIDA => 'Recebida na filial',
         };
@@ -66,7 +68,7 @@ enum StatusRequisicao: string
     {
         return match ($this) {
             self::AGUARDANDO_APROVACAO, self::AGUARDANDO_LIBERACAO_ESTOQUE, self::AGUARDANDO_BAIXA, self::AGUARDANDO_COMPRA,
-            self::AGUARDANDO_TRANSFERENCIA, self::AGUARDANDO_RECEBIMENTO => 'aguardando',
+            self::AGUARDANDO_TRANSFERENCIA, self::AGUARDANDO_ENVIO, self::AGUARDANDO_RECEBIMENTO => 'aguardando',
             self::DEVOLVIDA, self::BAIXADA, self::COMPRA_APROVADA, self::TRANSFERENCIA_RECEBIDA => 'concluida',
             self::REPROVADA, self::REPROVADA_ESTOQUE, self::CANCELADA, self::COMPRA_REPROVADA => 'encerrada',
             self::DEVOLUCAO_COM_PENDENCIA => 'alerta',
@@ -93,8 +95,10 @@ enum StatusRequisicao: string
                 default => [self::EM_SEPARACAO, self::CANCELADA],
             },
             self::AGUARDANDO_COMPRA => [self::COMPRA_APROVADA, self::COMPRA_REPROVADA, self::CANCELADA],
-            // Transferência de filial: a responsável transfere no WinThor e um líder do estoque confirma o recebimento.
-            self::AGUARDANDO_TRANSFERENCIA => $transferencia ? [self::AGUARDANDO_RECEBIMENTO, self::CANCELADA] : [],
+            // Transferência de filial: a responsável transfere no WinThor, o estoque envia (foto da saída)
+            // e um líder do estoque confirma o recebimento (foto da chegada).
+            self::AGUARDANDO_TRANSFERENCIA => $transferencia ? [self::AGUARDANDO_ENVIO, self::CANCELADA] : [],
+            self::AGUARDANDO_ENVIO => $transferencia ? [self::AGUARDANDO_RECEBIMENTO, self::CANCELADA] : [],
             self::AGUARDANDO_RECEBIMENTO => $transferencia ? [self::TRANSFERENCIA_RECEBIDA, self::REPROVADA_ESTOQUE] : [],
             self::EM_SEPARACAO => [$teste ? self::PRONTA_PARA_RETIRADA : self::AGUARDANDO_BAIXA, self::CANCELADA],
             self::AGUARDANDO_LIBERACAO_ESTOQUE => $teste ? [] : [self::LIBERADA, self::REPROVADA_ESTOQUE, self::CANCELADA],

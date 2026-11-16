@@ -67,7 +67,7 @@ final class Trilha
      */
     private static function transferencia(S $status): array
     {
-        $nomes = ['Aprovação', 'Transferência', 'Recebimento'];
+        $nomes = ['Aprovação', 'Transferência', 'Envio', 'Recebimento'];
 
         if ($status === S::CANCELADA) {
             return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'cancelada'], $nomes);
@@ -76,8 +76,9 @@ final class Trilha
         $posicao = match ($status) {
             S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
             S::APROVADA, S::AGUARDANDO_TRANSFERENCIA => 1,
-            S::AGUARDANDO_RECEBIMENTO, S::REPROVADA_ESTOQUE => 2,
-            default => 3,
+            S::AGUARDANDO_ENVIO => 2,
+            S::AGUARDANDO_RECEBIMENTO, S::REPROVADA_ESTOQUE => 3,
+            default => 4,
         };
         $falhou = in_array($status, [S::REPROVADA, S::REPROVADA_ESTOQUE], true);
 

@@ -70,12 +70,11 @@ class RequisicaoWorkflow
                 'parcelas' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ($validado['forma_pagamento'] ?? null) === FormaPagamento::PARCELADO->value
                     ? (int) $validado['parcelas']
                     : null,
+                'filial_origem' => $transferencia ? $validado['filial_origem'] : null,
                 'filial_destino' => $transferencia ? $validado['filial_destino'] : null,
             ]);
 
             $requisicao->forceFill([
-                // Foto do produto da transferência: disco privado, só abre para quem pode ver a requisição.
-                'foto_produto' => $transferencia ? $validado['foto']->store('transferencias', 'local') : null,
                 'numero' => $this->numeracao->proximo(),
                 'status' => StatusRequisicao::AGUARDANDO_APROVACAO,
                 'status_alterado_em' => now(),
@@ -562,7 +561,7 @@ class RequisicaoWorkflow
     public function transferir(Requisicao $requisicao, User $por, ?string $observacao): Requisicao
     {
         return $this->executar(
-            $requisicao, $por, StatusRequisicao::AGUARDANDO_RECEBIMENTO, 'transferir', AcaoEvento::TRANSFERENCIA,
+            $requisicao, $por, StatusRequisicao::AGUARDANDO_ENVIO, 'transferir', AcaoEvento::TRANSFERENCIA,
             EtapaAssinatura::TRANSFERENCIA, null,
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'transferido_por_id' => $por->id,
@@ -574,9 +573,31 @@ class RequisicaoWorkflow
     }
 
     /**
-     * Um líder do estoque confirma que o produto transferido chegou. Encerra a transferência.
+     * O estoque envia o produto para a outra filial, com a foto de como saiu.
      */
-    public function receberTransferencia(Requisicao $requisicao, User $por, ?string $observacao): Requisicao
+    public function enviarTransferencia(Requisicao $requisicao, User $por, ?UploadedFile $foto, ?string $observacao): Requisicao
+    {
+        return $this->executar(
+            $requisicao, $por, StatusRequisicao::AGUARDANDO_RECEBIMENTO, 'enviarTransferencia', AcaoEvento::ENVIO,
+            EtapaAssinatura::ENVIO, null,
+            alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
+                'enviado_por_id' => $por->id,
+                'enviado_em' => now(),
+                'envio_observacao' => $dados['observacao'],
+                'foto_saida' => $foto->store('transferencias', 'local'),
+            ]),
+            validar: function () use ($foto, $observacao) {
+                $this->validarFoto($foto, 'Tire a foto do produto saindo.');
+
+                return ['observacao' => $this->observacaoOpcional($observacao)];
+            },
+        );
+    }
+
+    /**
+     * Um líder do estoque confirma que o produto chegou, com a foto da chegada. Encerra a transferência.
+     */
+    public function receberTransferencia(Requisicao $requisicao, User $por, ?UploadedFile $foto, ?string $observacao): Requisicao
     {
         return $this->executar(
             $requisicao, $por, StatusRequisicao::TRANSFERENCIA_RECEBIDA, 'receberTransferencia', AcaoEvento::RECEBIMENTO,
@@ -585,9 +606,30 @@ class RequisicaoWorkflow
                 'recebido_por_id' => $por->id,
                 'recebido_em' => now(),
                 'recebimento_observacao' => $dados['observacao'],
+                'foto_chegada' => $foto->store('transferencias', 'local'),
             ]),
-            validar: fn () => ['observacao' => $this->observacaoOpcional($observacao)],
+            validar: function () use ($foto, $observacao) {
+                $this->validarFoto($foto, 'Tire a foto do produto que chegou.');
+
+                return ['observacao' => $this->observacaoOpcional($observacao)];
+            },
         );
+    }
+
+    /**
+     * Foto do produto na transferência (saída e chegada): obrigatória, imagem de até 10 MB.
+     */
+    private function validarFoto(?UploadedFile $foto, string $obrigatoria): void
+    {
+        Validator::make(['foto' => $foto], [
+            'foto' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240'],
+        ], [
+            'foto.required' => $obrigatoria,
+            'foto.image' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'foto.mimes' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
+            'foto.max' => 'A foto pode ter no máximo 10 MB.',
+            'foto.uploaded' => 'Não foi possível enviar a foto. Tente de novo.',
+        ])->validate();
     }
 
     /**
@@ -790,15 +832,17 @@ class RequisicaoWorkflow
                 'exclude_unless:tipo,'.TipoRequisicao::COMPRA_FUNCIONARIO->value,
                 'required', 'integer', 'min:2', 'max:24',
             ],
-            // Transferência de filial: para qual filial vai e a foto do produto.
-            'filial_destino' => [
+            // Transferência de filial: de qual filial sai e para qual vai (nunca a mesma).
+            'filial_origem' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TRANSFERENCIA_FILIAL->value,
                 'required',
                 Rule::enum(Filial::class),
             ],
-            'foto' => [
+            'filial_destino' => [
                 'exclude_unless:tipo,'.TipoRequisicao::TRANSFERENCIA_FILIAL->value,
-                'required', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:10240',
+                'required',
+                Rule::enum(Filial::class),
+                'different:filial_origem',
             ],
             // Para qual setor é o pedido. Vazio vale Estoque; compra de funcionário e transferência não passam por setor nenhum.
             'setor_destino_id' => [
@@ -827,13 +871,11 @@ class RequisicaoWorkflow
             'parcelas.integer' => 'Informe o número de parcelas.',
             'parcelas.min' => 'Parcelado começa em 2 vezes.',
             'parcelas.max' => 'O máximo é 24 vezes.',
+            'filial_origem.required' => 'Escolha de qual filial sai o produto.',
+            'filial_origem.enum' => 'Escolha uma filial da lista.',
             'filial_destino.required' => 'Escolha para qual filial vai o produto.',
             'filial_destino.enum' => 'Escolha uma filial da lista.',
-            'foto.required' => 'Tire ou anexe uma foto do produto.',
-            'foto.image' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
-            'foto.mimes' => 'A foto precisa ser uma imagem (PNG, JPG ou WEBP).',
-            'foto.max' => 'A foto pode ter no máximo 10 MB.',
-            'foto.uploaded' => 'Não foi possível enviar a foto. Tente de novo.',
+            'filial_destino.different' => 'A filial de destino tem que ser diferente da de origem.',
             'data_prevista_devolucao.required' => 'Informe a data prevista de devolução.',
             'data_prevista_devolucao.after_or_equal' => 'A devolução não pode ser antes de hoje.',
             'data_prevista_devolucao.before_or_equal' => "A devolução pode ser no máximo até {$limite->format('d/m/Y')} ({$prazo} dias úteis a partir da solicitação).",
@@ -848,8 +890,8 @@ class RequisicaoWorkflow
             'data_prevista_devolucao' => 'data prevista de devolução',
             'forma_pagamento' => 'forma de pagamento',
             'setor_destino_id' => 'setor de destino',
+            'filial_origem' => 'filial de origem',
             'filial_destino' => 'filial de destino',
-            'foto' => 'foto do produto',
         ])->validate();
     }
 }

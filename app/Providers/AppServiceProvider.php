@@ -59,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Transferência de filial: quem faz a transferência no WinThor e os líderes do estoque, que recebem.
         Gate::define('acessar-transferencias', fn (User $user) => $user->faz_transferencia);
+        Gate::define('acessar-envio', fn (User $user) => $user->is_estoque);
         Gate::define('acessar-recebimento', fn (User $user) => $user->is_lider_estoque);
 
         // Tela Usuários: criar login e dar permissões. Só administrador ativo.

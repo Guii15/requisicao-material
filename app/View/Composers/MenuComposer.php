@@ -6,6 +6,7 @@ use App\Services\FilaDeAprovacao;
 use App\Services\FilaDeBaixa;
 use App\Services\FilaDeCompras;
 use App\Services\FilaDeDevolucao;
+use App\Services\FilaDeEnvio;
 use App\Services\FilaDeLiberacao;
 use App\Services\FilaDeRecebimento;
 use App\Services\FilaDeSeparacao;
@@ -28,6 +29,7 @@ class MenuComposer
         private readonly FilaDeBaixa $filaBaixa,
         private readonly FilaDeCompras $filaCompras,
         private readonly FilaDeTransferencia $filaTransferencia,
+        private readonly FilaDeEnvio $filaEnvio,
         private readonly FilaDeRecebimento $filaRecebimento,
     ) {}
 
@@ -47,6 +49,7 @@ class MenuComposer
             'baixa' => $contar('acessar-baixa', $this->filaBaixa),
             'compras' => $contar('acessar-compras', $this->filaCompras),
             'transferencias' => $contar('acessar-transferencias', $this->filaTransferencia),
+            'envio' => $contar('acessar-envio', $this->filaEnvio),
             'recebimento' => $contar('acessar-recebimento', $this->filaRecebimento),
         ]);
     }

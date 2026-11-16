@@ -34,6 +34,7 @@ class Requisicao extends Model
         'data_prevista_devolucao',
         'forma_pagamento',
         'parcelas',
+        'filial_origem',
         'filial_destino',
     ];
 
@@ -53,7 +54,9 @@ class Requisicao extends Model
             'data_prevista_devolucao' => 'date',
             'forma_pagamento' => FormaPagamento::class,
             'parcelas' => 'integer',
+            'filial_origem' => Filial::class,
             'filial_destino' => Filial::class,
+            'enviado_em' => 'datetime',
             'transferido_em' => 'datetime',
             'liberacao_dispensada' => 'boolean',
             'aprovado_em' => 'datetime',
@@ -201,6 +204,12 @@ class Requisicao extends Model
     public function transferidoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'transferido_por_id');
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function enviadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'enviado_por_id');
     }
 
     /** @return BelongsTo<User, $this> */

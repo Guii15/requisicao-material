@@ -54,6 +54,7 @@ class RequisicaoFactory extends Factory
         return $this->state(fn () => [
             'tipo' => TipoRequisicao::TRANSFERENCIA_FILIAL,
             'data_prevista_devolucao' => null,
+            'filial_origem' => Filial::SHOWROOM,
             'filial_destino' => Filial::BINARIO,
         ]);
     }

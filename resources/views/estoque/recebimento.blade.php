@@ -2,8 +2,8 @@
     titulo="Recebimento"
     icone="truck"
     :requisicoes="$requisicoes"
-    :contador="$requisicoes->total().' transferência'.($requisicoes->total() === 1 ? '' : 's').' feita'.($requisicoes->total() === 1 ? '' : 's').', esperando o estoque confirmar que o produto chegou'"
+    :contador="$requisicoes->total().' transferência'.($requisicoes->total() === 1 ? '' : 's').' feita'.($requisicoes->total() === 1 ? '' : 's').', esperando a chegada na outra filial'"
     vazio-titulo="Nada para receber"
-    vazio-texto="Quando uma transferência de filial é feita no WinThor, ela aparece aqui para um líder do estoque confirmar que recebeu o produto."
-    coluna-ha="Transferida há"
+    vazio-texto="Quando o estoque envia o produto de uma filial, ele aparece aqui para um líder do estoque tirar a foto da chegada e confirmar o recebimento."
+    coluna-ha="Enviada há"
 />

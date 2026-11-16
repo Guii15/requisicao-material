@@ -57,8 +57,7 @@ class RequisicaoController extends Controller
     {
         $requisicao = $workflow->criar(
             $request->user(),
-            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento', 'parcelas', 'setor_destino_id', 'filial_destino'])
-                + ['foto' => $request->file('foto')],
+            $request->only(['tipo', 'itens', 'justificativa', 'finalidade', 'data_prevista_devolucao', 'forma_pagamento', 'parcelas', 'setor_destino_id', 'filial_origem', 'filial_destino']),
             $this->texto($request, 'senha'),
         );
 
@@ -107,13 +106,13 @@ class RequisicaoController extends Controller
     }
 
     /**
-     * Foto do produto da transferência de filial: disco privado, só para quem vê a requisição.
+     * Fotos da transferência de filial (saída e chegada): disco privado, só para quem vê a requisição.
      */
-    public function fotoProduto(Requisicao $requisicao): StreamedResponse
+    public function fotoTransferencia(Requisicao $requisicao, string $momento): StreamedResponse
     {
         Gate::authorize('view', $requisicao);
 
-        $caminho = $requisicao->foto_produto;
+        $caminho = $momento === 'chegada' ? $requisicao->foto_chegada : $requisicao->foto_saida;
         abort_if($caminho === null || ! Storage::disk('local')->exists($caminho), 404);
 
         return Storage::disk('local')->response($caminho);
@@ -156,6 +155,7 @@ class RequisicaoController extends Controller
                 StatusRequisicao::AGUARDANDO_COMPRA->value => ['acessar-compras', 'compras.index', 'Pedidos de compra', 'compras'],
                 StatusRequisicao::AGUARDANDO_BAIXA->value => ['acessar-baixa', 'baixa.index', 'Baixa', 'baixa'],
                 StatusRequisicao::AGUARDANDO_TRANSFERENCIA->value => ['acessar-transferencias', 'transferencias.index', 'Transferências', 'transferencias'],
+                StatusRequisicao::AGUARDANDO_ENVIO->value => ['acessar-envio', 'envio.index', 'Envio', 'envio'],
                 StatusRequisicao::AGUARDANDO_RECEBIMENTO->value => ['acessar-recebimento', 'recebimento.index', 'Recebimento', 'recebimento'],
             ];
 

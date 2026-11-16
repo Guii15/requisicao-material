@@ -19,6 +19,7 @@ enum EtapaAssinatura: string
     case COMPRA_APROVADA = 'COMPRA_APROVADA';
     case COMPRA_REPROVADA = 'COMPRA_REPROVADA';
     case TRANSFERENCIA = 'TRANSFERENCIA';
+    case ENVIO = 'ENVIO';
 
     /**
      * Texto da linha no bloco de assinaturas (tela e PDF).
@@ -40,7 +41,8 @@ enum EtapaAssinatura: string
             self::BAIXA => 'Baixa por',
             self::COMPRA_APROVADA => 'Compra aprovada por',
             self::COMPRA_REPROVADA => 'Compra reprovada por',
-            self::TRANSFERENCIA => 'Transferido por',
+            self::TRANSFERENCIA => 'Transferido no WinThor por',
+            self::ENVIO => 'Enviado por (estoque)',
         };
     }
 
@@ -52,7 +54,7 @@ enum EtapaAssinatura: string
     public static function fluxo(TipoRequisicao $tipo): array
     {
         if ($tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
-            return [self::SOLICITACAO, self::APROVACAO_SETOR, self::TRANSFERENCIA, self::RECEBIMENTO];
+            return [self::SOLICITACAO, self::APROVACAO_SETOR, self::TRANSFERENCIA, self::ENVIO, self::RECEBIMENTO];
         }
 
         if ($tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
