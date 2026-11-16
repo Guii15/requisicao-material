@@ -238,12 +238,12 @@
                                 $ultimo = $requisicao->ultimoEvento;
                                 $quando = \Illuminate\Support\Carbon::parse($requisicao->ultima_alteracao_em);
                                 $responsavel = $ultimo?->usuario?->nome ?? 'Sistema';
-                                $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo(), $ultimo?->acao->rotulo(), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
+                                $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo($requisicao->tipo), $ultimo?->acao->rotulo($requisicao->tipo), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
                             @endphp
                             <tr x-show="@js($textoBusca).includes(busca.trim().toLowerCase())">
                                 <td class="lg:pl-6">
-                                    <x-selo-status :status="$requisicao->status" class="font-medium text-ink" />
-                                    <small class="mt-1 block text-[12px] text-mid-gray">{{ $ultimo?->acao->rotulo() }} · {{ $rotuloData($quando->toDateString()) }}</small>
+                                    <x-selo-status :status="$requisicao->status" :tipo="$requisicao->tipo" class="font-medium text-ink" />
+                                    <small class="mt-1 block text-[12px] text-mid-gray">{{ $ultimo?->acao->rotulo($requisicao->tipo) }} · {{ $rotuloData($quando->toDateString()) }}</small>
                                 </td>
                                 <td class="max-w-[16rem]">
                                     @if ($requisicao->produto)
@@ -279,16 +279,16 @@
                         $ultimo = $requisicao->ultimoEvento;
                         $quando = \Illuminate\Support\Carbon::parse($requisicao->ultima_alteracao_em);
                         $responsavel = $ultimo?->usuario?->nome ?? 'Sistema';
-                        $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo(), $ultimo?->acao->rotulo(), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
+                        $textoBusca = mb_strtolower(implode(' ', [$requisicao->status->rotulo($requisicao->tipo), $ultimo?->acao->rotulo($requisicao->tipo), $requisicao->produto, $responsavel, $requisicao->setor->nome, $requisicao->numero]));
                     @endphp
                     <li class="px-5 py-3.5" x-show="@js($textoBusca).includes(busca.trim().toLowerCase())">
                         <div class="flex items-baseline justify-between gap-3">
                             <a href="{{ route('requisicoes.show', $requisicao) }}" class="font-semibold text-ink hover:underline">{{ $requisicao->numero }}</a>
                             <span class="shrink-0 text-[12px] text-mid-gray tabular-nums">{{ $rotuloData($quando->toDateString()) }} · {{ $quando->format('H:i') }}</span>
                         </div>
-                        <p class="mt-1.5"><x-selo-status :status="$requisicao->status" class="font-medium text-ink" /></p>
+                        <p class="mt-1.5"><x-selo-status :status="$requisicao->status" :tipo="$requisicao->tipo" class="font-medium text-ink" /></p>
                         <p class="mt-1 text-[12px] text-mid-gray">
-                            {{ $ultimo?->acao->rotulo() }} por <a href="{{ $link(['usuario_id' => $ultimo?->user_id]) }}" class="text-ink-soft hover:underline">{{ $responsavel }}</a>
+                            {{ $ultimo?->acao->rotulo($requisicao->tipo) }} por <a href="{{ $link(['usuario_id' => $ultimo?->user_id]) }}" class="text-ink-soft hover:underline">{{ $responsavel }}</a>
                             em <a href="{{ $link(['setor_id' => $requisicao->setor_id]) }}" class="text-ink-soft hover:underline">{{ $requisicao->setor->nome }}</a>
                             @if ($requisicao->produto)
                                 <br><a href="{{ $link(['produto' => $requisicao->produto]) }}" class="text-ink-soft hover:underline">{{ $requisicao->produto }}</a>@if ($requisicao->itens_count > 1) e mais {{ $requisicao->itens_count - 1 }}@endif

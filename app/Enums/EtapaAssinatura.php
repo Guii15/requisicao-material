@@ -24,8 +24,12 @@ enum EtapaAssinatura: string
     /**
      * Texto da linha no bloco de assinaturas (tela e PDF).
      */
-    public function rotulo(): string
+    public function rotulo(?TipoRequisicao $tipo = null): string
     {
+        if ($this === self::REPROVACAO_ESTOQUE && $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return 'Recebimento recusado por';
+        }
+
         return match ($this) {
             self::SOLICITACAO => 'Solicitado por',
             self::APROVACAO_SETOR => 'Aprovado por',

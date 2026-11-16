@@ -24,8 +24,13 @@ enum AcaoEvento: string
     /**
      * Texto da linha do tempo da requisição.
      */
-    public function rotulo(): string
+    public function rotulo(?TipoRequisicao $tipo = null): string
     {
+        // Na transferência, quem recusa o recebimento é quem pediu, não o estoque.
+        if ($this === self::REPROVACAO_ESTOQUE && $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return 'Recebimento recusado';
+        }
+
         return match ($this) {
             self::CRIACAO => 'Requisição aberta',
             self::APROVACAO => 'Aprovada',

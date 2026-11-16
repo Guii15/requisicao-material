@@ -7,7 +7,7 @@
         'csv' => [
             $requisicao->numero,
             $requisicao->tipo->rotulo(),
-            $requisicao->status->rotulo(),
+            $requisicao->status->rotulo($requisicao->tipo),
             $requisicao->primeiro_item,
             $requisicao->itens_count,
             $requisicao->solicitante->nome,
@@ -93,7 +93,7 @@
                             @endif
                             <td><x-selo-tipo :tipo="$requisicao->tipo" /></td>
                             <td>
-                                <x-selo-status :status="$requisicao->status" />
+                                <x-selo-status :status="$requisicao->status" :tipo="$requisicao->tipo" />
                                 <span class="mt-1.5 block text-[12px] text-mid-gray" title="Tempo nesta situação">há {{ \App\Support\Duracao::curta($requisicao->status_alterado_em) }}</span>
                             </td>
                             <td class="w-12 text-right">
@@ -114,7 +114,7 @@
                     <a href="{{ route('requisicoes.show', $requisicao) }}" class="block px-4 py-4 transition-colors hover:bg-fundo">
                         <span class="flex items-center justify-between gap-3">
                             <span class="font-display text-[13px] font-semibold text-ink">{{ $requisicao->numero }}</span>
-                            <x-selo-status :status="$requisicao->status" />
+                            <x-selo-status :status="$requisicao->status" :tipo="$requisicao->tipo" />
                         </span>
                         <strong class="mt-2 block truncate text-[13px] font-medium text-ink">{{ $requisicao->primeiro_item }}@if ($requisicao->itens_count > 1) <span class="font-normal text-mid-gray">e mais {{ $requisicao->itens_count - 1 }}</span>@endif</strong>
                         <span class="mt-2 flex items-center justify-between gap-3 text-[12px] text-mid-gray">

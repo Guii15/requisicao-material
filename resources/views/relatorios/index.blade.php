@@ -52,7 +52,7 @@
             <select id="status" name="status" class="campo mt-1.5 sm:w-60">
                 <option value="">Todas</option>
                 @foreach ($statusPossiveis as $status)
-                    <option value="{{ $status->value }}" @selected($filtro['status'] === $status)>{{ $status->rotulo() }}</option>
+                    <option value="{{ $status->value }}" @selected($filtro['status'] === $status)>{{ $status->rotulo($tipo) }}</option>
                 @endforeach
             </select>
         </div>
@@ -118,7 +118,7 @@
                                                 @if ($linha['recusado'])
                                                     <span class="selo selo-erro">Item recusado</span>
                                                 @else
-                                                    <x-selo-status :status="$linha['status']" />
+                                                    <x-selo-status :status="$linha['status']" :tipo="$tipo" />
                                                 @endif
                                             </td>
                                             @break

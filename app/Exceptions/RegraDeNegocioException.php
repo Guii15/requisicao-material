@@ -31,7 +31,7 @@ class RegraDeNegocioException extends RuntimeException
         }
 
         return new self(
-            "A requisição {$requisicao->numero} já está como \"{$requisicao->status->rotulo()}\"{$detalhe}. Atualize a página."
+            "A requisição {$requisicao->numero} já está como \"{$requisicao->status->rotulo($requisicao->tipo)}\"{$detalhe}. Atualize a página."
         );
     }
 

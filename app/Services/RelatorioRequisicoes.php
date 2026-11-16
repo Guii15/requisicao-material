@@ -117,7 +117,7 @@ class RelatorioRequisicoes
             'devolvido_ok' => $qtd($item->qtd_devolvida_ok),
             'devolvido_defeito' => $qtd($item->qtd_devolvida_defeito),
             'nao_devolvido' => $qtd($item->qtd_nao_devolvida),
-            'situacao' => $item->isRecusado() ? 'Item recusado' : $r->status->rotulo(),
+            'situacao' => $item->isRecusado() ? 'Item recusado' : $r->status->rotulo($r->tipo),
         ];
     }
 

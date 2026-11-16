@@ -270,7 +270,8 @@ class TransferenciaFilialTest extends TestCase
         $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
         $this->actingAs($this->vendedor)->get("/requisicoes/{$requisicao->numero}")
             ->assertOk()
-            ->assertSee('Recebimento recusado pelo estoque')
+            ->assertSee('Recebimento recusado')
+            ->assertDontSee('Reprovada pelo estoque')
             ->assertSee('Produto chegou com a caixa amassada.');
     }
 

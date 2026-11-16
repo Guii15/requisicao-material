@@ -84,7 +84,7 @@
         <tr>
             <td style="width: 40%;">
                 <div class="rotulo">Situação</div>
-                <div style="font-size: 12pt; font-weight: bold; color: {{ $cor }}; margin-top: 1pt;">{{ mb_strtoupper($requisicao->status->rotulo()) }}</div>
+                <div style="font-size: 12pt; font-weight: bold; color: {{ $cor }}; margin-top: 1pt;">{{ mb_strtoupper($requisicao->status->rotulo($requisicao->tipo)) }}</div>
                 <div class="pequeno">desde {{ $dataHora($requisicao->status_alterado_em) }}</div>
             </td>
             <td style="width: 32%;">
@@ -240,7 +240,7 @@
             <tr>
                 @foreach ($par as $bloco)
                     <td style="width: 50%;">
-                        <div class="rotulo">{{ $bloco['etapa']->rotulo() }}</div>
+                        <div class="rotulo">{{ $bloco['etapa']->rotulo($requisicao->tipo) }}</div>
                         @if ($bloco['assinatura'])
                             <div class="valor">
                                 <strong>{{ $bloco['assinatura']->nome_assinante }}</strong>@if ($bloco['assinatura']->cargo_assinante), {{ $bloco['assinatura']->cargo_assinante }}@endif

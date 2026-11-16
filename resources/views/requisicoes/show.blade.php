@@ -19,7 +19,7 @@
                 <x-selo-tipo :tipo="$requisicao->tipo" />
             </div>
             <p class="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-mid-gray">
-                <x-selo-status :status="$requisicao->status" class="font-medium text-ink" />
+                <x-selo-status :status="$requisicao->status" :tipo="$requisicao->tipo" class="font-medium text-ink" />
                 <span class="tabular-nums">desde {{ $dataHora($requisicao->status_alterado_em) }}</span>
             </p>
         </div>
@@ -253,7 +253,7 @@
                     @endif
                     @if ($requisicao->motivo_reprovacao_estoque)
                         <div class="rounded-lg border border-destrutivo/35 p-4">
-                            <dt class="text-[13px] font-medium text-destrutivo">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL ? 'Recebimento recusado pelo estoque' : 'Reprovada pelo estoque' }}</dt>
+                            <dt class="text-[13px] font-medium text-destrutivo">{{ $requisicao->tipo === \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL ? 'Recebimento recusado por quem pediu' : 'Reprovada pelo estoque' }}</dt>
                             <dd class="mt-1 whitespace-pre-line text-ink">{{ $requisicao->motivo_reprovacao_estoque }}</dd>
                             <dd class="mt-1.5 text-[13px] text-mid-gray">{{ $requisicao->reprovadoEstoquePor?->nome }}, {{ $dataHora($requisicao->reprovado_estoque_em) }}</dd>
                         </div>
@@ -373,7 +373,7 @@
                                 @endif
                             </span>
                             <div class="min-w-0 pt-0.5">
-                                <p @class(['text-sm font-medium', 'text-ink' => $assinatura || $aguardando, 'text-mid-gray' => ! $assinatura && ! $aguardando])>{{ $aguardando ? 'Aguardando aprovação' : $bloco['etapa']->rotulo() }}</p>
+                                <p @class(['text-sm font-medium', 'text-ink' => $assinatura || $aguardando, 'text-mid-gray' => ! $assinatura && ! $aguardando])>{{ $aguardando ? 'Aguardando aprovação' : $bloco['etapa']->rotulo($requisicao->tipo) }}</p>
                                 @if ($assinatura)
                                     <p class="mt-0.5 text-sm">{{ $assinatura->nome_assinante }}@if ($assinatura->cargo_assinante)<span class="text-mid-gray">, {{ $assinatura->cargo_assinante }}</span>@endif</p>
                                     <p class="mt-0.5 flex flex-wrap gap-x-3 text-[13px] text-mid-gray">
@@ -412,7 +412,7 @@
                     @foreach ($requisicao->eventos as $evento)
                         <li class="px-5 py-3">
                             <p class="flex items-baseline justify-between gap-3">
-                                <span class="font-medium">{{ $evento->acao->rotulo() }}</span>
+                                <span class="font-medium">{{ $evento->acao->rotulo($requisicao->tipo) }}</span>
                                 <span class="shrink-0 text-[13px] text-mid-gray tabular-nums">{{ $evento->created_at->format('d/m/Y H:i') }}</span>
                             </p>
                             <p class="mt-0.5 text-mid-gray">

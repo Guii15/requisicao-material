@@ -1,4 +1,4 @@
-@props(['status'])
+@props(['status', 'tipo' => null])
 @php
     // Cor por grupo: aguardando (âmbar), em andamento (azul), concluída (verde), reprovada ou com pendência
     // (vermelho). Cancelada e as demais encerradas ficam em cinza.
@@ -12,4 +12,4 @@
         default => 'selo-neutro',
     };
 @endphp
-<span {{ $attributes->class(['selo', $classe]) }}>{{ $status->rotulo() }}</span>
+<span {{ $attributes->class(['selo', $classe]) }}>{{ $status->rotulo($tipo) }}</span>

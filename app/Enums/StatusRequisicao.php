@@ -33,8 +33,16 @@ enum StatusRequisicao: string
     case AGUARDANDO_RECEBIMENTO = 'AGUARDANDO_RECEBIMENTO';
     case TRANSFERENCIA_RECEBIDA = 'TRANSFERENCIA_RECEBIDA';
 
-    public function rotulo(): string
+    /**
+     * Nome do status. Com o tipo, ajusta o texto onde o mesmo status quer dizer outra coisa
+     * (na transferência, quem recusa o recebimento é quem pediu, não o estoque).
+     */
+    public function rotulo(?TipoRequisicao $tipo = null): string
     {
+        if ($this === self::REPROVADA_ESTOQUE && $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL) {
+            return 'Recebimento recusado';
+        }
+
         return match ($this) {
             self::AGUARDANDO_APROVACAO => 'Aguardando aprovação',
             self::APROVADA => 'Aprovada',
