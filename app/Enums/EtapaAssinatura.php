@@ -62,7 +62,7 @@ enum EtapaAssinatura: string
         }
 
         if ($tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
-            return [self::SOLICITACAO, self::APROVACAO_SETOR, self::COMPRA_APROVADA];
+            return [self::SOLICITACAO, self::COMPRA_APROVADA];
         }
 
         return $tipo === TipoRequisicao::TESTE

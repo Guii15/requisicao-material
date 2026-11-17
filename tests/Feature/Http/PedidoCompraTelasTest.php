@@ -63,6 +63,49 @@ class PedidoCompraTelasTest extends TestCase
         $this->assertSame(6, $requisicao->parcelas);
     }
 
+    public function test_pedido_de_compra_vai_direto_para_a_meire_sem_aprovacao(): void
+    {
+        $meire = User::factory()->responsavelBaixa()->create();
+        $kelber = User::factory()->liderEstoque()->create(['aprova_compras' => true]);
+        $camila = User::factory()->create();
+
+        $this->actingAs($camila)->post('/requisicoes', $this->dadosRequisicao([
+            'tipo' => 'COMPRA_FUNCIONARIO',
+            'forma_pagamento' => 'A_VISTA',
+            'data_prevista_devolucao' => null,
+        ]))->assertSessionHasNoErrors();
+        $requisicao = Requisicao::query()->latest('id')->firstOrFail();
+
+        $this->assertSame(StatusRequisicao::AGUARDANDO_COMPRA, $requisicao->status);
+        $this->assertFalse($kelber->can('aprovar', $requisicao));
+        $this->actingAs($meire)->get('/compras')->assertOk()->assertSee($requisicao->numero);
+        $this->assertTrue($camila->can('cancelar', $requisicao));
+
+        $this->actingAs($meire)->post(route('requisicoes.decidir-compra', $requisicao), [
+            'decisao' => 'aprovar',
+            'forma_pagamento' => 'A_VISTA',
+            'comprovante' => UploadedFile::fake()->image('winthor.png'),
+        ])->assertSessionHasNoErrors();
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->status);
+        $this->assertTrue(app(\App\Services\AssinaturaService::class)->verificar($requisicao)->integro);
+    }
+
+    public function test_meire_decide_o_proprio_pedido_de_compra(): void
+    {
+        $meire = User::factory()->responsavelBaixa()->create();
+
+        $this->actingAs($meire)->post('/requisicoes', $this->dadosRequisicao([
+            'tipo' => 'COMPRA_FUNCIONARIO',
+            'forma_pagamento' => 'A_VISTA',
+            'data_prevista_devolucao' => null,
+        ]))->assertSessionHasNoErrors();
+        $requisicao = Requisicao::query()->latest('id')->firstOrFail();
+
+        $this->assertTrue($meire->can('decidirCompra', $requisicao));
+    }
+
     public function test_pedido_de_compra_parcelado_sem_numero_de_vezes_volta_com_erro(): void
     {
         $dados = $this->dadosRequisicao([

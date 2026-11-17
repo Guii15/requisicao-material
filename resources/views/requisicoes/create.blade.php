@@ -68,7 +68,7 @@
                         <input type="radio" name="tipo" value="COMPRA_FUNCIONARIO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'COMPRA_FUNCIONARIO' && 'text-marca'"><x-phosphor-shopping-cart class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Pedido de compra</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque: é aprovada por quem aprova as compras e depois pela responsável pela baixa.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Compra de item para o funcionário. Não passa pelo estoque nem por aprovação: vai direto para a responsável pela baixa (Meire) decidir.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'COMPRA_FUNCIONARIO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'COMPRA_FUNCIONARIO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -343,7 +343,7 @@
             </dl>
             <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
                 <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
-                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Aprovação de compras' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do líder do setor' : 'Aprovação do setor'">Aprovação do setor</strong></span>
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Decisão da Meire' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do Showroom ou do estoque' : 'Aprovação do setor'">Aprovação do setor</strong></span>
             </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">

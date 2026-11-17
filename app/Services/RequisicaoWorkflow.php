@@ -76,7 +76,8 @@ class RequisicaoWorkflow
 
             $requisicao->forceFill([
                 'numero' => $this->numeracao->proximo(),
-                'status' => StatusRequisicao::AGUARDANDO_APROVACAO,
+                // Pedido de compra não passa por aprovação: cai direto na responsável pela baixa (16/11/2026).
+                'status' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? StatusRequisicao::AGUARDANDO_COMPRA : StatusRequisicao::AGUARDANDO_APROVACAO,
                 'status_alterado_em' => now(),
                 'solicitante_id' => $solicitante->id,
                 'setor_id' => $solicitante->setor_id,

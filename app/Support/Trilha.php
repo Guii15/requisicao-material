@@ -21,6 +21,19 @@ final class Trilha
             return self::transferencia($status);
         }
 
+        // Pedido de compra: vai direto para a responsável pela baixa decidir.
+        if ($tipo === TipoRequisicao::COMPRA_FUNCIONARIO) {
+            return [
+                ['nome' => 'Pedido', 'estado' => $status === S::CANCELADA ? 'cancelada' : 'feita'],
+                ['nome' => 'Decisão', 'estado' => match ($status) {
+                    S::COMPRA_APROVADA => 'feita',
+                    S::COMPRA_REPROVADA => 'falha',
+                    S::CANCELADA => 'cancelada',
+                    default => 'atual',
+                }],
+            ];
+        }
+
         $nomes = $teste
             ? ['Aprovação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
             : ['Aprovação', 'Liberação', 'Separação', 'Baixa'];

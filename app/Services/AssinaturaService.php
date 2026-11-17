@@ -280,7 +280,6 @@ class AssinaturaService
 
         if (in_array($status, [S::APROVADA, S::EM_SEPARACAO, S::AGUARDANDO_LIBERACAO_ESTOQUE, S::LIBERADA, S::REPROVADA_ESTOQUE], true)
             || in_array($status, $depoisDaSeparacao, true)
-            || in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)
             || in_array($status, [S::AGUARDANDO_TRANSFERENCIA, S::AGUARDANDO_ENVIO, S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA], true)) {
             $exigidas[] = Etapa::APROVACAO_SETOR;
         }

@@ -223,7 +223,8 @@ class RequisicaoPolicy
             return false;
         }
 
-        if ($requisicao->solicitante_id === $user->id && $requisicao->status === StatusRequisicao::AGUARDANDO_APROVACAO) {
+        // Quem pediu cancela enquanto ninguém decidiu (o pedido de compra já nasce esperando a Meire).
+        if ($requisicao->solicitante_id === $user->id && in_array($requisicao->status, [StatusRequisicao::AGUARDANDO_APROVACAO, StatusRequisicao::AGUARDANDO_COMPRA], true)) {
             return true;
         }
 
