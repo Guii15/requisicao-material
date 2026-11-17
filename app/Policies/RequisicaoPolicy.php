@@ -73,13 +73,9 @@ class RequisicaoPolicy
             return $this->fila->aprovaTransferencia($user);
         }
 
-        if ($user->aprovaSetor($requisicao->setor_id)) {
-            return true;
-        }
-
-        // Setor sem outro aprovador ativo, ou marcado para o estoque aprovar junto (Showroom e Ninja
-        // Place): decidem os líderes do estoque. O Admin fica fora por enquanto.
-        return $user->is_lider_estoque && $this->fila->lideresDoEstoqueAprovam($requisicao);
+        // Uso e Consumo e Teste não passam pelo líder do setor: vão direto para os líderes do
+        // estoque liberarem ou reprovarem (decisão de 17/11/2026). O Admin fica fora.
+        return (bool) $user->is_lider_estoque;
     }
 
     public function reprovar(User $user, Requisicao $requisicao): bool
@@ -152,16 +148,12 @@ class RequisicaoPolicy
     {
         if (! $user->ativo
             || $requisicao->tipo !== TipoRequisicao::USO_CONSUMO
-            || $requisicao->status !== StatusRequisicao::AGUARDANDO_BAIXA
-            || $requisicao->solicitante_id === $user->id) {
+            || $requisicao->status !== StatusRequisicao::AGUARDANDO_BAIXA) {
             return false;
         }
 
-        if ($user->is_responsavel_baixa) {
-            return true;
-        }
-
-        return $user->is_admin && $requisicao->solicitante->is_responsavel_baixa;
+        // A responsável pela baixa dá baixa em tudo, inclusive no que ela mesma pediu (17/11/2026).
+        return (bool) $user->is_responsavel_baixa;
     }
 
     /**

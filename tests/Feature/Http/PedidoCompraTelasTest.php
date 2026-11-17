@@ -6,6 +6,8 @@ use App\Enums\FormaPagamento;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
+use App\Services\AssinaturaService;
+use App\Services\RequisicaoWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -89,7 +91,8 @@ class PedidoCompraTelasTest extends TestCase
 
         $requisicao->refresh();
         $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->status);
-        $this->assertTrue(app(\App\Services\AssinaturaService::class)->verificar($requisicao)->integro);
+        $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
+
     }
 
     public function test_meire_decide_o_proprio_pedido_de_compra(): void
@@ -103,7 +106,24 @@ class PedidoCompraTelasTest extends TestCase
         ]))->assertSessionHasNoErrors();
         $requisicao = Requisicao::query()->latest('id')->firstOrFail();
 
+        // Decisão de 17/11/2026: o pedido de compra da Meire passa antes por um aprovador de compras.
+        $this->assertSame(StatusRequisicao::AGUARDANDO_APROVACAO, $requisicao->status);
+        $this->assertFalse($meire->can('decidirCompra', $requisicao));
+        $this->assertFalse($meire->can('aprovar', $requisicao));
+
+        $kelber = User::factory()->create(['aprova_compras' => true]);
+        $this->actingAs($kelber)->get('/aprovacoes')->assertSee($requisicao->numero);
+        app(RequisicaoWorkflow::class)->aprovar($requisicao, $kelber, null);
+
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::AGUARDANDO_COMPRA, $requisicao->status);
         $this->assertTrue($meire->can('decidirCompra', $requisicao));
+        $this->actingAs($meire)->get('/compras')->assertSee($requisicao->numero);
+        $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
+        app(RequisicaoWorkflow::class)->decidirCompra($requisicao, $meire, true, null, null, null, [], UploadedFile::fake()->image('winthor.png'));
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::COMPRA_APROVADA, $requisicao->status);
+        $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
     }
 
     public function test_pedido_de_compra_parcelado_sem_numero_de_vezes_volta_com_erro(): void

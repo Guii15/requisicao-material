@@ -315,6 +315,12 @@ class AssinaturaService
             $exigidas[] = Etapa::BAIXA;
         }
 
+        // Pedido de compra da responsável pela baixa: aprovado antes pelos aprovadores de compra.
+        if ($requisicao->tipo === TipoRequisicao::COMPRA_FUNCIONARIO && $requisicao->aprovado_por_id !== null
+            && in_array($status, [S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true)) {
+            $exigidas[] = Etapa::APROVACAO_SETOR;
+        }
+
         if ($status === S::COMPRA_APROVADA) {
             $exigidas[] = Etapa::COMPRA_APROVADA;
         }

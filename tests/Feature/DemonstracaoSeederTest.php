@@ -21,9 +21,9 @@ class DemonstracaoSeederTest extends TestCase
         $setoresNaFila = fn (string $login) => $fila->para(User::where('login', $login)->firstOrFail())
             ->with('setor')->get()->pluck('setor.nome')->sort()->values()->all();
 
-        // RH não tem aprovador: vai para o líder do estoque, que também aprova o Showroom.
-        $this->assertSame(['RH', 'SHOWROOM'], $setoresNaFila('demo.liderestoque'));
-        $this->assertSame(['TI', 'TI'], $setoresNaFila('demo.lider'));
+        // Desde 17/11/2026 todo pedido vai direto para o líder do estoque; o líder do setor não aprova.
+        $this->assertSame(['RH', 'SHOWROOM', 'TI', 'TI'], $setoresNaFila('demo.liderestoque'));
+        $this->assertSame([], $setoresNaFila('demo.lider'));
         $this->assertSame([], $setoresNaFila('demo.admin'));
     }
 

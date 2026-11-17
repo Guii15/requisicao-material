@@ -28,7 +28,8 @@ class RequisicaoPolicyTest extends TestCase
             $esperado = ! in_array($status, [S::AGUARDANDO_APROVACAO, S::REPROVADA, S::CANCELADA, S::AGUARDANDO_COMPRA, S::COMPRA_APROVADA, S::COMPRA_REPROVADA], true);
 
             $this->assertSame($esperado, $estoquista->can('view', $requisicao), "estoque / {$status->value}");
-            $this->assertSame($esperado, $liderEstoque->can('view', $requisicao), "líder do estoque / {$status->value}");
+            // O líder do estoque é quem aprova desde 17/11/2026: vê também o que espera aprovação.
+            $this->assertSame($esperado || $status === S::AGUARDANDO_APROVACAO, $liderEstoque->can('view', $requisicao), "líder do estoque / {$status->value}");
         }
     }
 
@@ -85,18 +86,16 @@ class RequisicaoPolicyTest extends TestCase
         $this->assertFalse($admin->can('reprovar', $requisicao));
     }
 
-    public function test_lider_do_estoque_ve_e_aprova_somente_setor_sem_aprovador(): void
+    public function test_lider_do_estoque_aprova_de_todos_os_setores_e_o_lider_do_setor_nao(): void
     {
-        $rh = Setor::factory()->create(['nome' => 'RH']);
         $liderEstoque = User::factory()->liderEstoque()->create();
-        $semAprovador = Requisicao::factory()->create(['setor_id' => $rh->id]);
-        $comAprovador = Requisicao::factory()->create();
-        User::factory()->aprovadorDe($comAprovador->setor)->create();
+        $requisicao = Requisicao::factory()->create();
+        $liderDoSetor = User::factory()->aprovadorDe($requisicao->setor)->create();
 
-        $this->assertTrue($liderEstoque->can('view', $semAprovador));
-        $this->assertTrue($liderEstoque->can('aprovar', $semAprovador));
-        $this->assertFalse($liderEstoque->can('view', $comAprovador));
-        $this->assertFalse($liderEstoque->can('aprovar', $comAprovador));
+        $this->assertTrue($liderEstoque->can('view', $requisicao));
+        $this->assertTrue($liderEstoque->can('aprovar', $requisicao));
+        $this->assertTrue($liderDoSetor->can('view', $requisicao));
+        $this->assertFalse($liderDoSetor->can('aprovar', $requisicao));
     }
 
     public function test_quem_assinou_continua_vendo_depois_da_decisao(): void
@@ -209,23 +208,23 @@ class RequisicaoPolicyTest extends TestCase
         $this->assertFalse(User::factory()->create()->can('devolver', $requisicao));
     }
 
-    public function test_dar_baixa_e_a_responsavel_menos_no_proprio_pedido(): void
+    public function test_dar_baixa_e_a_responsavel_inclusive_no_proprio_pedido(): void
     {
         $requisicao = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create();
         $erica = User::factory()->responsavelBaixa()->create();
         $proprioPedido = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create(['solicitante_id' => $erica->id]);
 
         $this->assertTrue($erica->can('darBaixa', $requisicao));
-        $this->assertFalse($erica->can('darBaixa', $proprioPedido));
+        $this->assertTrue($erica->can('darBaixa', $proprioPedido));
     }
 
-    public function test_admin_da_baixa_quando_a_responsavel_e_a_propria_solicitante(): void
+    public function test_admin_nao_entra_nas_baixas(): void
     {
         $erica = User::factory()->responsavelBaixa()->create();
-        $requisicao = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create(['solicitante_id' => $erica->id]);
+        $doProprio = Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create(['solicitante_id' => $erica->id]);
         $admin = User::factory()->admin()->create();
 
-        $this->assertTrue($admin->can('darBaixa', $requisicao));
-        $this->assertFalse(User::factory()->admin()->create()->can('darBaixa', Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create()), 'admin não entra nas baixas normais');
+        $this->assertFalse($admin->can('darBaixa', $doProprio));
+        $this->assertFalse($admin->can('darBaixa', Requisicao::factory()->usoConsumo()->status(S::AGUARDANDO_BAIXA)->create()));
     }
 }

@@ -63,7 +63,6 @@ class PainelTelasTest extends TestCase
         [$setor, $lider] = $this->setorComAprovadores();
         $requisicao = $this->abrirRequisicao(User::factory()->for($setor)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         app(RequisicaoWorkflow::class)->aprovar($requisicao, $lider, null);
-        app(RequisicaoWorkflow::class)->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
         $q = $requisicao->fresh()->itens->mapWithKeys(fn ($i) => [$i->id => (string) $i->qtd_solicitada])->all();
         app(RequisicaoWorkflow::class)->separar($requisicao->fresh(), User::factory()->estoque()->create(), $q, null);
 
@@ -108,7 +107,6 @@ class PainelTelasTest extends TestCase
         [$setor, $lider] = $this->setorComAprovadores();
         $requisicao = $this->abrirRequisicao(User::factory()->for($setor)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         app(RequisicaoWorkflow::class)->aprovar($requisicao, $lider, null);
-        app(RequisicaoWorkflow::class)->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
         $q = $requisicao->fresh()->itens->mapWithKeys(fn ($i) => [$i->id => (string) $i->qtd_solicitada])->all();
         app(RequisicaoWorkflow::class)->separar($requisicao->fresh(), User::factory()->estoque()->create(), $q, null);
 

@@ -45,7 +45,6 @@ class SemTelaDeEntregaTest extends TestCase
         $workflow = app(RequisicaoWorkflow::class);
         $requisicao = $this->abrirRequisicao(User::factory()->for($setor)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         $workflow->aprovar($requisicao, $lider, null);
-        $workflow->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
         $quantidades = $requisicao->itens->mapWithKeys(fn ($item) => [$item->id => (string) $item->qtd_solicitada])->all();
 
         $workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $quantidades, null);
@@ -59,7 +58,6 @@ class SemTelaDeEntregaTest extends TestCase
         $workflow = app(RequisicaoWorkflow::class);
         $requisicao = $this->abrirRequisicao(User::factory()->for($setor)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         $workflow->aprovar($requisicao, $lider, null);
-        $workflow->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), null);
         $quantidades = $requisicao->itens->mapWithKeys(fn ($item) => [$item->id => (string) $item->qtd_solicitada])->all();
 
         $workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $quantidades, null, 'Maria da Silva');

@@ -21,7 +21,7 @@
         $tipoAnterior = in_array(old('tipo'), ['TESTE', 'USO_CONSUMO', 'COMPRA_FUNCIONARIO', 'TRANSFERENCIA_FILIAL'], true) ? old('tipo') : null;
     @endphp
 
-    <x-cabecalho titulo="Nova requisição" subtitulo="Peça material ao estoque. Depois de enviar, a requisição vai para a aprovação do seu setor." />
+    <x-cabecalho titulo="Nova requisição" subtitulo="Peça material ao estoque. Depois de enviar, a requisição vai direto para o estoque." />
 
     <form method="POST" action="{{ route('requisicoes.store') }}"
           class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_295px] lg:items-start xl:gap-10"
@@ -59,7 +59,7 @@
                         <input type="radio" name="tipo" value="USO_CONSUMO" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'USO_CONSUMO' && 'text-marca'"><x-phosphor-package class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Uso e consumo</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Depois da aprovação, o líder do estoque libera (se ele mesmo não aprovou), o estoque separa e a baixa é feita no WinThor.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">O material é consumido e não volta. Vai direto para os líderes do estoque liberarem, o estoque separa e a Meire dá a baixa no WinThor.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'USO_CONSUMO' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'USO_CONSUMO'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -77,7 +77,7 @@
                         <input type="radio" name="tipo" value="TRANSFERENCIA_FILIAL" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'TRANSFERENCIA_FILIAL' && 'text-marca'"><x-phosphor-arrows-left-right class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Transferência de filial</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto que passa de uma filial para outra (Showroom, Binário ou Ninja Place). O líder do setor aprova, a transferência é feita no WinThor e o estoque fotografa na saída e na chegada.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto que passa de uma filial para outra (Showroom, Binário ou Ninja Place). A Ana Alice, a Nicole ou um líder do estoque aprova, a transferência é feita no WinThor e o estoque fotografa na saída e na chegada.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'TRANSFERENCIA_FILIAL' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -343,7 +343,7 @@
             </dl>
             <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
                 <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
-                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Decisão da Meire' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do Showroom ou do estoque' : 'Aprovação do setor'">Aprovação do setor</strong></span>
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Decisão da Meire' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do Showroom ou do estoque' : 'Liberação do estoque'">Liberação do estoque</strong></span>
             </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">

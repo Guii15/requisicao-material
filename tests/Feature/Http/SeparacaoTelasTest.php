@@ -27,7 +27,6 @@ class SeparacaoTelasTest extends TestCase
         $requisicao = $this->abrirRequisicao(User::factory()->for($ti)->create(), ['tipo' => 'USO_CONSUMO', 'data_prevista_devolucao' => null]);
         app(RequisicaoWorkflow::class)->aprovar($requisicao, $lider, 'password');
         // Uso e Consumo só chega na separação depois da liberação do líder do estoque.
-        app(RequisicaoWorkflow::class)->liberar($requisicao->fresh(), User::factory()->liderEstoque()->create(), 'password');
 
         return $requisicao->fresh();
     }
@@ -96,7 +95,7 @@ class SeparacaoTelasTest extends TestCase
             ->assertRedirect($url)
             ->assertSessionHasErrors("itens.{$item->id}");
 
-        $this->assertSame(StatusRequisicao::LIBERADA, $requisicao->fresh()->status);
+        $this->assertSame(StatusRequisicao::APROVADA, $requisicao->fresh()->status);
     }
 
     public function test_quem_nao_e_do_estoque_recebe_403_ao_separar(): void

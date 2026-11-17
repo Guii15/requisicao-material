@@ -17,8 +17,8 @@ use App\Models\Setor;
 use App\Models\User;
 use App\Support\DiasUteis;
 use Closure;
-use Illuminate\Support\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -77,7 +77,10 @@ class RequisicaoWorkflow
             $requisicao->forceFill([
                 'numero' => $this->numeracao->proximo(),
                 // Pedido de compra não passa por aprovação: cai direto na responsável pela baixa (16/11/2026).
-                'status' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO ? StatusRequisicao::AGUARDANDO_COMPRA : StatusRequisicao::AGUARDANDO_APROVACAO,
+                // O pedido de compra da própria responsável passa antes pelos aprovadores de compra (17/11/2026).
+                'status' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ! $solicitante->is_responsavel_baixa
+                    ? StatusRequisicao::AGUARDANDO_COMPRA
+                    : StatusRequisicao::AGUARDANDO_APROVACAO,
                 'status_alterado_em' => now(),
                 'solicitante_id' => $solicitante->id,
                 'setor_id' => $solicitante->setor_id,

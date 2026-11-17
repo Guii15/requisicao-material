@@ -93,7 +93,7 @@ class DemonstracaoSeeder extends Seeder
             'finalidade' => 'Ligar os monitores de exposição do showroom.',
         ]);
 
-        // O RH não tem aprovador: este pedido cai para o líder do estoque.
+        // Desde 17/11/2026 todo pedido cai para o líder do estoque.
         $abrir($baixa, [
             'tipo' => 'TESTE',
             'itens' => [['descricao' => 'Headset USB com microfone', 'unidade' => 'UN', 'quantidade' => '1']],
@@ -109,7 +109,7 @@ class DemonstracaoSeeder extends Seeder
             'finalidade' => 'Teste de desempenho para o orçamento do cliente 2291.',
             'data_prevista_devolucao' => $devolucao,
         ]);
-        $workflow->aprovar($aprovada, $liderTi, self::SENHA);
+        $workflow->aprovar($aprovada, $liderEstoque, self::SENHA);
 
         $reprovada = $abrir($solicitante, [
             'tipo' => 'USO_CONSUMO',
@@ -117,6 +117,6 @@ class DemonstracaoSeeder extends Seeder
             'justificativa' => 'O mouse da minha mesa quebrou.',
             'finalidade' => 'Uso na estação de trabalho da TI.',
         ]);
-        $workflow->reprovar($reprovada, $subliderTi, 'Tem mouse reserva no armário da TI. Pegue lá.', self::SENHA);
+        $workflow->reprovar($reprovada, $liderEstoque, 'Tem mouse reserva no armário da TI. Pegue lá.', self::SENHA);
     }
 }

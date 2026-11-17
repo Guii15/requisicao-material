@@ -3,6 +3,7 @@
 namespace Tests\Feature\Http;
 
 use App\Enums\StatusRequisicao;
+use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\RequisicaoWorkflow;
@@ -29,6 +30,16 @@ class EstoqueFluxosTelasTest extends TestCase
 
         $this->travelTo('2026-09-24 10:00:00');
         $this->workflow = app(RequisicaoWorkflow::class);
+    }
+
+    /** Pedido antigo, de antes de 17/11/2026, que ficou parado esperando a liberação. */
+    private function requisicaoLegadaAguardandoLiberacao(): Requisicao
+    {
+        $requisicao = Requisicao::factory()->status(StatusRequisicao::AGUARDANDO_LIBERACAO_ESTOQUE)
+            ->create(['tipo' => TipoRequisicao::USO_CONSUMO, 'data_prevista_devolucao' => null]);
+        $requisicao->itens()->create(['descricao' => 'Pasta térmica', 'unidade' => 'UN', 'qtd_solicitada' => 1]);
+
+        return $requisicao->fresh();
     }
 
     private function requisicaoAguardandoLiberacao(string $setor = 'TI'): Requisicao
@@ -62,8 +73,6 @@ class EstoqueFluxosTelasTest extends TestCase
     private function requisicaoAguardandoBaixa(): Requisicao
     {
         $requisicao = $this->requisicaoAguardandoLiberacao();
-        $lider = User::factory()->liderEstoque()->create();
-        $this->workflow->liberar($requisicao, $lider, 'password');
         $this->workflow->separar($requisicao->fresh(), User::factory()->estoque()->create(), $requisicao->fresh()->itens->pluck('qtd_solicitada', 'id')->all(), 'password');
 
         return $requisicao->fresh();
@@ -73,7 +82,7 @@ class EstoqueFluxosTelasTest extends TestCase
 
     public function test_lider_do_estoque_ve_a_fila_de_liberacao(): void
     {
-        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $requisicao = $this->requisicaoLegadaAguardandoLiberacao();
 
         $this->actingAs(User::factory()->liderEstoque()->create())->get('/liberacao')
             ->assertOk()
@@ -83,7 +92,7 @@ class EstoqueFluxosTelasTest extends TestCase
 
     public function test_liberar_pela_tela(): void
     {
-        $requisicao = $this->requisicaoAguardandoLiberacao();
+        $requisicao = $this->requisicaoLegadaAguardandoLiberacao();
 
         $this->actingAs(User::factory()->liderEstoque()->create())
             ->post("/requisicoes/{$requisicao->numero}/liberar", ['senha' => 'password'])
@@ -270,7 +279,7 @@ class EstoqueFluxosTelasTest extends TestCase
 
     public function test_detalhe_mostra_botoes_certos_por_etapa(): void
     {
-        $liberacao = $this->requisicaoAguardandoLiberacao('TI-A');
+        $liberacao = $this->requisicaoLegadaAguardandoLiberacao();
         $teste = Requisicao::factory()->status(StatusRequisicao::APROVADA)->create();
         $teste->itens()->create(['descricao' => 'Mouse USB', 'unidade' => 'UN', 'qtd_solicitada' => 1]);
 

@@ -16,11 +16,13 @@ trait CenarioRequisicao
     /**
      * @return array{0: Setor, 1: User, 2: User}
      */
-    protected function setorComAprovadores(string $nome = 'TI'): array
+    protected function setorComAprovadores(string $nome = 'TI', bool $lideresDoEstoque = true): array
     {
+        // Desde 17/11/2026 quem aprova Uso e Consumo e Teste são os líderes do estoque: os
+        // "aprovadores" do cenário também são líderes do estoque, para seguirem aprovando.
         $setor = Setor::factory()->create(['nome' => $nome]);
-        $lider = User::factory()->for($setor)->aprovadorDe($setor, PapelSetor::LIDER)->create();
-        $sublider = User::factory()->for($setor)->aprovadorDe($setor, PapelSetor::SUBLIDER)->create();
+        $lider = User::factory()->for($setor)->aprovadorDe($setor, PapelSetor::LIDER)->create(['is_lider_estoque' => $lideresDoEstoque]);
+        $sublider = User::factory()->for($setor)->aprovadorDe($setor, PapelSetor::SUBLIDER)->create(['is_lider_estoque' => $lideresDoEstoque]);
 
         return [$setor, $lider, $sublider];
     }

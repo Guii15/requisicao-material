@@ -35,8 +35,8 @@ final class Trilha
         }
 
         $nomes = $teste
-            ? ['Aprovação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
-            : ['Aprovação', 'Liberação', 'Separação', 'Baixa'];
+            ? ['Liberação', 'Separação', 'Retirada', 'Em posse', 'Devolução']
+            : ['Liberação', 'Separação', 'Baixa'];
 
         if ($status === S::CANCELADA) {
             return array_map(fn (string $nome) => ['nome' => $nome, 'estado' => 'cancelada'], $nomes);
@@ -55,13 +55,12 @@ final class Trilha
                 S::ENTREGUE, S::EM_POSSE => 3,
                 default => 4,
             }
-            : match ($status) {
-                S::AGUARDANDO_APROVACAO, S::REPROVADA => 0,
-                S::AGUARDANDO_LIBERACAO_ESTOQUE, S::REPROVADA_ESTOQUE => 1,
-                // APROVADA só fica parada no Uso e Consumo quando a liberação foi dispensada.
-                S::APROVADA, S::LIBERADA, S::EM_SEPARACAO => 2,
-                default => 3,
-            };
+        : match ($status) {
+            // Pedido novo vai direto para os líderes do estoque liberarem (17/11/2026).
+            S::AGUARDANDO_APROVACAO, S::REPROVADA, S::AGUARDANDO_LIBERACAO_ESTOQUE, S::REPROVADA_ESTOQUE => 0,
+            S::APROVADA, S::LIBERADA, S::EM_SEPARACAO => 1,
+            default => 2,
+        };
 
         $falhou = in_array($status, [S::REPROVADA, S::REPROVADA_ESTOQUE, S::DEVOLUCAO_COM_PENDENCIA], true);
 

@@ -32,20 +32,12 @@ class FilaDeAprovacao
             ->where('status', StatusRequisicao::AGUARDANDO_APROVACAO)
             ->where('solicitante_id', '!=', $user->id)
             ->where(function (Builder $fila) use ($user) {
-                // Fluxo normal: aprovadores do setor (e o líder do estoque, se o setor não tem ou pede).
-                $fila->where(function (Builder $normal) use ($user) {
-                    $normal->whereNotIn('tipo', [TipoRequisicao::COMPRA_FUNCIONARIO->value, TipoRequisicao::TRANSFERENCIA_FILIAL->value])
-                        ->where(function (Builder $query) use ($user) {
-                            $query->whereIn('setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id));
+                // Uso e Consumo e Teste: direto para os líderes do estoque, sem o líder do setor (17/11/2026).
+                $fila->whereRaw('1 = 0');
 
-                            if ($user->is_lider_estoque) {
-                                $query->orWhereIn('setor_id', DB::table('setores')->select('id')->where('lideres_estoque_aprovam', true))
-                                    ->orWhereNotExists(fn (QueryBuilder $sub) => $this->aprovadorElegivel($sub)
-                                        ->whereColumn('setor_aprovadores.setor_id', 'requisicoes.setor_id')
-                                        ->whereColumn('setor_aprovadores.user_id', '!=', 'requisicoes.solicitante_id'));
-                            }
-                        });
-                });
+                if ($user->is_lider_estoque) {
+                    $fila->orWhereNotIn('tipo', [TipoRequisicao::COMPRA_FUNCIONARIO->value, TipoRequisicao::TRANSFERENCIA_FILIAL->value]);
+                }
 
                 // Transferência de filial: líderes do estoque e líderes do Showroom (decisão de 16/11/2026).
                 if ($this->aprovaTransferencia($user)) {
@@ -118,42 +110,16 @@ class FilaDeAprovacao
                 ->get();
         }
 
-        if ($this->semAprovadorElegivel($requisicao)) {
-            return $query->where('is_lider_estoque', true)->get();
-        }
-
-        $doSetor = DB::table('setor_aprovadores')->select('user_id')->where('setor_id', $requisicao->setor_id);
-
-        return $requisicao->setor()->value('lideres_estoque_aprovam')
-            ? $query->where(fn (Builder $q) => $q->whereIn('id', $doSetor)->orWhere('is_lider_estoque', true))->get()
-            : $query->whereIn('id', $doSetor)->get();
+        return $query->where('is_lider_estoque', true)->get();
     }
 
     /**
-     * Por que a requisição foi para os líderes do estoque (nulo quando o setor aprova).
+     * Antes dizia por que a requisição tinha ido para os líderes do estoque. Desde 17/11/2026
+     * todo Uso e Consumo e Teste vai direto para eles, então não há mais esse aviso.
      */
     public function motivoSemAprovador(Requisicao $requisicao): ?string
     {
-        if (in_array($requisicao->tipo, [TipoRequisicao::COMPRA_FUNCIONARIO, TipoRequisicao::TRANSFERENCIA_FILIAL], true)
-            || $requisicao->status !== StatusRequisicao::AGUARDANDO_APROVACAO
-            || ! $this->semAprovadorElegivel($requisicao)) {
-            return null;
-        }
-
-        $ativos = DB::table('setor_aprovadores')
-            ->join('users', 'users.id', '=', 'setor_aprovadores.user_id')
-            ->where('setor_aprovadores.setor_id', $requisicao->setor_id)
-            ->where('users.ativo', true)
-            ->pluck('users.id')
-            ->map(fn ($id) => (int) $id);
-
-        if ($ativos->isEmpty()) {
-            return DB::table('setor_aprovadores')->where('setor_id', $requisicao->setor_id)->exists()
-                ? 'Nenhum aprovador ativo no setor'
-                : 'Setor sem aprovador cadastrado';
-        }
-
-        return 'O solicitante é o único aprovador do setor';
+        return null;
     }
 
     private function aprovadorElegivel(QueryBuilder $query): QueryBuilder

@@ -141,7 +141,7 @@ class TransferenciaFilialTest extends TestCase
 
     public function test_binario_tambem_pede_e_aprovam_estoque_e_showroom(): void
     {
-        [$compras, $liderCompras] = $this->setorComAprovadores('COMPRAS');
+        [$compras, $liderCompras] = $this->setorComAprovadores('COMPRAS', lideresDoEstoque: false);
         $solicitante = User::factory()->for($compras)->create();
 
         $this->actingAs($solicitante)->post('/requisicoes', $this->dadosTransferencia(['filial_origem' => 'BINARIO', 'filial_destino' => 'SHOWROOM']))->assertSessionHasNoErrors();
@@ -159,7 +159,7 @@ class TransferenciaFilialTest extends TestCase
         $requisicao = $this->abrirPelaTela();
 
         // Na transferência aprovam os líderes do estoque e os do Showroom; o líder de outro setor, não.
-        [, $liderCompras] = $this->setorComAprovadores('COMPRAS');
+        [, $liderCompras] = $this->setorComAprovadores('COMPRAS', lideresDoEstoque: false);
         $this->assertTrue($this->ana->can('aprovar', $requisicao));
         $this->assertTrue($this->kelber->can('aprovar', $requisicao));
         $this->assertFalse($liderCompras->can('aprovar', $requisicao));
