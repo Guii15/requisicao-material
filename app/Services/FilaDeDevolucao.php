@@ -18,8 +18,8 @@ class FilaDeDevolucao
      */
     public function para(User $user): Builder
     {
-        return Requisicao::query()
+        return app(QuemAtende::class)->filtrar(Requisicao::query()
             ->where('status', StatusRequisicao::EM_POSSE)
-            ->where('tipo', TipoRequisicao::TESTE);
+            ->where('tipo', TipoRequisicao::TESTE), $user);
     }
 }

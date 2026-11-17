@@ -7,13 +7,14 @@ use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\FilaDeAprovacao;
+use App\Services\QuemAtende;
 
 /**
  * Quem pode ver e agir em cada requisição. É a proteção real: a tela só esconde botões.
  */
 class RequisicaoPolicy
 {
-    public function __construct(private readonly FilaDeAprovacao $fila) {}
+    public function __construct(private readonly FilaDeAprovacao $fila, private readonly QuemAtende $atende) {}
 
     public function create(User $user): bool
     {
@@ -49,6 +50,12 @@ class RequisicaoPolicy
             return true;
         }
 
+        // Pedido para outro setor: quem é desse setor vê depois de aprovado (vai separar e entregar).
+        if (! $this->atende->paraOEstoque($requisicao) && $user->setor_id === $requisicao->setor_destino_id
+            && $requisicao->status->visivelParaEstoque()) {
+            return true;
+        }
+
         // A responsável pela baixa só vê Uso e Consumo a partir da fila de baixa.
         return $user->is_responsavel_baixa
             && $requisicao->tipo === TipoRequisicao::USO_CONSUMO
@@ -74,7 +81,8 @@ class RequisicaoPolicy
         }
 
         // Uso e Consumo e Teste não passam pelo líder do setor: vão direto para os líderes do
-        // estoque liberarem ou reprovarem (decisão de 17/11/2026). O Admin fica fora.
+        // estoque liberarem ou reprovarem (decisão de 17/11/2026). Pedido para outro setor nem
+        // passa por aprovação (nasce aprovado). O Admin fica fora.
         return (bool) $user->is_lider_estoque;
     }
 
@@ -90,7 +98,7 @@ class RequisicaoPolicy
     public function separar(User $user, Requisicao $requisicao): bool
     {
         // Uso e Consumo chega aqui liberado pelo líder do estoque (ou aprovado por ele, que dispensa a liberação).
-        return $user->ativo && $user->is_estoque && in_array($requisicao->status, StatusRequisicao::prontosParaSeparar(), true);
+        return $user->ativo && $this->atende->atende($user, $requisicao) && in_array($requisicao->status, StatusRequisicao::prontosParaSeparar(), true);
     }
 
     /**
@@ -124,7 +132,7 @@ class RequisicaoPolicy
     public function entregar(User $user, Requisicao $requisicao): bool
     {
         return $user->ativo
-            && $user->is_estoque
+            && $this->atende->atende($user, $requisicao)
             && $requisicao->tipo === TipoRequisicao::TESTE
             && $requisicao->status === StatusRequisicao::PRONTA_PARA_RETIRADA;
     }
@@ -135,7 +143,7 @@ class RequisicaoPolicy
     public function devolver(User $user, Requisicao $requisicao): bool
     {
         return $user->ativo
-            && $user->is_estoque
+            && $this->atende->atende($user, $requisicao)
             && $requisicao->tipo === TipoRequisicao::TESTE
             && $requisicao->status === StatusRequisicao::EM_POSSE;
     }

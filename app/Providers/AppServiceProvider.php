@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Enums\TipoRequisicao;
+use App\Models\Requisicao;
 use App\Models\User;
+use App\Services\QuemAtende;
 use App\View\Composers\MenuComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -42,14 +45,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->aprova_compras || $user->setoresAprovados()->exists());
 
         // Fila de separação: qualquer um do setor Estoque, de qualquer setor solicitante.
-        Gate::define('acessar-separacao', fn (User $user) => $user->is_estoque);
+        Gate::define('acessar-separacao', fn (User $user) => $user->is_estoque || app(QuemAtende::class)->setorRecebePedidos($user));
 
         // Liberação é só de Uso e Consumo, só líder do estoque.
         Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque);
 
-
         // Devolução é só de Teste.
-        Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque);
+        Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque || app(QuemAtende::class)->setorRecebePedidos($user));
 
         // Baixa é só de Uso e Consumo: a responsável, ou o Admin (só vê o caso "própria responsável abriu o pedido").
         Gate::define('acessar-baixa', fn (User $user) => $user->is_responsavel_baixa || $user->is_admin);
@@ -61,9 +63,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('acessar-transferencias', fn (User $user) => $user->faz_transferencia);
         Gate::define('acessar-envio', fn (User $user) => $user->is_estoque);
         // Recebimento da transferência: quem pediu confirma que chegou (decisão de 16/11/2026).
-        Gate::define('acessar-recebimento', fn (User $user) => \App\Models\Requisicao::query()
+        Gate::define('acessar-recebimento', fn (User $user) => Requisicao::query()
             ->where('solicitante_id', $user->id)
-            ->where('tipo', \App\Enums\TipoRequisicao::TRANSFERENCIA_FILIAL->value)
+            ->where('tipo', TipoRequisicao::TRANSFERENCIA_FILIAL->value)
             ->exists());
 
         // Tela Usuários: criar login e dar permissões. Só administrador ativo.

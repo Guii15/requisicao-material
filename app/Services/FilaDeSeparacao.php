@@ -20,6 +20,7 @@ class FilaDeSeparacao
      */
     public function para(User $user): Builder
     {
-        return Requisicao::query()->whereIn('status', StatusRequisicao::prontosParaSeparar());
+        // O Estoque vê o que é para o Estoque; outro setor vê o que foi pedido a ele (17/11/2026).
+        return app(QuemAtende::class)->filtrar(Requisicao::query()->whereIn('status', StatusRequisicao::prontosParaSeparar()), $user);
     }
 }

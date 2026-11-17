@@ -57,6 +57,13 @@ class RequisicoesVisiveis
                     ->where('requisicoes.status', StatusRequisicao::AGUARDANDO_TRANSFERENCIA->value));
             }
 
+            // Pedido para outro setor: quem é desse setor vê depois de aprovado (17/11/2026).
+            if ($user->setor_id !== null) {
+                $visivel->orWhere(fn (Builder $q) => $q
+                    ->where('requisicoes.setor_destino_id', $user->setor_id)
+                    ->whereNotIn('requisicoes.status', $this->valores(StatusRequisicao::ocultosDoEstoque())));
+            }
+
             if ($user->is_estoque || $user->is_lider_estoque) {
                 $visivel->orWhere(fn (Builder $q) => $q
                     ->where('requisicoes.tipo', '!=', TipoRequisicao::COMPRA_FUNCIONARIO->value)

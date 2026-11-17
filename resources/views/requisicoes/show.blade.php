@@ -436,7 +436,7 @@
                     <input type="hidden" name="_acao" value="aprovar">
                     <div class="space-y-4 px-5 py-4">
                         <x-decisao-por-item :itens="$requisicao->itens->reject->isRecusado()" acao="aprovar" />
-                        <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a responsável pela baixa decidir.@elseif ($requisicao->tipo === \App\Enums\TipoRequisicao::USO_CONSUMO && ! auth()->user()->is_lider_estoque)Depois de aprovada, a requisição vai para a liberação dos líderes do estoque e depois para a separação.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
+                        <p class="text-sm text-ink-soft">@if ($requisicao->tipo === \App\Enums\TipoRequisicao::COMPRA_FUNCIONARIO)Depois de aprovada, a compra vai para a responsável pela baixa decidir.@else Depois de aprovada, a requisição vai para o estoque separar.@endif</p>
                     </div>
                     <div class="flex justify-end gap-2 bg-surface-alt px-5 py-3">
                         <button type="button" class="botao botao-secundario" x-on:click="aberto = false">Fechar</button>

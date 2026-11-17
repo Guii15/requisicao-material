@@ -60,6 +60,9 @@ class RequisicaoWorkflow
         return DB::transaction(function () use ($solicitante, $validado) {
             $tipo = TipoRequisicao::from($validado['tipo']);
             $transferencia = $tipo === TipoRequisicao::TRANSFERENCIA_FILIAL;
+            $setorDestino = in_array($tipo, [TipoRequisicao::COMPRA_FUNCIONARIO, TipoRequisicao::TRANSFERENCIA_FILIAL], true) ? null : ((int) ($validado['setor_destino_id'] ?? 0) ?: Setor::idDoEstoque());
+            // Pedido para outro setor (não o Estoque): sem aprovação, vai direto para esse setor separar (17/11/2026).
+            $semAprovacao = $setorDestino !== null && $setorDestino !== Setor::idDoEstoque();
 
             $requisicao = new Requisicao([
                 'tipo' => $tipo,
@@ -78,13 +81,16 @@ class RequisicaoWorkflow
                 'numero' => $this->numeracao->proximo(),
                 // Pedido de compra não passa por aprovação: cai direto na responsável pela baixa (16/11/2026).
                 // O pedido de compra da própria responsável passa antes pelos aprovadores de compra (17/11/2026).
-                'status' => $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ! $solicitante->is_responsavel_baixa
-                    ? StatusRequisicao::AGUARDANDO_COMPRA
-                    : StatusRequisicao::AGUARDANDO_APROVACAO,
+                'status' => match (true) {
+                    $tipo === TipoRequisicao::COMPRA_FUNCIONARIO && ! $solicitante->is_responsavel_baixa => StatusRequisicao::AGUARDANDO_COMPRA,
+                    $semAprovacao => StatusRequisicao::APROVADA,
+                    default => StatusRequisicao::AGUARDANDO_APROVACAO,
+                },
+                'liberacao_dispensada' => $semAprovacao && $tipo->exigeLiberacaoEstoque(),
                 'status_alterado_em' => now(),
                 'solicitante_id' => $solicitante->id,
                 'setor_id' => $solicitante->setor_id,
-                'setor_destino_id' => in_array($tipo, [TipoRequisicao::COMPRA_FUNCIONARIO, TipoRequisicao::TRANSFERENCIA_FILIAL], true) ? null : ((int) ($validado['setor_destino_id'] ?? 0) ?: Setor::idDoEstoque()),
+                'setor_destino_id' => $setorDestino,
             ])->save();
 
             foreach ($validado['itens'] as $item) {
@@ -126,8 +132,8 @@ class RequisicaoWorkflow
                 $r->forceFill([
                     'aprovado_por_id' => $por->id,
                     'aprovado_em' => now(),
-                    // Quem aprovou já é líder do estoque: depois da separação não precisa liberar de novo.
-                    'liberacao_dispensada' => $r->tipo->exigeLiberacaoEstoque() && $por->is_lider_estoque,
+                    // Desde 17/11/2026 quem aprova já é quem atende (estoque ou setor de destino): sem liberação depois.
+                    'liberacao_dispensada' => $r->tipo->exigeLiberacaoEstoque(),
                 ]);
                 $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
             },

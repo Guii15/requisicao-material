@@ -199,7 +199,7 @@
                 <div class="space-y-5">
                     <div x-show="tipo !== 'COMPRA_FUNCIONARIO' && tipo !== 'TRANSFERENCIA_FILIAL'">
                         <label for="setor_destino_id" class="rotulo">Pedido para o setor</label>
-                        <p id="destino-ajuda" class="ajuda">Quase sempre é o Estoque. Mude só se o material vai ser pedido a outro setor.</p>
+                        <p id="destino-ajuda" class="ajuda">Quase sempre é o Estoque. Se escolher outro setor, o pedido vai direto para esse setor separar e entregar, sem aprovação.</p>
                         <select id="setor_destino_id" name="setor_destino_id" aria-describedby="destino-ajuda"
                                 x-model="destino" :disabled="tipo === 'COMPRA_FUNCIONARIO' || tipo === 'TRANSFERENCIA_FILIAL'"
                                 class="campo mt-2 sm:w-72 @error('setor_destino_id') campo-erro @enderror">

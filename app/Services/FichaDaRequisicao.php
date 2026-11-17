@@ -42,7 +42,8 @@ class FichaDaRequisicao
             : array_values(array_filter(
                 EtapaAssinatura::fluxo($requisicao->tipo),
                 fn (EtapaAssinatura $etapa) => ! $assinadas->contains($etapa)
-                    && ! ($etapa === EtapaAssinatura::LIBERACAO_ESTOQUE && $requisicao->liberacao_dispensada),
+                    && ! ($etapa === EtapaAssinatura::LIBERACAO_ESTOQUE && $requisicao->liberacao_dispensada)
+                    && ! ($etapa === EtapaAssinatura::APROVACAO_SETOR && app(QuemAtende::class)->semAprovacao($requisicao)),
             ));
 
         return [
