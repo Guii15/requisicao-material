@@ -339,7 +339,8 @@ class AssinaturaService
         }
 
         if ($requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
-            && in_array($status, [S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA, S::REPROVADA_ESTOQUE], true)) {
+            && (in_array($status, [S::AGUARDANDO_RECEBIMENTO, S::TRANSFERENCIA_RECEBIDA, S::REPROVADA_ESTOQUE], true)
+                || ($status === S::AGUARDANDO_TRANSFERENCIA && $requisicao->enviado_por_id !== null))) {
             $exigidas[] = Etapa::ENVIO;
         }
 

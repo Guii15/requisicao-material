@@ -12,6 +12,7 @@ use App\Models\Setor;
 use App\Models\User;
 use App\Services\AssinaturaService;
 use App\Services\FilaDeAprovacao;
+use App\Services\FilaDeEnvio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -371,5 +372,36 @@ class TransferenciaFilialTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(StatusRequisicao::CANCELADA, $requisicao->fresh()->status);
+    }
+
+    public function test_estoque_pode_enviar_antes_da_transferencia_no_winthor(): void
+    {
+        // Decisão de 18/11/2026: depois de aprovada, envio e "Transferência feita" em qualquer ordem.
+        $requisicao = $this->abrirPelaTela();
+        $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar")->assertSessionHasNoErrors();
+        $estoquista = User::factory()->estoque()->create();
+
+        $this->actingAs($estoquista)->get('/envio')->assertOk()->assertSee($requisicao->numero);
+        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()])->assertSessionHasNoErrors();
+        $requisicao->refresh();
+
+        // Continua faltando a transferência: quem pediu ainda não recebe, e não dá pra enviar de novo.
+        $this->assertSame(StatusRequisicao::AGUARDANDO_TRANSFERENCIA, $requisicao->status);
+        $this->assertSame($estoquista->id, $requisicao->enviado_por_id);
+        $this->assertFalse($this->vendedor->can('receberTransferencia', $requisicao));
+        $this->assertFalse($estoquista->can('enviarTransferencia', $requisicao));
+        $this->assertSame(0, app(FilaDeEnvio::class)->para($estoquista)->count());
+        $this->actingAs($this->isabelly)->get('/transferencias')->assertSee($requisicao->numero);
+        $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
+
+        // Marcada a transferência, vai direto para o recebimento.
+        $this->actingAs($this->isabelly)->post("/requisicoes/{$requisicao->numero}/transferir")->assertSessionHasNoErrors();
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::AGUARDANDO_RECEBIMENTO, $requisicao->status);
+
+        $this->actingAs($this->vendedor)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertSessionHasNoErrors();
+        $requisicao->refresh();
+        $this->assertSame(StatusRequisicao::TRANSFERENCIA_RECEBIDA, $requisicao->status);
+        $this->assertTrue(app(AssinaturaService::class)->verificar($requisicao)->integro);
     }
 }

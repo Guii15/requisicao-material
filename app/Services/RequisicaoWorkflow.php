@@ -570,8 +570,11 @@ class RequisicaoWorkflow
      */
     public function transferir(Requisicao $requisicao, User $por, ?string $observacao): Requisicao
     {
+        // Se o estoque já enviou, falta só o recebimento.
+        $para = $requisicao->enviado_por_id !== null ? StatusRequisicao::AGUARDANDO_RECEBIMENTO : StatusRequisicao::AGUARDANDO_ENVIO;
+
         return $this->executar(
-            $requisicao, $por, StatusRequisicao::AGUARDANDO_ENVIO, 'transferir', AcaoEvento::TRANSFERENCIA,
+            $requisicao, $por, $para, 'transferir', AcaoEvento::TRANSFERENCIA,
             EtapaAssinatura::TRANSFERENCIA, null,
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'transferido_por_id' => $por->id,
@@ -587,8 +590,11 @@ class RequisicaoWorkflow
      */
     public function enviarTransferencia(Requisicao $requisicao, User $por, ?UploadedFile $foto, ?string $observacao): Requisicao
     {
+        // Enviado antes da transferência no WinThor: continua aguardando a transferência (18/11/2026).
+        $para = $requisicao->status === StatusRequisicao::AGUARDANDO_TRANSFERENCIA ? StatusRequisicao::AGUARDANDO_TRANSFERENCIA : StatusRequisicao::AGUARDANDO_RECEBIMENTO;
+
         return $this->executar(
-            $requisicao, $por, StatusRequisicao::AGUARDANDO_RECEBIMENTO, 'enviarTransferencia', AcaoEvento::ENVIO,
+            $requisicao, $por, $para, 'enviarTransferencia', AcaoEvento::ENVIO,
             EtapaAssinatura::ENVIO, null,
             alterar: fn (Requisicao $r, array $dados) => $r->forceFill([
                 'enviado_por_id' => $por->id,

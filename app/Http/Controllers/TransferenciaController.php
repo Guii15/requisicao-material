@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoItem;
 use App\Services\FilaDeEnvio;
 use App\Services\FilaDeRecebimento;
 use App\Services\FilaDeTransferencia;
 use App\Services\RequisicaoWorkflow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,7 +22,7 @@ use Illuminate\View\View;
 class TransferenciaController extends Controller
 {
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<Requisicao>  $query
+     * @param  Builder<Requisicao>  $query
      */
     private function paginar($query)
     {
@@ -62,7 +64,9 @@ class TransferenciaController extends Controller
     {
         $workflow->enviarTransferencia($requisicao, $request->user(), $request->file('foto'), $this->texto($request, 'observacao'));
 
-        return $this->depoisDeAssinar($request, $requisicao, 'envio.index')->with('sucesso', "Produto da requisição {$requisicao->numero} enviado. Agora a outra filial confirma o recebimento.");
+        return $this->depoisDeAssinar($request, $requisicao, 'envio.index')->with('sucesso', $requisicao->status === StatusRequisicao::AGUARDANDO_TRANSFERENCIA
+            ? "Produto da requisição {$requisicao->numero} enviado. Falta marcarem a transferência no WinThor; depois quem pediu confirma o recebimento."
+            : "Produto da requisição {$requisicao->numero} enviado. Agora quem pediu confirma o recebimento.");
     }
 
     public function recebimento(Request $request, FilaDeRecebimento $fila): View

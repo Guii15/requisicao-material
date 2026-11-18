@@ -196,7 +196,9 @@ class RequisicaoPolicy
         return $user->ativo
             && $user->is_estoque
             && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
-            && $requisicao->status === StatusRequisicao::AGUARDANDO_ENVIO;
+            && ($requisicao->status === StatusRequisicao::AGUARDANDO_ENVIO
+                // Pode enviar antes da transferência no WinThor (18/11/2026), uma vez só.
+                || ($requisicao->status === StatusRequisicao::AGUARDANDO_TRANSFERENCIA && $requisicao->enviado_por_id === null));
     }
 
     /**
