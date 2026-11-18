@@ -191,7 +191,9 @@ class TransferenciaFilialTest extends TestCase
         $estoquista = User::factory()->estoque()->create();
         $this->actingAs($estoquista)->get('/envio')->assertOk()->assertSee($requisicao->numero);
         $this->actingAs($estoquista)->get("/requisicoes/{$requisicao->numero}")->assertOk()->assertSee('Enviar produto');
-        $this->actingAs($this->isabelly)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()])->assertForbidden();
+        // Qualquer um envia, menos quem pediu (18/11/2026).
+        $this->assertTrue($this->isabelly->can('enviarTransferencia', $requisicao));
+        $this->actingAs($this->vendedor)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()])->assertForbidden();
         $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/enviar")->assertSessionHasErrors('foto');
         $this->actingAs($estoquista)
             ->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => UploadedFile::fake()->create('nota.pdf', 10, 'application/pdf')])
@@ -293,19 +295,27 @@ class TransferenciaFilialTest extends TestCase
         $this->assertSame(1, app(FilaDeAprovacao::class)->para($this->ana)->count());
     }
 
-    public function test_quem_pediu_e_tambem_enviou_nao_recebe(): void
+    public function test_quem_pediu_nao_envia_e_qualquer_outro_do_showroom_envia(): void
     {
+        // Decisão de 18/11/2026: o produto sai da filial, então qualquer pessoa envia, menos quem pediu
+        // (que é quem confirma o recebimento).
         $estoque = Setor::query()->where('nome', 'ESTOQUE')->firstOrFail();
         $estoquista = User::factory()->for($estoque)->estoque()->create();
         $this->actingAs($estoquista)->post('/requisicoes', $this->dadosTransferencia())->assertSessionHasNoErrors();
         $requisicao = Requisicao::query()->latest('id')->firstOrFail();
         $this->actingAs($this->kelber)->post("/requisicoes/{$requisicao->numero}/aprovar");
         $this->actingAs($this->isabelly)->post("/requisicoes/{$requisicao->numero}/transferir");
-        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()]);
 
+        $this->assertFalse($estoquista->can('enviarTransferencia', $requisicao->fresh()));
+        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()])->assertForbidden();
+
+        $doShowroom = User::factory()->for($this->showroom)->create();
+        $this->actingAs($doShowroom)->get('/envio')->assertOk()->assertSee($requisicao->numero);
+        $this->actingAs($doShowroom)->post("/requisicoes/{$requisicao->numero}/enviar", ['foto' => $this->foto()])->assertSessionHasNoErrors();
         $this->assertSame(StatusRequisicao::AGUARDANDO_RECEBIMENTO, $requisicao->fresh()->status);
-        $this->assertFalse($estoquista->can('receberTransferencia', $requisicao->fresh()));
-        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertForbidden();
+
+        $this->actingAs($estoquista)->post("/requisicoes/{$requisicao->numero}/receber", ['foto' => $this->foto()])->assertSessionHasNoErrors();
+        $this->assertSame(StatusRequisicao::TRANSFERENCIA_RECEBIDA, $requisicao->fresh()->status);
     }
 
     public function test_fila_de_aprovacao_confere_com_a_policy(): void

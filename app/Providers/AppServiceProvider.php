@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
+use App\Services\FilaDeEnvio;
 use App\Services\QuemAtende;
 use App\View\Composers\MenuComposer;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -61,7 +62,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Transferência de filial: quem faz a transferência no WinThor e os líderes do estoque, que recebem.
         Gate::define('acessar-transferencias', fn (User $user) => $user->faz_transferencia);
-        Gate::define('acessar-envio', fn (User $user) => $user->is_estoque);
+        // Envio: qualquer pessoa pode enviar uma transferência (menos quem pediu); o menu aparece
+        // para o estoque sempre e para os outros quando há transferência esperando envio (18/11/2026).
+        Gate::define('acessar-envio', fn (User $user) => $user->is_estoque
+            || app(FilaDeEnvio::class)->para($user)->exists());
         // Recebimento da transferência: quem pediu confirma que chegou (decisão de 16/11/2026).
         Gate::define('acessar-recebimento', fn (User $user) => Requisicao::query()
             ->where('solicitante_id', $user->id)

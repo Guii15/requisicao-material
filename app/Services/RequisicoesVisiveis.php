@@ -34,6 +34,8 @@ class RequisicoesVisiveis
             $visivel->where('requisicoes.solicitante_id', $user->id)
                 ->orWhereIn('requisicoes.setor_id', DB::table('setor_aprovadores')->select('setor_id')->where('user_id', $user->id))
                 ->orWhereIn('requisicoes.id', $this->fila->para($user)->select('requisicoes.id'))
+                // Transferência esperando envio: qualquer um pode enviar, menos quem pediu (18/11/2026).
+                ->orWhereIn('requisicoes.id', app(FilaDeEnvio::class)->para($user)->select('requisicoes.id'))
                 ->orWhereExists(fn (QueryBuilder $sub) => $sub->selectRaw('1')
                     ->from('requisicao_assinaturas')
                     ->whereColumn('requisicao_assinaturas.requisicao_id', 'requisicoes.id')

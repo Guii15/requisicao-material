@@ -27,8 +27,8 @@ class RequisicaoPolicy
             return true;
         }
 
-        // Quem pode decidir precisa ver; quem já assinou alguma etapa continua vendo.
-        if ($this->aprovar($user, $requisicao) || $requisicao->assinaturas()->where('user_id', $user->id)->exists()) {
+        // Quem pode decidir (ou enviar a transferência) precisa ver; quem já assinou alguma etapa continua vendo.
+        if ($this->aprovar($user, $requisicao) || $this->enviarTransferencia($user, $requisicao) || $requisicao->assinaturas()->where('user_id', $user->id)->exists()) {
             return true;
         }
 
@@ -193,8 +193,10 @@ class RequisicaoPolicy
      */
     public function enviarTransferencia(User $user, Requisicao $requisicao): bool
     {
+        // Qualquer pessoa ativa envia (quem está na filial de onde o produto sai), menos quem pediu,
+        // que é quem confirma o recebimento (18/11/2026).
         return $user->ativo
-            && $user->is_estoque
+            && $requisicao->solicitante_id !== $user->id
             && $requisicao->tipo === TipoRequisicao::TRANSFERENCIA_FILIAL
             && ($requisicao->status === StatusRequisicao::AGUARDANDO_ENVIO
                 // Pode enviar antes da transferência no WinThor (18/11/2026), uma vez só.
