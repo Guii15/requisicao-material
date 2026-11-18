@@ -55,6 +55,7 @@
                             <th scope="col">Aprova</th>
                             <th scope="col">Permissões</th>
                             <th scope="col">Situação</th>
+                            <th scope="col"><span class="sr-only">Ações</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -88,6 +89,9 @@
                                     @else
                                         <span class="selo selo-ok">Ativo</span>
                                     @endif
+                                </td>
+                                <td class="text-right">
+                                    <a href="{{ route('usuarios.edit', $usuario) }}" class="botao botao-secundario whitespace-nowrap">Editar / senha</a>
                                 </td>
                             </tr>
                         @endforeach
