@@ -21,6 +21,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -511,7 +512,7 @@ class RequisicaoWorkflow
                 ], array_key_exists('forma_pagamento', $dados) ? [
                     'forma_pagamento' => $dados['forma_pagamento'],
                     'parcelas' => $dados['parcelas'],
-                    'compra_comprovante' => $comprovante?->store('compras', 'local'),
+                    'compra_comprovante' => ($comprovante ? $this->guardarArquivo($comprovante, 'compras') : null),
                 ] : []));
                 $this->gravarRecusas($r, $por, $dados['recusas'] ?? []);
             },
@@ -600,7 +601,7 @@ class RequisicaoWorkflow
                 'enviado_por_id' => $por->id,
                 'enviado_em' => now(),
                 'envio_observacao' => $dados['observacao'],
-                'foto_saida' => $foto->store('transferencias', 'local'),
+                'foto_saida' => $this->guardarArquivo($foto, 'transferencias'),
             ]),
             validar: function () use ($foto, $observacao) {
                 $this->validarFoto($foto, 'Tire a foto do produto saindo.');
@@ -622,7 +623,7 @@ class RequisicaoWorkflow
                 'recebido_por_id' => $por->id,
                 'recebido_em' => now(),
                 'recebimento_observacao' => $dados['observacao'],
-                'foto_chegada' => $foto->store('transferencias', 'local'),
+                'foto_chegada' => $this->guardarArquivo($foto, 'transferencias'),
             ]),
             validar: function () use ($foto, $observacao) {
                 $this->validarFoto($foto, 'Tire a foto do produto que chegou.');
@@ -630,6 +631,24 @@ class RequisicaoWorkflow
                 return ['observacao' => $this->observacaoOpcional($observacao)];
             },
         );
+    }
+
+    /**
+     * Guarda o arquivo enviado lendo direto do caminho temporário. O store() do Laravel usa o
+     * realpath(), que em alguns servidores Windows volta vazio ("Path must not be empty").
+     */
+    private function guardarArquivo(UploadedFile $arquivo, string $pasta): string
+    {
+        $caminho = $pasta.'/'.$arquivo->hashName();
+        $conteudo = @file_get_contents($arquivo->getPathname());
+
+        if ($conteudo === false) {
+            throw ValidationException::withMessages(['foto' => 'Não foi possível ler o arquivo enviado. Tente de novo; se continuar, avise a TI.']);
+        }
+
+        Storage::disk('local')->put($caminho, $conteudo);
+
+        return $caminho;
     }
 
     /**
