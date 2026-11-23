@@ -92,4 +92,13 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.edit', $usuario)
             ->with('sucesso', "Senha de {$usuario->login} resetada. A pessoa troca no próximo acesso.");
     }
+
+    public function exigirTrocaDaSenhaInicial(Request $request, GestaoUsuarios $gestao): RedirectResponse
+    {
+        $marcados = $gestao->exigirTrocaDaSenhaInicial($request->user());
+
+        return redirect()->route('usuarios.index')->with('sucesso', $marcados === 0
+            ? 'Ninguém mais está com a senha inicial: nada mudou.'
+            : "{$marcados} pessoa(s) ainda com a senha inicial vão criar a própria senha no próximo acesso.");
+    }
 }

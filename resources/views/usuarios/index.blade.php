@@ -11,9 +11,16 @@
     @endphp
 
     <x-cabecalho titulo="Usuários e permissões" subtitulo="Crie logins, dê ou tire permissões e resete senhas. Tudo fica registrado no histórico de cada pessoa.">
+        <div class="flex flex-wrap items-center gap-2">
+        <form method="POST" action="{{ route('usuarios.exigir-troca-senha') }}"
+              onsubmit="return confirm('Quem ainda entra com a senha Bin@2026 vai ter que criar a própria senha no próximo acesso. Continuar?')">
+            @csrf
+            <button type="submit" class="botao botao-secundario">Pedir nova senha no 1º acesso</button>
+        </form>
         <a href="{{ route('usuarios.create') }}" class="botao botao-primario">
             <x-phosphor-user-plus class="size-[18px]" aria-hidden="true" />Novo login
         </a>
+        </div>
     </x-cabecalho>
 
     <form method="GET" action="{{ route('usuarios.index') }}" class="mb-5 flex flex-wrap items-end gap-3">

@@ -76,6 +76,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
             Route::get('/usuarios/novo', [UsuarioController::class, 'create'])->name('usuarios.create');
             Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+            Route::post('/usuarios/exigir-troca-de-senha', [UsuarioController::class, 'exigirTrocaDaSenhaInicial'])->name('usuarios.exigir-troca-senha');
             Route::get('/usuarios/{usuario}', [UsuarioController::class, 'edit'])->name('usuarios.edit');
             Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
             Route::post('/usuarios/{usuario}/resetar-senha', [UsuarioController::class, 'resetarSenha'])->name('usuarios.resetar-senha');

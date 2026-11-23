@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UsuarioAlteracao;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -23,6 +24,9 @@ use Illuminate\Validation\ValidationException;
  */
 class GestaoUsuarios
 {
+    /** Senha inicial de todos os logins (Bin@2026). */
+    public const SENHA_INICIAL = 'Bin@2026';
+
     /** Permissões marcadas por caixinha na tela, com o rótulo usado no histórico. */
     public const PERMISSOES = [
         'is_estoque' => 'Estoque (separa e confere devolução)',
@@ -92,6 +96,29 @@ class GestaoUsuarios
             $alvo->forceFill(['password' => $validado['senha'], 'deve_trocar_senha' => true])->save();
             $this->registrar($alvo, $por, 'SENHA_RESETADA', null);
         });
+    }
+
+    /**
+     * Quem ainda entra com a senha inicial passa a ter que criar a própria senha no próximo
+     * acesso. Quem já trocou não é afetado. Devolve quantas pessoas foram marcadas.
+     */
+    public function exigirTrocaDaSenhaInicial(User $por): int
+    {
+        Gate::forUser($por)->authorize('gerenciar-usuarios');
+
+        $marcados = 0;
+        User::query()->where('ativo', true)->where('deve_trocar_senha', false)->each(function (User $alvo) use ($por, &$marcados) {
+            if (! Hash::check(self::SENHA_INICIAL, $alvo->password)) {
+                return;
+            }
+            DB::transaction(function () use ($alvo, $por) {
+                $alvo->forceFill(['deve_trocar_senha' => true])->save();
+                $this->registrar($alvo, $por, 'SENHA_RESETADA', null);
+            });
+            $marcados++;
+        });
+
+        return $marcados;
     }
 
     /**
