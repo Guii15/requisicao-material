@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Enums\TipoRequisicao;
 use App\Models\Requisicao;
 use App\Models\User;
+use App\Services\FilaDeAprovacao;
 use App\Services\FilaDeEnvio;
+use App\Services\FilaDeLiberacao;
 use App\Services\QuemAtende;
 use App\View\Composers\MenuComposer;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -42,14 +44,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
             ->by(mb_strtolower(trim((string) $request->input('login'))).'|'.$request->ip()));
 
-        // Líder do estoque sempre tem fila: recebe os setores sem aprovador.
-        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->aprova_compras || $user->setoresAprovados()->exists());
+        // Aprovações: só quem aprova algo pelas regras atuais (líder do estoque, quem aprova compras e
+        // quem aprova transferência). Líder de setor sozinho não aprova mais nada, então não vê o menu (23/11/2026).
+        Gate::define('acessar-aprovacoes', fn (User $user) => $user->is_lider_estoque || $user->aprova_compras
+            || app(FilaDeAprovacao::class)->aprovaTransferencia($user));
 
         // Fila de separação: qualquer um do setor Estoque, de qualquer setor solicitante.
         Gate::define('acessar-separacao', fn (User $user) => $user->is_estoque || app(QuemAtende::class)->setorRecebePedidos($user));
 
         // Liberação é só de Uso e Consumo, só líder do estoque.
-        Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque);
+        // O menu só aparece quando há algo para liberar: hoje quase nunca acontece (23/11/2026).
+        Gate::define('acessar-liberacao', fn (User $user) => $user->is_lider_estoque
+            && app(FilaDeLiberacao::class)->para($user)->exists());
 
         // Devolução é só de Teste.
         Gate::define('acessar-devolucao', fn (User $user) => $user->is_estoque || app(QuemAtende::class)->setorRecebePedidos($user));
