@@ -52,7 +52,42 @@
         @if ($usuarios->isEmpty())
             <p class="p-8 text-center text-sm text-mid-gray">Ninguém encontrado com esse filtro.</p>
         @else
-            <div class="overflow-x-auto">
+            {{-- Celular: um cartão por pessoa. A tabela de 7 colunas só cabe do tablet para cima. --}}
+            <ul class="divide-y divide-hairline md:hidden dark:divide-line-escuro">
+                @foreach ($usuarios as $usuario)
+                    <li class="space-y-2.5 px-4 py-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <a href="{{ route('usuarios.edit', $usuario) }}" class="block font-medium text-ink hover:underline">{{ $usuario->nome }}</a>
+                                <span class="block text-[12px] text-mid-gray">{{ $usuario->login }} · {{ \App\Support\Texto::setor($usuario->setor->nome) }}</span>
+                            </div>
+                            @if (! $usuario->ativo)
+                                <span class="selo selo-erro shrink-0">Desativado</span>
+                            @elseif ($usuario->deve_trocar_senha)
+                                <span class="selo selo-pendente shrink-0">Falta trocar a senha</span>
+                            @else
+                                <span class="selo selo-ok shrink-0">Ativo</span>
+                            @endif
+                        </div>
+                        @php
+                            $aprova = $usuario->setoresAprovados->map(fn ($s) => \App\Support\Texto::setor($s->nome).($s->id === $usuario->setor_id ? ' ('.mb_strtolower($s->pivot->papel->rotulo()).')' : ''))->join(', ');
+                        @endphp
+                        @if ($aprova)
+                            <p class="text-[12px] text-mid-gray">Aprova: <span class="text-ink">{{ $aprova }}</span></p>
+                        @endif
+                        <span class="flex flex-wrap gap-1">
+                            @foreach ($selos as $campo => $rotulo)
+                                @if ($usuario->{$campo})
+                                    <span class="selo {{ $campo === 'is_admin' ? 'selo-info' : 'selo-neutro' }}">{{ $rotulo }}</span>
+                                @endif
+                            @endforeach
+                        </span>
+                        <a href="{{ route('usuarios.edit', $usuario) }}" class="botao botao-secundario w-full">Editar / senha</a>
+                    </li>
+                @endforeach
+            </ul>
+
+            <div class="hidden overflow-x-auto md:block">
                 <table class="tabela">
                     <thead>
                         <tr>

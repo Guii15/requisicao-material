@@ -79,6 +79,7 @@
         @if ($linhas->isEmpty())
             <p class="p-8 text-center text-sm text-mid-gray">Nenhum pedido de {{ $rotulos[$tipo->value] }} nesse período.</p>
         @else
+            <p class="border-b border-hairline px-4 py-2.5 text-[12px] text-mid-gray md:hidden">Arraste a tabela para o lado para ver todas as colunas. O Excel traz tudo.</p>
             <div class="overflow-x-auto">
                 <table class="tabela tabela-compacta">
                     <thead>
