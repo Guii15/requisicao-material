@@ -14,9 +14,10 @@ const itemVazio = () => ({ chave: proximaChave++, codigo: '', descricao: '', qua
  * Formulário de nova requisição: itens dinâmicos. As regras de verdade estão no backend;
  * aqui é só conforto de preenchimento.
  */
-Alpine.data('novaRequisicao', ({ tipo, destino, nomesDosSetores, origem = '', destinoFilial = '', nomesDasFiliais = {}, itens, erros }) => ({
+Alpine.data('novaRequisicao', ({ tipo, destino, nomesDosSetores, origem = '', destinoFilial = '', nomesDasFiliais = {}, itens, erros, estoqueId = '' }) => ({
     tipo,
     destino,
+    estoqueId,
     nomesDosSetores,
     origem,
     destinoFilial,

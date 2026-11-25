@@ -28,6 +28,7 @@
           x-data="novaRequisicao(@js([
               'tipo' => $tipoAnterior,
               'destino' => (string) $destinoAnterior,
+              'estoqueId' => (string) $estoqueId,
               'nomesDosSetores' => $setores->mapWithKeys(fn ($setor) => [$setor->id => \App\Support\Texto::setor($setor->nome)]),
               'origem' => $origemAnterior,
               'destinoFilial' => $destinoFilialAnterior,
@@ -77,7 +78,7 @@
                         <input type="radio" name="tipo" value="TRANSFERENCIA_FILIAL" x-model="tipo" required class="sr-only">
                         <span class="mb-4 block text-mid-gray" :class="tipo === 'TRANSFERENCIA_FILIAL' && 'text-marca'"><x-phosphor-arrows-left-right class="size-[21px]" aria-hidden="true" /></span>
                         <span class="text-[13px] font-semibold text-ink">Transferência de filial</span>
-                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto que passa de uma filial para outra (Showroom, Binário ou Ninja Place). A Ana Alice, a Nicole ou um líder do estoque aprova, a transferência é feita no WinThor e o estoque fotografa na saída e na chegada.</span>
+                        <span class="mt-1.5 block pr-2 text-[12px] leading-[1.7] text-mid-gray">Produto que passa de uma filial para outra (Showroom, Binário ou Ninja Place). A Ana Alice, a Nicole ou um líder do estoque aprova, a transferência é feita no WinThor, quem envia o produto (qualquer pessoa, menos quem pediu) fotografa a saída e quem pediu fotografa a chegada.</span>
                         <span class="absolute top-[18px] right-[15px] grid size-4 place-items-center rounded-full border text-white"
                               :class="tipo === 'TRANSFERENCIA_FILIAL' ? 'border-marca bg-marca' : 'border-hairline-campo bg-paper'"><x-phosphor-check-bold x-show="tipo === 'TRANSFERENCIA_FILIAL'" x-cloak class="size-2.5" aria-hidden="true" /></span>
                     </label>
@@ -343,7 +344,7 @@
             </dl>
             <div class="mt-5 flex items-center gap-2.5 rounded-md bg-surface-alt p-3 text-mid-gray">
                 <x-phosphor-shield-check class="size-[19px] shrink-0" aria-hidden="true" />
-                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Decisão da Meire' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do Showroom ou do estoque' : 'Liberação do estoque'">Liberação do estoque</strong></span>
+                <span class="text-[11px]">Próxima etapa<strong class="mt-0.5 block text-[12px] font-medium text-ink" x-text="tipo === 'COMPRA_FUNCIONARIO' ? 'Decisão da Meire' : tipo === 'TRANSFERENCIA_FILIAL' ? 'Aprovação do Showroom ou do estoque' : destino !== estoqueId ? 'Direto para o setor separar' : 'Aprovação do estoque'">Aprovação do estoque</strong></span>
             </div>
             <div class="mt-5 grid gap-2 border-t border-hairline pt-5">
                 <button type="submit" class="botao botao-primario w-full" :disabled="enviando">
